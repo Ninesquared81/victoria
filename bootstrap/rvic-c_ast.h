@@ -24,8 +24,8 @@ struct ast_expr {
             int64_t value;
         } integer;
         struct {
-            struct expr *lhs;
-            struct expr *rhs;
+            struct ast_expr *lhs;
+            struct ast_expr *rhs;
             const char *op;
         } binary;
     };

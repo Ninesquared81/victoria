@@ -1,4 +1,4 @@
-#include <asset.h>
+#include <assert.h>
 #include <inttypes.h>
 
 #include "rvic-c_backend.h"
@@ -15,7 +15,7 @@ enum cgen_error rvic_c_generate_c_file(int n, const struct ast_node nodes[static
         case AST_EXPR:
             return CGEN_UNEXPECTED_EXPR;
         case AST_STMT:
-            error = rvic_c_generate_c_stmt(node.stmt, indent, indent_step);
+            error = rvic_c_generate_c_stmt(node.stmt, indent, indent_step, f);
             break;
         }
         if (error) return error;
@@ -24,28 +24,30 @@ enum cgen_error rvic_c_generate_c_file(int n, const struct ast_node nodes[static
     return CGEN_OK;
 }
 
-enum cgen_error rvic_c_generate_c_stmt(struct ast_stmt stmt, int indent, int indent_step, FILE *f) {
+enum cgen_error rvic_c_generate_c_stmt(struct ast_stmt *stmt, int indent, int indent_step, FILE *f) {
     fprintf(f, "%*s", indent, "");  // Prepend indentation.
     enum cgen_error error = CGEN_OK;
-    switch (stmt.kind) {
+    switch (stmt->kind) {
     case AST_STMT_EXPR:
-        error = rvic_c_generate_c_expr(stmt.expr);
+        error = rvic_c_generate_c_expr(stmt->expr.expr, f);
         fprintf(f, ";\n");
         break;
     }
     return error;
 }
 
-enum cgen_error rvic_c_generate_c_expr(struct ast_expr expr, FILE *f) {
+enum cgen_error rvic_c_generate_c_expr(struct ast_expr *expr, FILE *f) {
     enum cgen_error error = CGEN_OK;
-    switch (expr.kind) {
+    switch (expr->kind) {
     case AST_EXPR_INTEGER:
-        if (!fprintf(f, "%"PRId64, expr.integer.value)) return CGEN_IO_ERROR;
+        if (!fprintf(f, "%"PRId64, expr->integer.value)) return CGEN_IO_ERROR;
         break;
     case AST_EXPR_BINARY:
-        if (!(error = rvic_c_generate_c_expr(expr.lhs))) return error;
-        if (!fprintf(f, " %s ", expr.op)) return CGEN_IO_ERROR;
-        if (!(error = rvic_c_generate_c_expr(expr.rhs))) return error;
+        if (!fprintf(f, "(")) return CGEN_IO_ERROR;  // Brackets to ensure precedence is preserved.
+        if ((error = rvic_c_generate_c_expr(expr->binary.lhs, f))) return error;
+        if (!fprintf(f, " %s ", expr->binary.op)) return CGEN_IO_ERROR;
+        if ((error = rvic_c_generate_c_expr(expr->binary.rhs, f))) return error;
+        if (!fprintf(f, ")")) return CGEN_IO_ERROR;
         break;
     }
     return CGEN_OK;

@@ -3,7 +3,7 @@
 
 #include <stdio.h>  // FILE.
 
-#include "ast.h"
+#include "rvic-c_ast.h"
 
 enum cgen_error {
     CGEN_OK,
@@ -13,7 +13,7 @@ enum cgen_error {
 };
 
 enum cgen_error rvic_c_generate_c_file(int n, const struct ast_node nodes[const n], FILE *f);
-enum cgen_error rvic_c_generate_c_stmt(struct ast_stmt stmt, int indent, int indent_step, FILE *f);
-enum cgen_error rvic_c_generate_e_expr(struct ast_expr expr, FILE *f);
+enum cgen_error rvic_c_generate_c_stmt(struct ast_stmt *stmt, int indent, int indent_step, FILE *f);
+enum cgen_error rvic_c_generate_c_expr(struct ast_expr *expr, FILE *f);
 
 #endif
