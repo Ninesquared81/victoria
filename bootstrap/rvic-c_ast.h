@@ -4,8 +4,8 @@
 #include <stdint.h>  // int64_t
 
 enum ast_node_kind {
-    AST_KIND_EXPR,  // Expression.
-    AST_KIND_STMT,  // Statement.
+    AST_EXPR,  // Expression.
+    AST_STMT,  // Statement.
 };
 
 enum ast_expr_kind {
