@@ -1,5 +1,5 @@
-#ifndef RVIC_C_AST
-#define RVIC_C_AST
+#ifndef CRVIC_AST
+#define CRVIC_AST
 
 #include <stdint.h>  // int64_t
 

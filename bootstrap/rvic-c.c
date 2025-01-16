@@ -1,7 +1,7 @@
 #include <stdio.h>
 
-#include "rvic-c_ast.h"
-#include "rvic-c_backend.h"
+#include "crvic_ast.h"
+#include "crvic_backend.h"
 
 int main(void) {
     const char *filename = "out.c";
@@ -35,7 +35,7 @@ int main(void) {
                      .op = "+"}}}},
     };
     int node_count = sizeof nodes / sizeof nodes[0];
-    enum cgen_error error = rvic_c_generate_c_file(node_count, nodes, f);
+    enum cgen_error error = crvic_generate_c_file(node_count, nodes, f);
     if (!error) {
         fprintf(stderr, "All good!\n");
     }
