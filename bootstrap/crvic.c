@@ -31,8 +31,18 @@ int main(void) {
                              .rhs = &(struct ast_expr){
                                  .kind = AST_EXPR_INTEGER,
                                  .integer = {2}},
-                             .op = "+"}},
-                     .op = "+"}}}},
+                             .op = AST_BIN_ADD}},
+                     .op = AST_BIN_ADD}}}},
+        {.kind = AST_STMT,
+         .stmt = &(struct ast_stmt){
+             .kind = AST_STMT_EXPR,
+             .expr = &(struct ast_expr){
+                 .kind = AST_EXPR_ASSIGN,
+                 .assign = {
+                     .target = "x",
+                     .value = &(struct ast_expr){
+                         .kind = AST_EXPR_INTEGER,
+                         .integer = {-7}}}}}},
     };
     int node_count = sizeof nodes / sizeof nodes[0];
     enum cgen_error error = crvic_generate_c_file(node_count, nodes, f);

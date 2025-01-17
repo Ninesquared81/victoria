@@ -11,10 +11,15 @@ enum ast_node_kind {
 enum ast_expr_kind {
     AST_EXPR_INTEGER,  // Integer literal expression.
     AST_EXPR_BINARY,   // Binary operation.
+    AST_EXPR_ASSIGN,   // Assignment expression.
 };
 
 enum ast_stmt_kind {
     AST_STMT_EXPR,  // Expression statement.
+};
+
+enum ast_bin_op_kind {
+    AST_BIN_ADD,     // Addition operator `+`.
 };
 
 struct ast_expr {
@@ -26,8 +31,12 @@ struct ast_expr {
         struct {
             struct ast_expr *lhs;
             struct ast_expr *rhs;
-            const char *op;
+            enum ast_bin_op_kind op;
         } binary;
+        struct {
+            const char *target;
+            struct ast_expr *value;
+        } assign;
     };
 };
 

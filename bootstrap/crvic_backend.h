@@ -15,5 +15,6 @@ enum cgen_error {
 enum cgen_error crvic_generate_c_file(int n, const struct ast_node nodes[const n], FILE *f);
 enum cgen_error crvic_generate_c_stmt(struct ast_stmt *stmt, int indent, int indent_step, FILE *f);
 enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, FILE *f);
+const char *crvic_get_c_op(enum ast_bin_op_kind op);
 
 #endif

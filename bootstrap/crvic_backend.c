@@ -25,6 +25,7 @@ enum cgen_error crvic_generate_c_file(int n, const struct ast_node nodes[static 
 }
 
 enum cgen_error crvic_generate_c_stmt(struct ast_stmt *stmt, int indent, int indent_step, FILE *f) {
+    (void)indent_step;
     fprintf(f, "%*s", indent, "");  // Prepend indentation.
     enum cgen_error error = CGEN_OK;
     switch (stmt->kind) {
@@ -45,10 +46,25 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, FILE *f) {
     case AST_EXPR_BINARY:
         if (!fprintf(f, "(")) return CGEN_IO_ERROR;  // Brackets to ensure precedence is preserved.
         if ((error = crvic_generate_c_expr(expr->binary.lhs, f))) return error;
-        if (!fprintf(f, " %s ", expr->binary.op)) return CGEN_IO_ERROR;
+        if (!fprintf(f, " %s ", crvic_get_c_op(expr->binary.op))) return CGEN_IO_ERROR;
         if ((error = crvic_generate_c_expr(expr->binary.rhs, f))) return error;
+        if (!fprintf(f, ")")) return CGEN_IO_ERROR;
+        break;
+    case AST_EXPR_ASSIGN:
+        if (!fprintf(f, "(")) return CGEN_IO_ERROR;
+        if (!fprintf(f, "%s = ", expr->assign.target)) return CGEN_IO_ERROR;
+        if ((error - crvic_generate_c_expr(expr->assign.value, f))) return error;
         if (!fprintf(f, ")")) return CGEN_IO_ERROR;
         break;
     }
     return CGEN_OK;
+}
+
+const char *crvic_get_c_op(enum ast_bin_op_kind op) {
+    switch (op) {
+    case AST_BIN_ADD:
+        return "+";
+    }
+    assert(0 && "Unreachable");
+    return NULL;
 }
