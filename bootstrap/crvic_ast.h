@@ -25,7 +25,8 @@ enum ast_decl_kind {
 };
 
 enum ast_bin_op_kind {
-    AST_BIN_ADD,     // Addition operator `+`.
+    AST_BIN_ADD,  // Addition operator `+`.
+    AST_BIN_MUL,  // Multiplication operation `*`.
 };
 
 struct ast_expr {
