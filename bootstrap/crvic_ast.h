@@ -6,6 +6,7 @@
 enum ast_node_kind {
     AST_EXPR,  // Expression.
     AST_STMT,  // Statement.
+    AST_DECL,  // Declaration/definition.
 };
 
 enum ast_expr_kind {
@@ -16,6 +17,11 @@ enum ast_expr_kind {
 
 enum ast_stmt_kind {
     AST_STMT_EXPR,  // Expression statement.
+};
+
+enum ast_decl_kind {
+    AST_DECL_VAR_DECL,  // Variable declaration.
+    AST_DECL_VAR_DEFN,  // Variable definition.
 };
 
 enum ast_bin_op_kind {
@@ -49,11 +55,25 @@ struct ast_stmt {
     };
 };
 
+struct ast_decl {
+    enum ast_decl_kind kind;
+    union {
+        struct {
+            const char *name;
+        } var_decl;
+        struct {
+            const char *name;
+            struct ast_expr *value;
+        } var_defn;
+    };
+};
+
 struct ast_node {
     enum ast_node_kind kind;
     union {
         struct ast_expr *expr;
         struct ast_stmt *stmt;
+        struct ast_decl *decl;
     };
 };
 

@@ -17,6 +17,9 @@ enum cgen_error crvic_generate_c_file(int n, const struct ast_node nodes[static 
         case AST_STMT:
             error = crvic_generate_c_stmt(node.stmt, indent, indent_step, f);
             break;
+        case AST_DECL:
+            error = crvic_generate_c_decl(node.decl, indent, indent_step, f);
+            break;
         }
         if (error) return error;
     }
@@ -35,6 +38,22 @@ enum cgen_error crvic_generate_c_stmt(struct ast_stmt *stmt, int indent, int ind
         break;
     }
     return error;
+}
+
+enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int indent_step, FILE *f) {
+    (void)indent_step;
+    fprintf(f, "%*s", indent, "");
+    enum cgen_error error = CGEN_OK;
+    switch (decl->kind) {
+    case AST_DECL_VAR_DECL:
+        if (!fprintf(f, "int %s;\n", decl->var_decl.name)) return CGEN_IO_ERROR;
+        break;
+    case AST_DECL_VAR_DEFN:
+        if (!fprintf(f, "int %s = ", decl->var_defn.name)) return CGEN_IO_ERROR;
+        if ((error = crvic_generate_c_expr(decl->var_defn.value, f))) return error;
+        if (!fprintf(f, ";\n")) return CGEN_IO_ERROR;
+    }
+    return CGEN_OK;
 }
 
 enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, FILE *f) {

@@ -33,6 +33,10 @@ int main(void) {
                                  .integer = {2}},
                              .op = AST_BIN_ADD}},
                      .op = AST_BIN_ADD}}}},
+        {.kind = AST_DECL,
+         .decl = &(struct ast_decl) {
+             .kind = AST_DECL_VAR_DECL,
+             .var_decl = {"x"}}},
         {.kind = AST_STMT,
          .stmt = &(struct ast_stmt){
              .kind = AST_STMT_EXPR,
