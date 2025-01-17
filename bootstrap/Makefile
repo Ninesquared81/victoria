@@ -9,5 +9,8 @@ all: crvic.exe
 crvic.exe: crvic.c crvic_backend.c crvic_ast.h crvic_backend.h
 	$(CC) $(CFLAGS) crvic.c crvic_backend.c -o crvic.exe
 
-out.exe: out.c crvic.exe
+out.c: crvic.exe
+	crvic.exe
+
+out.exe: out.c
 	$(CC) out.c -o out.exe
