@@ -23,7 +23,7 @@ enum cgen_error crvic_generate_c_file(int n, const struct ast_node nodes[static 
         }
         if (error) return error;
     }
-    fprintf(f, "    return 0;\n}\n");
+    fprintf(f, "%*sreturn 0;\n}\n", indent, "");
     return CGEN_OK;
 }
 
