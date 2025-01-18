@@ -46,7 +46,7 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
     enum cgen_error error = CGEN_OK;
     switch (decl->kind) {
     case AST_DECL_VAR_DECL:
-        if (!fprintf(f, "int %s;\n", decl->var_decl.name)) return CGEN_IO_ERROR;
+        if (!fprintf(f, "int %s = 0;\n", decl->var_decl.name)) return CGEN_IO_ERROR;
         break;
     case AST_DECL_VAR_DEFN:
         if (!fprintf(f, "int %s = ", decl->var_defn.name)) return CGEN_IO_ERROR;
