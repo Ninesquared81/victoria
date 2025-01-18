@@ -75,6 +75,9 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, FILE *f) {
         if ((error - crvic_generate_c_expr(expr->assign.value, f))) return error;
         if (!fprintf(f, ")")) return CGEN_IO_ERROR;
         break;
+    case AST_EXPR_GET:
+        if (!fprintf(f, "%s", expr->get.target)) return CGEN_IO_ERROR;
+        break;
     }
     return CGEN_OK;
 }

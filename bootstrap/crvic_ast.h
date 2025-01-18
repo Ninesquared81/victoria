@@ -13,6 +13,7 @@ enum ast_expr_kind {
     AST_EXPR_INTEGER,  // Integer literal expression.
     AST_EXPR_BINARY,   // Binary operation.
     AST_EXPR_ASSIGN,   // Assignment expression.
+    AST_EXPR_GET,      // Get (the value of a variable, etc.) expression.
 };
 
 enum ast_stmt_kind {
@@ -26,7 +27,7 @@ enum ast_decl_kind {
 
 enum ast_bin_op_kind {
     AST_BIN_ADD,  // Addition operator `+`.
-    AST_BIN_MUL,  // Multiplication operation `*`.
+    AST_BIN_MUL,  // Multiplication operator `*`.
 };
 
 struct ast_expr {
@@ -44,6 +45,9 @@ struct ast_expr {
             const char *target;
             struct ast_expr *value;
         } assign;
+        struct {
+            const char *target;
+        } get;
     };
 };
 

@@ -47,6 +47,21 @@ int main(void) {
                      .value = &(struct ast_expr){
                          .kind = AST_EXPR_INTEGER,
                          .integer = {-7}}}}}},
+        {.kind = AST_DECL,
+         .decl = &(struct ast_decl){
+             .kind = AST_DECL_VAR_DEFN,
+             .var_defn = {
+                 .name = "y",
+                 .value = &(struct ast_expr){
+                     .kind = AST_EXPR_BINARY,
+                     .binary = {
+                         .lhs = &(struct ast_expr){
+                             .kind = AST_EXPR_GET,
+                             .get = {"x"}},
+                         .rhs = &(struct ast_expr){
+                             .kind = AST_EXPR_INTEGER,
+                             .integer = {3}},
+                         .op = AST_BIN_MUL}}}}},
     };
     int node_count = sizeof nodes / sizeof nodes[0];
     enum cgen_error error = crvic_generate_c_file(node_count, nodes, f);
