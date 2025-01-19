@@ -1,7 +1,9 @@
 #ifndef CRVIC_AST
 #define CRVIC_AST
 
-#include <stdint.h>  // int64_t
+#include <stdint.h>  // int64_t.
+
+#include "crvic_type.h"  // TypeID.
 
 enum ast_node_kind {
     AST_EXPR,  // Expression.
@@ -32,6 +34,7 @@ enum ast_bin_op_kind {
 
 struct ast_expr {
     enum ast_expr_kind kind;
+    TypeID type;
     union {
         struct {
             int64_t value;
