@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <inttypes.h>
+#include <string.h>
 
 #include "crvic_backend.h"
 
@@ -70,16 +71,32 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
         if ((error = crvic_generate_c_func_body(decl->func_defn.body_node_count,
                                                 decl->func_defn.body,
                                                 indent_step, f))) return error;
+        if (strcmp(decl->func_defn.sig->name, "main") == 0) {
+            if (!fprintf(f, "%*sreturn 0;\n", indent_step, "")) return CGEN_IO_ERROR;
+        }
         if (!fprintf(f, "}\n")) return CGEN_IO_ERROR;
         break;
     }
     return CGEN_OK;
 }
 
+enum cgen_error crvic_generate_c_main_header(struct ast_func_sig *sig, FILE *f) {
+    assert(strcmp(sig->name, "main") == 0);
+    assert(sig->param_count == 0 && "Only allow parameter-less version for now.");
+    if (!fprintf(f, "int main(void)")) return CGEN_IO_ERROR;
+    return CGEN_OK;
+}
+
 enum cgen_error crvic_generate_c_func_header(struct ast_func_sig *sig, FILE *f) {
+    if (strcmp(sig->name, "main") == 0) return crvic_generate_c_main_header(sig, f);
     if (!fprintf(f, "%s %s(", crvic_get_c_type(sig->ret_type), sig->name)) return CGEN_IO_ERROR;
+    assert(sig->param_count >= 0);
     if (sig->param_count >= 1) {
         if (!fprintf(f, "%s", crvic_get_c_type(sig->params[0]))) return CGEN_IO_ERROR;
+    }
+    else {
+        // No parameters; use `void` in parameter list for strict adherence to (pre-C23) C standard.
+        if (!fprintf(f, "void")) return CGEN_IO_ERROR;
     }
     for (int i = 1; i < sig->param_count; ++i) {
         if (!fprintf(f, ", %s", crvic_get_c_type(sig->params[i]))) return CGEN_IO_ERROR;
