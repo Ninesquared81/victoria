@@ -8,6 +8,7 @@ enum cgen_error crvic_generate_c_file(int n, const struct ast_node nodes[static 
     assert(f != NULL);
     int indent_step = 4;  // Number of spaces to indent by for each indent/dedent.
     int indent = 0;  // Current indenation level.
+    if (!fprintf(f, "#include <stdint.h>  // Fixed-width types.\n")) return CGEN_IO_ERROR;
     return crvic_generate_c_nodes(n, nodes, indent, indent_step, f);
 }
 
@@ -64,7 +65,7 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
         break;
     case AST_DECL_FUNC_DEFN:
         if ((error = crvic_generate_c_func_header(decl->func_defn.sig, f))) return error;
-        if (!fprintf(f, "{\n")) return CGEN_IO_ERROR;
+        if (!fprintf(f, " {\n")) return CGEN_IO_ERROR;
         assert(indent == 0 && "Cannot have nested function in C!");
         if ((error = crvic_generate_c_func_body(decl->func_defn.body_node_count,
                                                 decl->func_defn.body,
@@ -89,12 +90,8 @@ enum cgen_error crvic_generate_c_func_header(struct ast_func_sig *sig, FILE *f) 
 
 enum cgen_error crvic_generate_c_func_body(int n, const struct ast_node nodes[static const n],
                                            int indent_step, FILE *f) {
-    if (!fprintf(f, " {\n")) return CGEN_IO_ERROR;
     int indent = indent_step;
-    enum cgen_error error = crvic_generate_c_nodes(n, nodes, indent, indent_step, f);
-    if (error) return error;
-    if (!fprintf(f, "%*s}\n", indent, "")) return CGEN_IO_ERROR;
-    return CGEN_OK;
+    return crvic_generate_c_nodes(n, nodes, indent, indent_step, f);
 }
 
 enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, FILE *f) {
