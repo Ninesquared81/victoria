@@ -25,11 +25,25 @@ enum ast_stmt_kind {
 enum ast_decl_kind {
     AST_DECL_VAR_DECL,  // Variable declaration.
     AST_DECL_VAR_DEFN,  // Variable definition.
+    AST_DECL_FUNC_DECL, // (External) function declaration.
+    AST_DECL_FUNC_DEFN, // Function definition.
 };
 
 enum ast_bin_op_kind {
     AST_BIN_ADD,  // Addition operator `+`.
     AST_BIN_MUL,  // Multiplication operator `*`.
+};
+
+enum ast_func_decl_kind {
+    AST_FUNC_EXTERNAL,  // A function defined externally (possibly in a different language, like C).
+    AST_FUNC_INTERNAL,  // A function defined within this source file.
+};
+
+struct ast_func_sig {
+    const char *name;
+    TypeID ret_type;
+    int param_count;
+    TypeID *params;
 };
 
 struct ast_expr {
@@ -73,6 +87,15 @@ struct ast_decl {
             const char *name;
             struct ast_expr *value;
         } var_defn;
+        struct {
+            struct ast_func_sig *sig;
+            enum ast_func_decl_kind kind;
+        } func_decl;
+        struct {
+            struct ast_func_sig *sig;
+            size_t body_node_count;
+            struct ast_node *body;
+        } func_defn;
     };
 };
 

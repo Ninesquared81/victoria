@@ -15,6 +15,8 @@ enum type_primitive {
     TYPE_U64,          // Unsigned 64-bit integer.
     TYPE_INT,          // Signed pointer-sized integer.
     TYPE_UINT,         // Unsigned pointer-sized integer.
+
+    TYPE_PRIMITIVE_COUNT  // Number of primitive types. Not an actual type.
 };
 
 typedef int TypeID;   // Type for types.
