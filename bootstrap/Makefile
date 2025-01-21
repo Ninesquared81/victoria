@@ -1,13 +1,16 @@
 CC = gcc
 # -Wno-missing-braces because gcc does not seem to like initialiser list + C11 anonymous struct/union.
-CFLAGS = -Wall -Werror -Wextra -pedantic -g -std=c11 -Wno-missing-braces
+CFLAGS = -Wall -Werror -Wextra -pedantic -g -std=c11 -Wno-missing-braces -D__USE_MINGW_ANSI_STDIO=1
 
 .PHONY: all
 
 all: crvic.exe
 
-crvic.exe: crvic.c crvic_backend.c crvic_ast.h crvic_backend.h
-	$(CC) $(CFLAGS) crvic.c crvic_backend.c -o crvic.exe
+CRVIC_SOURCES = $(wildcard crvic*.c)
+CRVIC_HEADERS = $(wildcard crvic*.h)
+
+crvic.exe: $(CRVIC_SOURCES) $(CRVIC_HEADERS)
+	$(CC) $(CFLAGS) $(CRVIC_SOURCES) -o crvic.exe
 
 out.c: crvic.exe
 	crvic.exe

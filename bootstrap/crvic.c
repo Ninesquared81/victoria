@@ -1,3 +1,4 @@
+#include <stdlib.h>  // EXIT_SUCCESS, EXIT_FAILURE.
 #include <stdio.h>
 
 #include "crvic_ast.h"
@@ -6,7 +7,6 @@
 
 int main(void) {
     const char *filename = "out.c";
-    FILE *f = fopen(filename, "w");
     struct ast_node nodes[] = {
         {.kind = AST_DECL,
          .decl = &(struct ast_decl) {
@@ -54,13 +54,26 @@ int main(void) {
              }}},
     };
     int node_count = sizeof nodes / sizeof nodes[0];
-    enum cgen_error error = crvic_generate_c_file(node_count, nodes, f);
-    if (!error) {
-        fprintf(stderr, "All good!\n");
-    }
-    else {
+    struct string_buffer sb = {0};
+    enum cgen_error error = crvic_generate_c_file(node_count, nodes, &sb);
+    if (error) {
         fprintf(stderr, "Something went wrong: %d\n", error);
-        return 1;
+        return EXIT_FAILURE;
     }
-    return 0;
+    FILE *f = fopen(filename, "w");
+    if (f == NULL) {
+        perror("fopen() failed");
+        return EXIT_FAILURE;
+    }
+    int exit_code = EXIT_SUCCESS;
+    printf("%zu:\n%s", sb.count, sb.buffer);
+    if ((size_t)fprintf(f, "%s", sb.buffer) != sb.count) {
+        perror("Failed to write output file");
+        exit_code = EXIT_FAILURE;
+    }
+    if (fclose(f) == EOF) {
+        fprintf(stderr, "fclose() failed!\n");
+        exit_code = EXIT_FAILURE;
+    }
+    return exit_code;
 }
