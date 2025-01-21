@@ -4,7 +4,7 @@
 #include <stdarg.h>   // va_list.
 #include <stdbool.h>  // bool.
 
-#define STRING_BUFFER_SIZE 4096u
+#define STRING_BUFFER_SIZE 0x10000u
 
 struct string_buffer {
     size_t count;

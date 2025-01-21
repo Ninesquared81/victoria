@@ -54,7 +54,7 @@ int main(void) {
              }}},
     };
     int node_count = sizeof nodes / sizeof nodes[0];
-    struct string_buffer sb = {0};
+    static struct string_buffer sb = {0};
     enum cgen_error error = crvic_generate_c_file(node_count, nodes, &sb);
     if (error) {
         fprintf(stderr, "Something went wrong: %d\n", error);
