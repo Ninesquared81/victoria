@@ -3,10 +3,16 @@
 
 #include "crvic_ast.h"
 #include "crvic_backend.h"
+#include "crvic_frontend.h"
 #include "crvic_type.h"
 
 int main(void) {
     const char *filename = "out.c";
+    const char test_prog[] =
+        "print(\"1 + 2 = \", 1 + 2)\n"
+        ;
+    init_lexer(test_prog, sizeof test_prog - 1);
+    print_tokens();
     struct ast_node nodes[] = {
         {.kind = AST_DECL,
          .decl = &(struct ast_decl) {
