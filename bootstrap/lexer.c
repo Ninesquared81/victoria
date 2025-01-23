@@ -92,7 +92,7 @@ static const int *add_types_impl(int token_type, ...) {
 #define add_string_type_pairs(strings, types, ...)                      \
     add_string_type_pairs_impl(strings, types, __VA_ARGS__, NULL)
 
-static void add_string_type_pairs_impl(const char *const **strings, int **types, ...) {
+static void add_string_type_pairs_impl(const char *const **strings, const int **types, ...) {
     va_list args;
     va_start(args, types);
     *strings = &string_ptr_pool[strings_head];
@@ -116,7 +116,7 @@ void init_lexer(const char *source, size_t length) {
     lexer.nestable_comment_delims = add_delim_pairs("~#", "#~");
     // Strings.
     lexer.line_string_delims = add_delim_pairs("\"", "\"");
-    lexer.string_types = add_types(TOKEN_LIT_STRING);
+    lexer.line_string_types = add_types(TOKEN_LIT_STRING);
     // Numbers.
     lexer.digit_separators = "_";
     //// Ints.
