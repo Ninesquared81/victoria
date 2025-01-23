@@ -138,36 +138,37 @@ struct lxl_lexer {
     const struct lxl_delim_pair *unnestable_comment_delims; // List of paired unnestable comment delimiters.
     const struct lxl_delim_pair *line_string_delims;  // List of paired line string-like literal delimiters.
     const struct lxl_delim_pair *multiline_string_delims; // List of multiline string-like literal delimiters.
-    const char *string_escape_chars; // List of escape characters in strings (ignore delimiters after).
-    const int *string_types;         // List of token types associated with each string delimiter.
-    const char *digit_separators;    // List of digit separator characters allowed in number literals.
+    const char *string_escape_chars;   // List of escape characters in strings (ignore delimiters after).
+    const int *line_string_types;      // List of token types associated with each line string delimiter.
+    const int *multiline_string_types; // List of token types associated with each multiline string delimiter.
+    const char *digit_separators;      // List of digit separator characters allowed in number literals.
     const char *const *number_signs;      // List of signs which can precede number literals (e.g. "+", "-").
     const char *const *integer_prefixes;  // List of prefixes for integer literals.
-    int *integer_bases;                   // List of bases associated with each prefix.
+    const int *integer_bases;             // List of bases associated with each prefix.
     const char *const *integer_suffixes;  // List of suffixes for integer literals.
-    int default_int_type;     // Default token type for integer literals.
-    int default_int_base;     // Default base for (unprefixed) integer literals.
-    const char *const *float_prefixes;   // List of prefixes for floating-point literals.
-    int *float_bases;                    // List of bases associated with each float prefix.
-    const char *const *exponent_markers; // List of exponent markers (e.g. "e") for each float prefix.
-    const char *const *exponent_signs;   // List of signs allowed in float exponents (default: ["+", "-"]).
-    const char *const *radix_separators; // List of radix separators for float literals (default: ["."]).
-    const char *const *float_suffixes;   // List of suffixes for float literals.
-    int default_float_type;  // Default token type for float literals.
-    int default_float_base;  // Default base for (unprefixed) float literals.
+    int default_int_type;                 // Default token type for integer literals.
+    int default_int_base;                 // Default base for (unprefixed) integer literals.
+    const char *const *float_prefixes;    // List of prefixes for floating-point literals.
+    const int *float_bases;               // List of bases associated with each float prefix.
+    const char *const *exponent_markers;  // List of exponent markers (e.g. "e") for each float prefix.
+    const char *const *exponent_signs;    // List of signs allowed in float exponents (default: ["+", "-"]).
+    const char *const *radix_separators;  // List of radix separators for float literals (default: ["."]).
+    const char *const *float_suffixes;    // List of suffixes for float literals.
+    int default_float_type;               // Default token type for float literals.
+    int default_float_base;               // Default base for (unprefixed) float literals.
     const char *default_exponent_marker; // Default exponent marker for float literals (default: "e").
     const char *const *puncts;   // List of (non-word) punctaution token values (e.g., "+", "==", ";", etc.).
-    int *punct_types;            // List of token types corresponding to each punctuation token above.
+    const int *punct_types;      // List of token types corresponding to each punctuation token above.
     const char *const *keywords; // List of keywords (word tokens with unique types).
-    int *keyword_types;          // List of token types corresponding to each keyword.
+    const int *keyword_types;    // List of token types corresponding to each keyword.
     int default_word_type;       // Default word token type (for non-keywords).
     enum lxl_word_lexing_rule word_lexing_rule;  // The word lexing rule to use (default: symbolic).
-    int previous_token_type;       // The type of the most recently lexed token.
-    int line_ending_type;          // The type to use for line ending tokens (default: LXL_TOKEN_LINE_ENDING).
-    enum lxl_lex_error error;      // Error code set to the current lexing error.
-    enum lxl_lexer_status status;  // Current status of the lexer.
-    bool emit_line_endings;     // Should line endings have their own tokens? (default: false)
-    bool collect_line_endings;  // Should consecutive line ending tokens be combined? (default: true)
+    int previous_token_type;      // The type of the most recently lexed token.
+    int line_ending_type;         // The type to use for line ending tokens (default: LXL_TOKEN_LINE_ENDING).
+    enum lxl_lex_error error;     // Error code set to the current lexing error.
+    enum lxl_lexer_status status; // Current status of the lexer.
+    bool emit_line_endings;       // Should line endings have their own tokens? (default: false)
+    bool collect_line_endings;    // Should consecutive line ending tokens be combined? (default: true)
 };
 
 // A lexical token.
@@ -541,6 +542,8 @@ struct lxl_lexer lxl_lexer_new(const char *start, const char *end) {
         .line_string_delims = NULL,
         .multiline_string_delims = NULL,
         .string_escape_chars = NULL,
+        .line_string_types = NULL,
+        .multiline_string_types = NULL,
         .number_signs = NULL,
         .digit_separators = NULL,
         .integer_prefixes = NULL,
@@ -600,14 +603,14 @@ struct lxl_token lxl_lexer_next_token(struct lxl_lexer *lexer) {
     else if ((matched_lxl_delim_pair = lxl_lexer__match_string_opener(lexer, LXL_STRING_LINE))) {
         lxl_lexer__lex_string(lexer, matched_lxl_delim_pair->closer, LXL_STRING_LINE);
         int delim_index = matched_lxl_delim_pair - lexer->line_string_delims;
-        LXL_ASSERT(lexer->string_types != NULL);
-        token.token_type = lexer->string_types[delim_index];
+        LXL_ASSERT(lexer->line_string_types != NULL);
+        token.token_type = lexer->line_string_types[delim_index];
     }
     else if ((matched_lxl_delim_pair = lxl_lexer__match_string_opener(lexer, LXL_STRING_MULTILINE))) {
         lxl_lexer__lex_string(lexer, matched_lxl_delim_pair->closer, LXL_STRING_MULTILINE);
         int delim_index = matched_lxl_delim_pair - lexer->multiline_string_delims;
-        LXL_ASSERT(lexer->string_types != NULL);
-        token.token_type = lexer->string_types[delim_index];
+        LXL_ASSERT(lexer->multiline_string_types != NULL);
+        token.token_type = lexer->multiline_string_types[delim_index];
     }
     else if ((number_base = lxl_lexer__match_int_prefix(lexer))) {
         LXL_ASSERT(number_base > 1);  // Base should be valid here.
