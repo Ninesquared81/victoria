@@ -10,9 +10,12 @@ int main(void) {
     const char *filename = "out.c";
     const char test_prog[] =
         "print(\"1 + 2 = \", 1 + 2)\n"
+        "var a := 42\n"
+        "val b := 5\n"
+        "a += b - 7\n"
         ;
     init_lexer(test_prog, sizeof test_prog - 1);
-    print_tokens();
+    print_tokens(stdout);
     struct ast_node nodes[] = {
         {.kind = AST_DECL,
          .decl = &(struct ast_decl) {
