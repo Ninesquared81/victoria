@@ -3,6 +3,8 @@
 
 #include <stdint.h>  // int64_t.
 
+#include "ubiqs.h"  // allocatorARD.
+
 #include "crvic_type.h"  // TypeID.
 
 enum ast_node_kind {
@@ -106,6 +108,13 @@ struct ast_node {
         struct ast_stmt *stmt;
         struct ast_decl *decl;
     };
+};
+
+struct ast_list {
+    struct allocatorARD allocator;
+    size_t capacity;
+    size_t count;
+    struct ast_node *items;
 };
 
 #endif
