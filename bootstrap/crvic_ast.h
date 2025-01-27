@@ -3,7 +3,9 @@
 
 #include <stdint.h>  // int64_t.
 
-#include "ubiqs.h"  // allocatorARD.
+#include "lexel.h"  // struct lxl_string_view.
+
+#include "ubiqs.h"  // struct allocatorARD.
 
 #include "crvic_type.h"  // TypeID.
 
@@ -42,10 +44,10 @@ enum ast_func_decl_kind {
 };
 
 struct ast_func_sig {
-    const char *name;
+    struct lxl_string_view name;
     TypeID ret_type;
-    int param_count;
-    TypeID *params;
+    int arity;
+    struct type_list param_types;
 };
 
 struct ast_expr {
@@ -61,11 +63,11 @@ struct ast_expr {
             enum ast_bin_op_kind op;
         } binary;
         struct {
-            const char *target;
+            struct lxl_string_view target;
             struct ast_expr *value;
         } assign;
         struct {
-            const char *target;
+            struct lxl_string_view target;
         } get;
     };
 };
@@ -83,10 +85,10 @@ struct ast_decl {
     enum ast_decl_kind kind;
     union {
         struct {
-            const char *name;
+            struct lxl_string_view name;
         } var_decl;
         struct {
-            const char *name;
+            struct lxl_string_view name;
             struct ast_expr *value;
         } var_defn;
         struct {
