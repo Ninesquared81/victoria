@@ -14,7 +14,7 @@ int main(void) {
         "val b := 5\n"
         "a += b - 7\n"
         ;
-    init_lexer(test_prog, sizeof test_prog - 1);
+    init_lexer(LXL_SV_FROM_STRLIT(test_prog));
     print_tokens(stdout);
     struct ast_node nodes[] = {
         {.kind = AST_DECL,

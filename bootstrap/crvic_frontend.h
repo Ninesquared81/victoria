@@ -88,7 +88,7 @@ enum token_type {
 };
 
 // Lexer.
-void init_lexer(const char *source, size_t length);
+void init_lexer(struct lxl_string_view source);
 struct lxl_token next_token(void);
 
 const char *token_type_string(struct lxl_token token);
