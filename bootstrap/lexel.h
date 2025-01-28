@@ -258,8 +258,9 @@ const char *lxl_error_message(enum lxl_lex_error error);
 // These functions are for communicating with the lexer, e.g. when parsing.
 
 // Create a new `lxl_lexer` object from start and end pointers.
-// `start` and `end` must be valid, non-NULL pointers, moreover, `end` must point one past the end
-//  of the the string beginning at `start`.
+// `start` must be a valid, non_NULL pointer. If `end` is non-NULL, it must point one
+// past the end of the the string beginning at `start`. If `end` is NULL, it is inferred
+// by the length of the `start` string, which must be null-terminated in this case.
 struct lxl_lexer lxl_lexer_new(const char *start, const char *end);
 
 // Create a new `lxl_lexer` object from a string view.
@@ -529,6 +530,8 @@ const char *lxl_error_message(enum lxl_lex_error error) {
 // LEXER FUNCTIONS.
 
 struct lxl_lexer lxl_lexer_new(const char *start, const char *end) {
+    LXL_ASSERT(start != NULL);
+    if (end == NULL) end = start + strlen(start);
     static const char *default_exponent_signs[] = {"+", "-", NULL};
     static const char *default_radix_separators[] = {".", NULL};
     return (struct lxl_lexer) {
