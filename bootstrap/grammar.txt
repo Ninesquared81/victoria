@@ -15,6 +15,7 @@ TypeDecl = IDENT ":" Type ;
 BlockStmt = "{" Stmt* "}"
 Stmt = BlockStmt
      | ExprStmt
+     | DeclStmt
      ;
 ExprStmt = Expr END ;
 
