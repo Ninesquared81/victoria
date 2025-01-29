@@ -24,6 +24,7 @@ enum ast_expr_kind {
 
 enum ast_stmt_kind {
     AST_STMT_EXPR,  // Expression statement.
+    AST_STMT_DECL,  // Declaration statement.
 };
 
 enum ast_decl_kind {
@@ -85,6 +86,9 @@ struct ast_stmt {
         struct {
             struct ast_expr *expr;
         } expr;
+        struct {
+            struct ast_decl *decl;
+        } decl;
     };
 };
 

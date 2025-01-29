@@ -42,6 +42,9 @@ enum cgen_error crvic_generate_c_stmt(struct ast_stmt *stmt, int indent, int ind
         error = crvic_generate_c_expr(stmt->expr.expr, sb);
         sb_add_string(sb, ";\n");
         break;
+    case AST_STMT_DECL:
+        error = crvic_generate_c_decl(stmt->decl.decl, indent - indent_step, indent_step, sb);
+        break;
     }
     return error;
 }
@@ -52,10 +55,10 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
     enum cgen_error error = CGEN_OK;
     switch (decl->kind) {
     case AST_DECL_VAR_DECL:
-        sb_add_formatted(sb, "int %s = 0;\n", decl->var_decl.name);
+        sb_add_formatted(sb, "int "LXL_SV_FMT_SPEC" = 0;\n", LXL_SV_FMT_ARG(decl->var_decl.name));
         break;
     case AST_DECL_VAR_DEFN:
-        sb_add_formatted(sb, "int %s = ", decl->var_defn.name);
+        sb_add_formatted(sb, "int "LXL_SV_FMT_SPEC" = ", LXL_SV_FMT_ARG(decl->var_defn.name));
         if ((error = crvic_generate_c_expr(decl->var_defn.value, sb))) return error;
         sb_add_string(sb, ";\n");
         break;
@@ -86,7 +89,8 @@ enum cgen_error crvic_generate_c_main_header(struct ast_func_sig *sig, struct st
 
 enum cgen_error crvic_generate_c_func_header(struct ast_func_sig *sig, struct string_buffer *sb) {
     if (lxl_sv_equal(sig->name, LXL_SV_FROM_STRLIT("main"))) return crvic_generate_c_main_header(sig, sb);
-    sb_add_formatted(sb, "%s %s(", crvic_get_c_type(sig->ret_type), sig->name);
+    sb_add_formatted(sb, "%s "LXL_SV_FMT_SPEC"(",
+                     crvic_get_c_type(sig->ret_type), LXL_SV_FMT_ARG(sig->name));
     if (sig->param_types.count >= 1) {
         sb_add_formatted(sb, "%s", crvic_get_c_type(sig->param_types.items[0]));
     }
@@ -121,12 +125,12 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         break;
     case AST_EXPR_ASSIGN:
         sb_add_string(sb, "(");
-        sb_add_formatted(sb, "%s = ", expr->assign.target);
+        sb_add_formatted(sb, ""LXL_SV_FMT_SPEC" = ", LXL_SV_FMT_ARG(expr->assign.target));
         if ((error - crvic_generate_c_expr(expr->assign.value, sb))) return error;
         sb_add_string(sb, ")");
         break;
     case AST_EXPR_GET:
-        sb_add_formatted(sb, "%s", expr->get.target);
+        sb_add_formatted(sb, ""LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(expr->get.target));
         break;
     }
     return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;

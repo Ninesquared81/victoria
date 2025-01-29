@@ -37,6 +37,7 @@ static void parse_error_show_token_vargs(struct lxl_token token, const char *res
     vfprintf(stderr, fmt, vargs);
     fprintf(stderr, ".\n");
     parser.panic_mode = true;
+    exit(1);
 }
 
 static void parse_error_current_show_token(const char *restrict fmt, ...) {
@@ -46,8 +47,12 @@ static void parse_error_current_show_token(const char *restrict fmt, ...) {
     va_end(vargs);
 }
 
+static bool parser_is_finished(void) {
+    return LXL_TOKEN_IS_END(parser.current_token);
+}
+
 static void ensure_not_at_end(const char *fmt, ...) {
-    if (!LXL_TOKEN_IS_END(parser.current_token)) return;
+    if (!parser_is_finished()) return;
     va_list vargs;
     va_start(vargs, fmt);
     parse_error_show_token_vargs(parser.current_token, fmt, vargs);
@@ -79,14 +84,21 @@ static struct lxl_token consume(enum token_type type, const char *fmt, ...) {
     return parser.current_token;
 }
 
-static void ensure_statement_end(void) {
-    if (parser.current_token.token_type != LXL_TOKEN_LINE_ENDING) {
-        consume(TOKEN_SEMICOLON, "Expect newline or ';' at end of statement");
-    }
-    if (parser.current_token.token_type == LXL_TOKEN_LINE_ENDING) {
-        // We advance to the next line if we see "\n" OR ";\n".
+static bool check_line_ending(void) {
+    return parser.current_token.token_type == LXL_TOKEN_LINE_ENDING;
+}
+
+static void ignore_line_ending(void) {
+    if (check_line_ending()) {
         advance();
     }
+}
+
+static void end_statement(void) {
+    if (!check_line_ending()) {
+        consume(TOKEN_SEMICOLON, "Expect newline or ';' at end of statement");
+    }
+    ignore_line_ending();
 }
 
 static struct ast_expr *new_expr(struct region *region) {
@@ -161,7 +173,8 @@ static uint64_t parse_integer(struct lxl_token token, struct region *region) {
         }
         else {
             assert(length > last_length);
-            memcpy(start + last_length, p, length - last_length);
+            size_t run_length = length - last_length;
+            memcpy(start + last_length, p - run_length, run_length);
             while (p < end && !is_digit(*++p, base)) {
                 /* Do nothing. */
             }
@@ -169,6 +182,10 @@ static uint64_t parse_integer(struct lxl_token token, struct region *region) {
             last_length = length;
             ++length;  // We consumed a digit.
         }
+    }
+    if (last_length < length) {
+        size_t run_length = length - last_length;
+        memcpy(start + last_length, end - run_length, run_length);
     }
     assert(length <= orig.length);
     start[length] = 0;
@@ -217,13 +234,13 @@ static struct ast_expr parse_prefix(struct region *region) {
         NOT_SUPPORTED_YET_PREVIOUS();
     }
     else {
-        parse_primary(region);
+        expr = parse_primary(region);
     }
     return expr;
 }
 
 static struct ast_expr parse_suffix(struct region *region) {
-    struct ast_expr expr = {0};
+    struct ast_expr expr = parse_prefix(region);
     if (match(TOKEN_CARET)) {
         NOT_SUPPORTED_YET_PREVIOUS();
     }
@@ -235,9 +252,6 @@ static struct ast_expr parse_suffix(struct region *region) {
     }
     else if (match(TOKEN_BKT_SQUARE_LEFT)) {
         NOT_SUPPORTED_YET_PREVIOUS();
-    }
-    else {
-        expr = parse_prefix(region);
     }
     return expr;
 }
@@ -288,7 +302,7 @@ static struct ast_expr parse_compare(struct region *region) {
 
 static struct ast_expr parse_assign(struct region *region) {
     struct ast_expr expr = parse_compare(region);
-    if (check_assignment_target(expr)) {
+    if (check_assignment_target(expr) && match(TOKEN_COLON_EQUALS)) {
         struct ast_expr *value = new_expr(region);
         *value = parse_compare(region);
         expr = (struct ast_expr) {
@@ -307,21 +321,13 @@ struct ast_expr *parse_expr(struct region *region) {
 }
 
 struct ast_list parse_block(struct region *region) {
-    struct ast_list  = {.allocator = STDLIB_ALLOCATOR_ARD};
+    struct ast_list stmts = {.allocator = STDLIB_ALLOCATOR_ARD};
     while (!match(TOKEN_BKT_CURLY_RIGHT)) {
         ensure_not_at_end("Unclosed block statement");
         struct ast_stmt *stmt = parse_stmt(region);
         DA_APPEND(&stmts, STMT_NODE(stmt));
     }
     return stmts;
-}
-
-struct ast_stmt *parse_stmt(struct region *region) {
-    struct ast_stmt *stmt = new_stmt(region);
-    *stmt = (struct ast_stmt) {
-        .kind = AST_STMT_EXPR,
-        .expr = {.expr = parse_expr(region)}};
-    return stmt;
 }
 
 static struct ast_decl *parse_func_decl(struct region *region) {
@@ -380,7 +386,7 @@ struct ast_decl *parse_var_decl(struct region *region) {
     if (match(TOKEN_COLON)) {
         type = parse_type("Expect type after ':'");
         if (!match(TOKEN_EQUALS)) {
-            ensure_statement_end();
+            end_statement();
             *decl = (struct ast_decl) {
                 .kind = AST_DECL_VAR_DECL,
                 .var_decl = {
@@ -393,7 +399,7 @@ struct ast_decl *parse_var_decl(struct region *region) {
         consume(TOKEN_COLON_EQUALS, "Expect `:=` or `: T =` after variable name");
     }
     struct ast_expr *value = parse_expr(region);
-    ensure_statement_end();
+    end_statement();
     *decl = (struct ast_decl) {
         .kind = AST_DECL_VAR_DEFN,
         .var_defn = {
@@ -403,20 +409,50 @@ struct ast_decl *parse_var_decl(struct region *region) {
     return decl;
 }
 
+struct ast_decl *try_parse_decl(struct region *region) {
+    if (match(TOKEN_KW_FUNC)) {
+        return parse_func_decl(region);
+    }
+    if (match(TOKEN_KW_VAR)) {
+        return parse_var_decl(region);
+    }
+    return NULL;
+}
+
+struct ast_stmt *parse_stmt(struct region *region) {
+    struct ast_stmt *stmt = new_stmt(region);
+    if (match(TOKEN_KW_IF)) {
+        NOT_SUPPORTED_YET_PREVIOUS();
+    }
+    else {
+        struct ast_decl *decl = try_parse_decl(region);
+        if (decl != NULL) {
+            // Declaration statement.
+            *stmt = (struct ast_stmt) {
+                .kind = AST_STMT_DECL,
+                .decl = {.decl = decl}};
+        }
+        else {
+            // Expression statement.
+            *stmt = (struct ast_stmt) {
+                .kind = AST_STMT_EXPR,
+                .expr = {.expr = parse_expr(region)}};
+            end_statement();
+        }
+    }
+    return stmt;
+}
+
 struct ast_list parse(struct region *region) {
     struct ast_list nodes = {.allocator = STDLIB_ALLOCATOR_ARD};
     advance();  // Prime parser with first token;
-    for (;;) {
+    for (; ignore_line_ending(), !parser_is_finished();) {
         struct ast_node current_node = {0};
-        if (match(TOKEN_KW_FUNC)) {
+        struct ast_decl *decl = try_parse_decl(region);
+        if (decl != NULL) {
             current_node = (struct ast_node) {
                 .kind = AST_DECL,
-                .decl = parse_func_decl(region)};
-        }
-        else if (match(TOKEN_KW_VAR)) {
-            current_node = (struct ast_node) {
-                .kind = AST_DECL,
-                .decl = parse_var_decl(region)};
+                .decl = decl};
         }
         else {
             parse_error_current_show_token("Unexpected token at module top level");
