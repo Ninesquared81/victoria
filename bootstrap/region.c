@@ -1,13 +1,22 @@
-#include <align.h>
+#include <stdalign.h>
+#include <string.h>
 
 #include "region.h"
 
 struct region *create_region(struct allocatorAD allocator, size_t size) {
-    struct region *r = allocator.allocate(size + sizeof *r, allocator.ctx);
+    struct region *r = ALLOCATE(allocator, size + sizeof *r);
     if (!r) return NULL;
     r->parent_allocator = allocator;
     r->capacity = size;
     r->alloc_count = 0;
+    return r;
+}
+
+void destroy_region(struct region *r) {
+    size_t orig_size = r->capacity + sizeof *r;
+    r->capacity = 0;
+    r->alloc_count = 0;
+    DEALLOCATE(r->parent_allocator, r, orig_size);
 }
 
 static size_t alignment_offset(intptr_t iptr, size_t size) {
@@ -20,15 +29,42 @@ static size_t alignment_offset(intptr_t iptr, size_t size) {
     return (align_real - iptr) % align_real;
 }
 
-void *region_alloc(struct region *r, size_t size) {
-    assert(r);
+void *region_allocate(size_t size, void *region) {
+    assert(region);
+    struct region *r = region;
     r->alloc_count += alignment_offset((intptr_t)&r->data[r->alloc_count], size);
-    void *ptr = r->data[->alloc_count];
+    void *ptr = &r->data[r->alloc_count];
     r->alloc_count += size;
     return ptr;
 }
 
 void region_reset(struct region *r) {
-    assert(region);
+    assert(r);
     r->alloc_count = 0;
+}
+
+void *region_reallocate(void *orig, size_t new_size, size_t old_size, void *region) {
+    assert(region);
+    struct region *r = region;
+    assert(old_size <= r->alloc_count);
+    if (orig == &r->data[r->alloc_count - old_size]) {
+        // Grow/shrink in-place.
+        r->alloc_count -= old_size;
+        r->alloc_count += new_size;
+        return orig;
+    }
+    // New allocation.
+    void *new = region_allocate(new_size, r);
+    if (new == NULL) return NULL;
+    memcpy(new, orig, old_size);
+    return new;
+}
+
+void region_deallocate(void *orig, size_t size, void *region) {
+    assert(region);
+    struct region *r = region;
+    assert(size <= r->alloc_count);
+    if (orig == &r->data[r->alloc_count - size]) {
+        r->alloc_count -= size;
+    }
 }

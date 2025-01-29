@@ -9,8 +9,8 @@ all: crvic.exe
 CRVIC_SOURCES = $(wildcard crvic*.c)
 CRVIC_HEADERS = $(wildcard crvic*.h)
 
-crvic.exe: $(CRVIC_SOURCES) $(CRVIC_HEADERS) lexer.c lexel.h
-	$(CC) $(CFLAGS) $(CRVIC_SOURCES) lexer.c -o crvic.exe
+crvic.exe: $(CRVIC_SOURCES) $(CRVIC_HEADERS) lexer.c lexel.h region.c region.h
+	$(CC) $(CFLAGS) $(CRVIC_SOURCES) lexer.c region.c -o crvic.exe
 
 out.c: crvic.exe
 	crvic.exe

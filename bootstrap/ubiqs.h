@@ -3,6 +3,11 @@
 
 #include <stdlib.h>  // malloc, realloc, free.
 
+#include "lexel.h"   // struct lxl_string_view.
+
+// Get the number of items in an array.
+#define COUNTOF(arr) (sizeof (arr) \ sizeof (arr)[0])
+
 #define DA_INIT_SIZE 8
 
 #define DA_GROW_CAPACITY(cap) ((cap) > 1 ? (cap)/2 * 3 : DA_INIT_SIZE)
@@ -12,6 +17,7 @@
 #define DA_APPEND(da, item)                                             \
     do {                                                                \
         if ((da)->count >= (da)->capacity) {                            \
+            assert((da)->allocator.reallocate != NULL);                 \
             size_t new_capacity = DA_GROW_CAPACITY((da)->capacity);     \
             void *new_items = (da)->allocator.reallocate(               \
                 (da)->items, new_capacity, (da)->capacity,              \
@@ -65,19 +71,19 @@ struct allocatorARD {
     (a).reallocate(orrig, new_size, old_size, (a).ctx)
 
 // Wrapper around stdlib malloc() to work with allocator interface.
-void *allocator_malloc(size_t size, void *ctx) {
+static inline void *allocator_malloc(size_t size, void *ctx) {
     (void)ctx;
     return malloc(size);
 }
 
 // Wrapper around stdlib realloc() to work with allocator interface.
-void *allocator_realloc(void *orig, size_t new_size, size_t old_size, void *ctx) {
+static inline void *allocator_realloc(void *orig, size_t new_size, size_t old_size, void *ctx) {
     (void)ctx; (void)old_size;
     return realloc(orig, new_size);
 }
 
 // Wrapper around stdlib free() to work with allocator interface.
-void allocator_free(void *orig, size_t size, void *ctx) {
+static inline void allocator_free(void *orig, size_t size, void *ctx) {
     (void)ctx; (void)size;
     free(orig);
 }
@@ -86,7 +92,7 @@ void allocator_free(void *orig, size_t size, void *ctx) {
 #define STDLIB_ALLOCATOR_AD                     \
     ((struct allocatorAD) {                     \
         .allocate = allocator_malloc,           \
-        .dealloctate = allocator_free})
+        .deallocate = allocator_free})
 
 // An ARD allocator using the stdlib allocator functions.
 #define STDLIB_ALLOCATOR_ARD                    \
@@ -94,5 +100,12 @@ void allocator_free(void *orig, size_t size, void *ctx) {
         .allocate = allocator_malloc,           \
         .deallocate = allocator_free,           \
         .reallocate = allocator_realloc})
+
+struct sv_list {
+    struct allocatorARD allocator;
+    size_t capacity;
+    size_t count;
+    struct lxl_string_view *items;
+};
 
 #endif  // UBIQS_H

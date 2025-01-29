@@ -4,22 +4,19 @@
 
 #include "crvic_backend.h"
 
-enum cgen_error crvic_generate_c_file(int n, const struct ast_node nodes[static const n],
-                                      struct string_buffer *sb) {
-    assert(n >= 0);
+enum cgen_error crvic_generate_c_file(struct ast_list nodes, struct string_buffer *sb) {
     int indent_step = 4;  // Number of spaces to indent by for each indent/dedent.
     int indent = 0;  // Current indenation level.
     sb_add_string(sb, "#include <stdint.h>  // Fixed-width types.\n");
-    return crvic_generate_c_nodes(n, nodes, indent, indent_step, sb);
+    return crvic_generate_c_nodes(nodes, indent, indent_step, sb);
 }
 
-enum cgen_error crvic_generate_c_nodes(int n, const struct ast_node nodes[static const n],
-                                       int indent, int indent_step, struct string_buffer *sb) {
-    assert(n >= 0);
+enum cgen_error crvic_generate_c_nodes(struct ast_list nodes, int indent, int indent_step,
+                                       struct string_buffer *sb) {
     assert(indent >= 0 && indent_step >= 0);
     enum cgen_error error = CGEN_OK;
-    for (int i = 0; i < n; ++i) {
-        struct ast_node node = nodes[i];
+    for (size_t i = 0; i < nodes.count; ++i) {
+        struct ast_node node = nodes.items[i];
         switch (node.kind) {
         case AST_EXPR:
             return CGEN_UNEXPECTED_EXPR;
@@ -70,10 +67,8 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
         if ((error = crvic_generate_c_func_header(decl->func_defn.sig, sb))) return error;
         sb_add_string(sb, " {\n");
         assert(indent == 0 && "Cannot have nested function in C!");
-        if ((error = crvic_generate_c_func_body(decl->func_defn.body_node_count,
-                                                decl->func_defn.body,
-                                                indent_step, sb))) return error;
-        if (strcmp(decl->func_defn.sig->name, "main") == 0) {
+        if ((error = crvic_generate_c_func_body(decl->func_defn.body, indent_step, sb))) return error;
+        if (lxl_sv_equal(decl->func_defn.sig->name, LXL_SV_FROM_STRLIT("main"))) {
             sb_add_formatted(sb, "%*sreturn 0;\n", indent_step, "");
         }
         sb_add_string(sb, "}\n");
@@ -83,34 +78,32 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
 }
 
 enum cgen_error crvic_generate_c_main_header(struct ast_func_sig *sig, struct string_buffer *sb) {
-    assert(strcmp(sig->name, "main") == 0);
-    assert(sig->param_count == 0 && "Only allow parameter-less version for now.");
+    assert(lxl_sv_equal(sig->name, LXL_SV_FROM_STRLIT("main")));
+    assert(sig->param_types.count == 0 && "Only allow parameter-less version for now.");
     sb_add_string(sb, "int main(void)");
         return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
 }
 
 enum cgen_error crvic_generate_c_func_header(struct ast_func_sig *sig, struct string_buffer *sb) {
-    if (strcmp(sig->name, "main") == 0) return crvic_generate_c_main_header(sig, sb);
+    if (lxl_sv_equal(sig->name, LXL_SV_FROM_STRLIT("main"))) return crvic_generate_c_main_header(sig, sb);
     sb_add_formatted(sb, "%s %s(", crvic_get_c_type(sig->ret_type), sig->name);
-    assert(sig->param_count >= 0);
-    if (sig->param_count >= 1) {
-        sb_add_formatted(sb, "%s", crvic_get_c_type(sig->params[0]));
+    if (sig->param_types.count >= 1) {
+        sb_add_formatted(sb, "%s", crvic_get_c_type(sig->param_types.items[0]));
     }
     else {
         // No parameters; use `void` in parameter list for strict adherence to (pre-C23) C standard.
         sb_add_string(sb, "void");
     }
-    for (int i = 1; i < sig->param_count; ++i) {
-        sb_add_formatted(sb, ", %s", crvic_get_c_type(sig->params[i]));
+    for (size_t i = 1; i < sig->param_types.count; ++i) {
+        sb_add_formatted(sb, ", %s", crvic_get_c_type(sig->param_types.items[i]));
     }
     sb_add_string(sb, ")");
     return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
 }
 
-enum cgen_error crvic_generate_c_func_body(int n, const struct ast_node nodes[static const n],
-                                           int indent_step, struct string_buffer *sb) {
+enum cgen_error crvic_generate_c_func_body(struct ast_list nodes, int indent_step, struct string_buffer *sb) {
     int indent = indent_step;
-    return crvic_generate_c_nodes(n, nodes, indent, indent_step, sb);
+    return crvic_generate_c_nodes(nodes, indent, indent_step, sb);
 }
 
 enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffer *sb) {

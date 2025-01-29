@@ -1,70 +1,30 @@
 #include <stdlib.h>  // EXIT_SUCCESS, EXIT_FAILURE.
 #include <stdio.h>
 
+#include "region.h"
+
 #include "crvic_ast.h"
 #include "crvic_backend.h"
 #include "crvic_frontend.h"
 #include "crvic_type.h"
 
+#define REGION_SIZE 0x4000
+
 int main(void) {
     const char *filename = "out.c";
     const char test_prog[] =
-        "print(\"1 + 2 = \", 1 + 2)\n"
-        "var a := 42\n"
-        "val b := 5\n"
-        "a += b - 7\n"
+        "func main() {"
+        "  var a := 42\n"
+        "  var b := 5\n"
+        "  a := (a + 7) * b + 1\n"
+        "}\n"
         ;
     init_lexer(LXL_SV_FROM_STRLIT(test_prog));
-    print_tokens(stdout);
-    struct ast_node nodes[] = {
-        {.kind = AST_DECL,
-         .decl = &(struct ast_decl) {
-             .kind = AST_DECL_FUNC_DECL,
-             .func_decl = {
-                 .sig = &(struct ast_func_sig) {
-                     .name = "add",
-                     .ret_type = TYPE_INT,
-                     .param_count = 2,
-                     .params = (TypeID[]){TYPE_INT, TYPE_INT}},
-                 .kind = AST_FUNC_INTERNAL}}},
-        {.kind = AST_DECL,
-         .decl = &(struct ast_decl) {
-             .kind = AST_DECL_FUNC_DEFN,
-             .func_defn = {
-                 .sig = &(struct ast_func_sig) {
-                     .name = "main",
-                     .ret_type = TYPE_I32,
-                     .param_count = 0,
-                     .params = NULL},
-                 .body_node_count = 2,
-                 .body = (struct ast_node[]) {
-                     {.kind = AST_DECL,
-                      .decl = &(struct ast_decl) {
-                          .kind = AST_DECL_VAR_DEFN,
-                          .var_defn = {
-                              .name = "x",
-                              .value = &(struct ast_expr) {
-                                  .kind = AST_EXPR_INTEGER,
-                                  .integer = {-5}}}}},
-                     {.kind = AST_STMT,
-                      .stmt = &(struct ast_stmt) {
-                          .kind = AST_STMT_EXPR,
-                          .expr = &(struct ast_expr) {
-                              .kind = AST_EXPR_BINARY,
-                              .binary = {
-                                  .lhs = &(struct ast_expr) {
-                                      .kind = AST_EXPR_GET,
-                                      .get = {"x"}},
-                                  .rhs = &(struct ast_expr) {
-                                      .kind = AST_EXPR_INTEGER,
-                                      .integer = {42}},
-                                  .op = AST_BIN_ADD}}}},
-                 }  // Func body end.
-             }}},
-    };
-    int node_count = sizeof nodes / sizeof nodes[0];
+    struct region *region = create_region(STDLIB_ALLOCATOR_AD, REGION_SIZE);
+    struct ast_list nodes = parse(region);
     static struct string_buffer sb = {0};
-    enum cgen_error error = crvic_generate_c_file(node_count, nodes, &sb);
+    enum cgen_error error = crvic_generate_c_file(nodes, &sb);
+    destroy_region(region);
     if (error) {
         fprintf(stderr, "Something went wrong: %d\n", error);
         return EXIT_FAILURE;

@@ -43,6 +43,13 @@ enum ast_func_decl_kind {
     AST_FUNC_INTERNAL,  // A function defined within this source file.
 };
 
+struct ast_list {
+    struct allocatorARD allocator;
+    size_t capacity;
+    size_t count;
+    struct ast_node *items;
+};
+
 struct ast_func_sig {
     struct lxl_string_view name;
     TypeID ret_type;
@@ -86,9 +93,11 @@ struct ast_decl {
     union {
         struct {
             struct lxl_string_view name;
+            TypeID type;
         } var_decl;
         struct {
             struct lxl_string_view name;
+            TypeID type;
             struct ast_expr *value;
         } var_defn;
         struct {
@@ -97,8 +106,7 @@ struct ast_decl {
         } func_decl;
         struct {
             struct ast_func_sig *sig;
-            size_t body_node_count;
-            struct ast_node *body;
+            struct ast_list body;
         } func_defn;
     };
 };
@@ -112,11 +120,8 @@ struct ast_node {
     };
 };
 
-struct ast_list {
-    struct allocatorARD allocator;
-    size_t capacity;
-    size_t count;
-    struct ast_node *items;
-};
+#define EXPR_NODE(expr) ((struct ast_node) {.kind = AST_EXPR, .expr = expr})
+#define STMT_NODE(stmt) ((struct ast_node) {.kind = AST_STMT, .stmt = stmt})
+#define DECL_NODE(decl) ((struct ast_node) {.kind = AST_DECL, .decl = decl})
 
 #endif

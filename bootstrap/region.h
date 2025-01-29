@@ -21,12 +21,12 @@ void destroy_region(struct region *region);
 // Allocate inside region.
 void *region_allocate(size_t size, void *region);
 // Reset region (effectively deallocates all allocations since last reset).
-void region_reset(struct region *r);
+void region_reset(struct region *region);
 // Reallocate inside region. If this cannot be done in-place, a new allocation is made
 // at the end of the region.
 void *region_reallocate(void *orig, size_t new_size, size_t old_size, void *region);
 // Deallocate inside region. If `orig` was not the last allocation, do nothing.
-void *region_deallocate(void *orig, size_t size, void *region);
+void region_deallocate(void *orig, size_t size, void *region);
 
 #define region_allocatorARD(region) ((struct allocatorARD) {            \
             .ctx = region, .allocate = region_allocate,                 \

@@ -1,6 +1,8 @@
 #ifndef CRVIC_TYPE_H
 #define CRVIC_TYPE_H
 
+#include "ubiqs.h"  // Allocator interface.
+
 enum type_primitive {
     TYPE_NO_TYPE,      // Sentinel type denoting no type.
     TYPE_ABSURD,       // Absurd type `!`. Used to denote expressions that do not return.
@@ -20,5 +22,12 @@ enum type_primitive {
 };
 
 typedef int TypeID;   // Type for types.
+
+struct type_list {
+    struct allocatorARD allocator;
+    size_t capacity;
+    size_t count;
+    TypeID *items;
+};
 
 #endif
