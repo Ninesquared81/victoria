@@ -495,6 +495,11 @@ struct lxl_string_view lxl_sv_from_startend(const char *start, const char * end)
 // Use when printing a string view with LXL_SV_FMT_SPEC. The argument is evalucated multiple times.
 #define LXL_SV_FMT_ARG(sv) ((sv).length < INT_MAX) ? (int)(sv).length : INT_MAX, (sv).start
 
+// Compare two string views in a manner similar to `strcmp()`.
+int lxl_sv_compare(struct lxl_string_view a, struct lxl_string_view b);
+// Check if two string views have the same contents.
+bool lxl_sv_equal(struct lxl_string_view a, struct lxl_string_view b);
+
 // END LEXEL STRING VIEW.
 
 
@@ -1305,6 +1310,20 @@ struct lxl_string_view lxl_sv_from_startend(const char *start, const char *end) 
     LXL_ASSERT(start <= end);
     return (struct lxl_string_view) {.start = start, .length = end - start};
 }
+
+int lxl_sv_compare(struct lxl_string_view a, struct lxl_string_view b) {
+    if (a.length == b.length) return memcmp(a.start, b.start, a.length);
+    size_t compare_length = (a.length < b.length) ? a.length : b.length;
+    int result1 = memcmp(a.start, b.start, compare_length);
+    if (result1 == 0) return (a.length < b.length) ? -1 : 1;
+    return result1;
+}
+
+bool lxl_sv_equal(struct lxl_string_view a, struct lxl_string_view b) {
+    if (a.length != b.length) return false;
+    return memcmp(a.start, b.start, a.length) == 0;
+}
+
 
 // END STRING VIEW FUNCTIONS.
 
