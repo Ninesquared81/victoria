@@ -1,0 +1,54 @@
+This is a file summarising the grammar of rVic which is used by the parser.
+
+Decl = VarDecl
+     | VarDefn
+     | FuncDecl
+     | FuncDefn
+     ;
+VarDecl = "var" TypeDecl END ;
+VarDefn = "var" IDENT (":=" | ":" Type "=") Expr END ;
+FuncDecl = "func" "(" [(TypeDecl ",")* TypeDecl [","]] ")" ["->" Type] ":=" "external" END ;
+FuncDefn = "func" "(" [(TypeDecl ",")* TypeDecl [","]] ")" ["->" Type] BlockStmt ;
+
+TypeDecl = IDENT ":" Type ;
+
+BlockStmt = "{" Stmt* "}"
+Stmt = BlockStmt
+     | ExprStmt
+     ;
+ExprStmt = Expr END ;
+
+Expr = Assign ;
+
+Assign = AssignExpr | Equality ;
+Equality = Term ;
+Term = Factor (("+") Factor)* ;
+Factor = Suffix (("*") Suffix)* ;
+Suffix = Prefix ;
+Prefix = Primary ;
+Primay = IntegerExpr | GetExpr ;
+
+AssignExpr = SetExpr ":=" Expr ;
+IntegerExpr = INTEGER_LIT ;
+GetExpr = IDENT ;
+SetExpr = GetExpr ;
+
+Type = BUILTIN_TYPE
+     | IDENT
+     ;
+
+END = "\n" | ";" ;
+
+
+Operator precedence:
+High
+
+primary  "123", "abc"
+prefix
+suffix
+factor   "*"
+term     "+"
+equality "=="
+assign   ":="
+
+Low
