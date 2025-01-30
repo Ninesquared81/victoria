@@ -344,6 +344,8 @@ bool lxl_lexer__check_string_n(struct lxl_lexer *lexer, const char *s, size_t n)
 bool lxl_lexer__check_strings(struct lxl_lexer *lexer, const char *const *strings);
 // Return whether the current character is whitespace (see LXL_WHITESPACE_CHARS).
 bool lxl_lexer__check_whitespace(struct lxl_lexer *lexer);
+// Return whether the current character is whitespace including LF (regardless of lexer.emit_line_endings).
+bool lxl_lexer__check_whitespace_with_lf(struct lxl_lexer *lexer);
 // Return whether the current characer is reserved (has a special meaning, like starting a comment or string).
 bool lxl_lexer__check_reserved(struct lxl_lexer *lexer);
 // Return whether the current character is a line comment opener.
@@ -823,8 +825,12 @@ bool lxl_lexer__check_whitespace(struct lxl_lexer *lexer) {
     return lxl_lexer__check_chars(lexer, LXL_WHITESPACE_CHARS_NO_LF);
 }
 
+bool lxl_lexer__check_whitespace_with_lf(struct lxl_lexer *lexer) {
+    return lxl_lexer__check_chars(lexer, LXL_WHITESPACE_CHARS);
+}
+
 bool lxl_lexer__check_reserved(struct lxl_lexer *lexer) {
-    return lxl_lexer__check_whitespace(lexer)
+    return lxl_lexer__check_whitespace_with_lf(lexer)
         || lxl_lexer__check_line_comment(lexer)
         || lxl_lexer__check_block_comment(lexer)
         || !!lxl_lexer__check_string_opener(lexer, LXL_STRING_LINE)
