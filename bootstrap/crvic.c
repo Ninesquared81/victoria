@@ -13,6 +13,7 @@
 int main(void) {
     const char *filename = "out.c";
     const char test_prog[] =
+        "func putchar(c: i32) -> i32 := external\n"
         "func main() {"
         "  var a := 42\n"
         "  var b := 5\n"
