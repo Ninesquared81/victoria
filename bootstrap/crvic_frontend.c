@@ -134,8 +134,8 @@ static bool check_assignment_target(struct ast_expr expr) {
     return expr.kind == AST_EXPR_GET;
 }
 
-static TypeID parse_type(const char *fmt, ...) {
-    switch (parser.current_token.token_type) {
+static TypeID get_type(struct lxl_token token) {
+    switch (token.token_type) {
     case TOKEN_KW_I8: return TYPE_I8;
     case TOKEN_KW_I16: return TYPE_I16;
     case TOKEN_KW_I32: return TYPE_I32;
@@ -146,6 +146,16 @@ static TypeID parse_type(const char *fmt, ...) {
     case TOKEN_KW_U32: return TYPE_U32;
     case TOKEN_KW_U64: return TYPE_U64;
     case TOKEN_KW_UINT: return TYPE_UINT;
+    }
+    return TYPE_NO_TYPE;
+}
+
+static TypeID parse_type(const char *fmt, ...) {
+    static_assert(TYPE_NO_TYPE == 0);
+    TypeID type = get_type(parser.current_token);
+    if (type) {
+        advance();
+        return type;
     }
     // Not a type.
     va_list vargs;
@@ -335,9 +345,12 @@ static struct ast_decl *parse_func_decl(struct region *region) {
     *decl = (struct ast_decl) {0};
     struct lxl_token name_token = consume(TOKEN_IDENTIFIER, "Expect function name");
     struct ast_func_sig *sig = region_allocate(sizeof *sig, region);
-    *sig = (struct ast_func_sig) {.name = lxl_token_value(name_token)};
+    *sig = (struct ast_func_sig) {
+        .name = lxl_token_value(name_token),
+        .param_types.allocator = STDLIB_ALLOCATOR_ARD,
+    };
     consume(TOKEN_BKT_ROUND_LEFT, "Expect '(' after function name");
-    struct sv_list param_names = {0};
+    struct sv_list param_names = {.allocator = STDLIB_ALLOCATOR_ARD};
     while (!match(TOKEN_BKT_ROUND_RIGHT)) {
         ensure_not_at_end("Unclosed function parameter list");
         struct lxl_token param_token = consume(TOKEN_IDENTIFIER, "Expect parameter name");
@@ -370,6 +383,11 @@ static struct ast_decl *parse_func_decl(struct region *region) {
     }
     else if (match(TOKEN_COLON_EQUALS)) {
         consume(TOKEN_KW_EXTERNAL, "Expect 'external' after ':=' for function");
+        *decl = (struct ast_decl) {
+            .kind = AST_DECL_FUNC_DECL,
+            .func_decl = {
+                .sig = sig,
+                .kind = AST_FUNC_EXTERNAL}};
     }
     else {
         parse_error_current_show_token("Expect '{' or ':=' after function signature");
