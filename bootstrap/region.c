@@ -26,7 +26,13 @@ static size_t alignment_offset(intptr_t iptr, size_t size) {
         ++shift_by;
     }
     int align_real = 1 << shift_by;
-    return (align_real - iptr) % align_real;
+    assert(iptr > 1);
+    // Note: iptr_align_shifted is defined on the shifted interval [1, align_real]
+    // rather than the usual [0, align_real - 1]. This is so we cann subtract it from
+    // align_real to get the needed offset (if we're already aligned, this should be 0).
+    int iptr_align_shifted = (iptr-1) % align_real + 1;
+    assert(0 < iptr_align_shifted && iptr_align_shifted <= align_real);
+    return align_real - iptr_align_shifted;
 }
 
 void *region_allocate(size_t size, void *region) {
