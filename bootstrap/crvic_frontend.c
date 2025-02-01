@@ -174,7 +174,7 @@ static TypeID get_type(struct lxl_token token) {
 }
 
 static TypeID parse_type(const char *fmt, ...) {
-    static_assert(TYPE_NO_TYPE == 0);
+    static_assert(TYPE_NO_TYPE == 0, "TYPE_NO_TYPE should be 'falsy'");
     TypeID type = get_type(parser.current_token);
     if (type) {
         advance();

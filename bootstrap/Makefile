@@ -1,6 +1,6 @@
-CC = gcc
-# -Wno-missing-braces because gcc does not seem to like initialiser list + C11 anonymous struct/union.
-CFLAGS = -Wall -Werror -Wextra -pedantic -g -std=c11 -Wno-missing-braces -D__USE_MINGW_ANSI_STDIO=1
+CC = clang
+
+CFLAGS = -Wall -Werror -Wextra -pedantic -g -std=c11 -D__USE_MINGW_ANSI_STDIO=1 -fsanitize=undefined -fsanitize-trap
 
 .PHONY: all
 
