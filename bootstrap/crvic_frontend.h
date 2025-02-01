@@ -101,7 +101,7 @@ enum token_type {
 };
 
 // Lexer.
-void init_lexer(struct lxl_string_view source);
+struct lxl_lexer *init_lexer(struct lxl_string_view source);
 struct lxl_token next_token(void);
 
 const char *token_type_string(struct lxl_token token);
@@ -109,7 +109,8 @@ void print_token(struct lxl_token token, FILE *f);
 void print_tokens(FILE *f);
 
 // Parser.
-struct ast_list parse(struct region *region);   // NOTE: call `init_lexer()` first!
+void init_parser(struct lxl_string_view source);
+struct ast_list parse(struct region *region);   // NOTE: call `init_parser()` first!
 
 
 #endif

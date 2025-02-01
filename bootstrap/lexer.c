@@ -107,8 +107,8 @@ static void add_string_type_pairs_impl(const char *const **strings, const int **
 }
 
 // Create lexer object.
-void init_lexer(struct lxl_string_view source) {
-    if (lexer_is_initialised) return;
+struct lxl_lexer *init_lexer(struct lxl_string_view source) {
+    if (lexer_is_initialised) return &lexer;
     lexer = lxl_lexer_from_sv(source);
     // Comments.
     lexer.line_comment_openers = add_strings("#");
@@ -218,6 +218,7 @@ void init_lexer(struct lxl_string_view source) {
 
     // Initialisation complete!
     lexer_is_initialised = true;
+    return &lexer;
 }
 
 // Get the next token.

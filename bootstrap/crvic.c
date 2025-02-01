@@ -9,18 +9,36 @@
 #include "crvic_type.h"
 
 #define REGION_SIZE 0x4000
+#define INBUF_SIZE 0x8000
+
+struct lxl_string_view read_source(const char *in_filename) {
+    static char input_buffer[INBUF_SIZE] = {0};
+    FILE *f = fopen(in_filename, "r");
+    if (f == NULL) {
+        perror("Failed to open input file");
+        exit(1);
+    }
+    size_t length = fread(input_buffer, 1, INBUF_SIZE - 1, f);
+    if (ferror(f)) {
+        perror("Failed to read input file");
+        fclose(f);
+        exit(1);
+    }
+    if (!feof(f)) {
+        fprintf(stderr, "Warning: input file truncated.\n");
+    }
+    fclose(f);
+    return (struct lxl_string_view) {
+        .start = input_buffer,
+        .length = length,
+    };
+}
 
 int main(void) {
-    const char *filename = "out.c";
-    const char test_prog[] =
-        "func putchar(c: i32) -> i32 := external\n"
-        "func main() {"
-        "  var a := 42\n"
-        "  var b := 5\n"
-        "  a := (a + 7) * b + 1\n"
-        "}\n"
-        ;
-    init_lexer(LXL_SV_FROM_STRLIT(test_prog));
+    const char *in_filename = "in.vic";
+    const char *out_filename = "out.c";
+    struct lxl_string_view source = read_source(in_filename);
+    init_parser(source);  // This also initialises the lexer.
     struct region *region = create_region(STDLIB_ALLOCATOR_AD, REGION_SIZE);
     struct ast_list nodes = parse(region);
     static struct string_buffer sb = {0};
@@ -30,7 +48,7 @@ int main(void) {
         fprintf(stderr, "Something went wrong: %d\n", error);
         return EXIT_FAILURE;
     }
-    FILE *f = fopen(filename, "w");
+    FILE *f = fopen(out_filename, "w");
     if (f == NULL) {
         perror("fopen() failed");
         return EXIT_FAILURE;
