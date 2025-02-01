@@ -22,11 +22,32 @@
 
 struct parser {
     struct lxl_token current_token, previous_token;
+    struct lxl_lexer *lexer;
     bool panic_mode;
-} parser;
+};
+
+static struct parser parser = {0};
+
+void init_parser(struct lxl_string_view source) {
+    parser.lexer = init_lexer(source);
+}
 
 static void report_location(struct lxl_token token) {
     fprintf(stderr, "%d:%d: ", token.loc.line, token.loc.column);
+}
+
+static void print_line_with_token(struct lxl_token token) {
+    const char *start = token.start;
+    while (start >= parser.lexer->start && start[-1] != '\n') {
+        --start;
+    }
+    const char *end = token.start;
+    while (end < parser.lexer->end && end[0] != '\n') {
+        ++end;
+    }
+    assert(start < end);
+    struct lxl_string_view line = lxl_sv_from_startend(start, end);
+    fprintf(stderr, ""LXL_SV_FMT_SPEC"\n", LXL_SV_FMT_ARG(line));
 }
 
 static void parse_error_show_token_vargs(struct lxl_token token, const char *restrict fmt, va_list vargs) {
@@ -36,6 +57,8 @@ static void parse_error_show_token_vargs(struct lxl_token token, const char *res
     fprintf(stderr, "Parse error in '"LXL_SV_FMT_SPEC"': ", LXL_SV_FMT_ARG(token_value));
     vfprintf(stderr, fmt, vargs);
     fprintf(stderr, ".\n");
+    fprintf(stderr, "On this line:\n");
+    print_line_with_token(token);
     parser.panic_mode = true;
     exit(1);
 }
@@ -331,12 +354,14 @@ struct ast_expr *parse_expr(struct region *region) {
 }
 
 struct ast_list parse_block(struct region *region) {
+    ignore_line_ending();  // Ignore LF after '{'.
     struct ast_list stmts = {.allocator = STDLIB_ALLOCATOR_ARD};
     while (!match(TOKEN_BKT_CURLY_RIGHT)) {
         ensure_not_at_end("Unclosed block statement");
         struct ast_stmt *stmt = parse_stmt(region);
         DA_APPEND(&stmts, STMT_NODE(stmt));
     }
+    ignore_line_ending();  // Ignore LF after '}'.
     return stmts;
 }
 
