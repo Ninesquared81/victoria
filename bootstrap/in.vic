@@ -1,13 +1,13 @@
-func putchar(c:i32)->i32 := external
+func putchar(c:i32)->i32:= external
 
 func main() {
     var a := 42
     var b := a + 5
-    #// putchar(72)
-    #// putchar(101)
-    #// putchar(108)
-    #// putchar(108)
-    #// putchar(111)
-    #// putchar(33)
-    #// putchar(10)
+    # putchar(72)
+    # putchar(101)
+    # putchar(108)
+    # putchar(108)
+    # putchar(111)
+    # putchar(33)
+    # putchar(10)
 }
