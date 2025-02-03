@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -223,7 +224,7 @@ static uint64_t parse_integer(struct lxl_token token, struct region *region) {
     assert(length <= orig.length);
     start[length] = 0;
     uint64_t value = strtoull(start, NULL, base);
-    _Static_assert(sizeof value == sizeof 0ULL, "Unsupported integer size");
+    static_assert(sizeof value == sizeof 0ULL, "Unsupported integer size");
     region_deallocate(start, orig.length + 1, region);
     return value;
 }
