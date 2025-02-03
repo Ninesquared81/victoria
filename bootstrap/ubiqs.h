@@ -20,7 +20,9 @@
             assert((da)->allocator.reallocate != NULL);                 \
             size_t new_capacity = DA_GROW_CAPACITY((da)->capacity);     \
             void *new_items = (da)->allocator.reallocate(               \
-                (da)->items, new_capacity, (da)->capacity,              \
+                (da)->items,                                            \
+                new_capacity * sizeof item,                             \
+                (da)->capacity * sizeof item,                           \
                 (da)->allocator.ctx);                                   \
             assert(new_items);                                          \
             (da)->items = new_items;                                    \
