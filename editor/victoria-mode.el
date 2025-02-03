@@ -18,3 +18,5 @@
   :syntax-table 'victoria-mode-syntax-table)
 
 (provide 'victoria-mode)
+
+;;; victoria-mode.el ends here.
