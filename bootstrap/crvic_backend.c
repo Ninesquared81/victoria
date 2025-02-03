@@ -113,8 +113,11 @@ enum cgen_error crvic_generate_c_func_body(struct ast_list nodes, int indent_ste
 enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffer *sb) {
     enum cgen_error error = CGEN_OK;
     switch (expr->kind) {
-    case AST_EXPR_INTEGER:
-        sb_add_formatted(sb, "%"PRId64, expr->integer.value);
+    case AST_EXPR_ASSIGN:
+        sb_add_string(sb, "(");
+        sb_add_formatted(sb, ""LXL_SV_FMT_SPEC" = ", LXL_SV_FMT_ARG(expr->assign.target));
+        if ((error - crvic_generate_c_expr(expr->assign.value, sb))) return error;
+        sb_add_string(sb, ")");
         break;
     case AST_EXPR_BINARY:
         sb_add_string(sb, "(");  // Brackets to ensure precedence is preserved.
@@ -123,14 +126,11 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         if ((error = crvic_generate_c_expr(expr->binary.rhs, sb))) return error;
         sb_add_string(sb, ")");
         break;
-    case AST_EXPR_ASSIGN:
-        sb_add_string(sb, "(");
-        sb_add_formatted(sb, ""LXL_SV_FMT_SPEC" = ", LXL_SV_FMT_ARG(expr->assign.target));
-        if ((error - crvic_generate_c_expr(expr->assign.value, sb))) return error;
-        sb_add_string(sb, ")");
-        break;
     case AST_EXPR_GET:
         sb_add_formatted(sb, ""LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(expr->get.target));
+        break;
+    case AST_EXPR_INTEGER:
+        sb_add_formatted(sb, "%"PRId64, expr->integer.value);
         break;
     }
     return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;

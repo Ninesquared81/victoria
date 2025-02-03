@@ -16,10 +16,10 @@ enum ast_node_kind {
 };
 
 enum ast_expr_kind {
-    AST_EXPR_INTEGER,  // Integer literal expression.
-    AST_EXPR_BINARY,   // Binary operation.
     AST_EXPR_ASSIGN,   // Assignment expression.
+    AST_EXPR_BINARY,   // Binary operation.
     AST_EXPR_GET,      // Get (the value of a variable, etc.) expression.
+    AST_EXPR_INTEGER,  // Integer literal expression.
 };
 
 enum ast_stmt_kind {
@@ -63,8 +63,9 @@ struct ast_expr {
     TypeID type;
     union {
         struct {
-            int64_t value;
-        } integer;
+            struct lxl_string_view target;
+            struct ast_expr *value;
+        } assign;
         struct {
             struct ast_expr *lhs;
             struct ast_expr *rhs;
@@ -72,11 +73,10 @@ struct ast_expr {
         } binary;
         struct {
             struct lxl_string_view target;
-            struct ast_expr *value;
-        } assign;
-        struct {
-            struct lxl_string_view target;
         } get;
+        struct {
+            int64_t value;
+        } integer;
     };
 };
 
