@@ -18,6 +18,7 @@ enum ast_node_kind {
 enum ast_expr_kind {
     AST_EXPR_ASSIGN,   // Assignment expression.
     AST_EXPR_BINARY,   // Binary operation.
+    AST_EXPR_CALL,     // Function call.
     AST_EXPR_GET,      // Get (the value of a variable, etc.) expression.
     AST_EXPR_INTEGER,  // Integer literal expression.
 };
@@ -72,6 +73,10 @@ struct ast_expr {
             enum ast_bin_op_kind op;
         } binary;
         struct {
+            struct ast_expr *callee;
+            struct ast_list args;
+        } call;
+        struct {
             struct lxl_string_view target;
         } get;
         struct {
@@ -124,8 +129,8 @@ struct ast_node {
     };
 };
 
-#define EXPR_NODE(expr) ((struct ast_node) {.kind = AST_EXPR, .expr = expr})
-#define STMT_NODE(stmt) ((struct ast_node) {.kind = AST_STMT, .stmt = stmt})
-#define DECL_NODE(decl) ((struct ast_node) {.kind = AST_DECL, .decl = decl})
+#define EXPR_NODE(EXPR) ((struct ast_node) {.kind = AST_EXPR, .expr = EXPR})
+#define STMT_NODE(STMT) ((struct ast_node) {.kind = AST_STMT, .stmt = STMT})
+#define DECL_NODE(DECL) ((struct ast_node) {.kind = AST_DECL, .decl = DECL})
 
 #endif

@@ -25,7 +25,9 @@ Assign = AssignExpr | Equality ;
 Equality = Term ;
 Term = Factor (("+") Factor)* ;
 Factor = Suffix (("*") Suffix)* ;
-Suffix = Prefix ;
+Suffix = Prefix "(" ArgList ")"
+       | Prefix
+       ;
 Prefix = Primary ;
 Primay = IntegerExpr | GetExpr ;
 
@@ -33,6 +35,8 @@ AssignExpr = SetExpr ":=" Expr ;
 IntegerExpr = INTEGER_LIT ;
 GetExpr = IDENT ;
 SetExpr = GetExpr ;
+
+ArgList = [(Expr ",")* Expr [","]] ;
 
 Type = BUILTIN_TYPE
      | IDENT

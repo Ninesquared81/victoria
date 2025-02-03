@@ -29,12 +29,11 @@ enum cgen_error crvic_generate_c_nodes(struct ast_list nodes, int indent, int in
         }
         if (error) return error;
     }
-        return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
+    return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
 }
 
 enum cgen_error crvic_generate_c_stmt(struct ast_stmt *stmt, int indent, int indent_step,
                                       struct string_buffer *sb) {
-    (void)indent_step;
     sb_add_formatted(sb, "%*s", indent, "");  // Prepend indentation.
     enum cgen_error error = CGEN_OK;
     switch (stmt->kind) {
@@ -80,6 +79,37 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
         return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
 }
 
+enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffer *sb) {
+    enum cgen_error error = CGEN_OK;
+    switch (expr->kind) {
+    case AST_EXPR_ASSIGN:
+        sb_add_string(sb, "(");
+        sb_add_formatted(sb, ""LXL_SV_FMT_SPEC" = ", LXL_SV_FMT_ARG(expr->assign.target));
+        if ((error - crvic_generate_c_expr(expr->assign.value, sb))) return error;
+        sb_add_string(sb, ")");
+        break;
+    case AST_EXPR_BINARY:
+        sb_add_string(sb, "(");  // Brackets to ensure precedence is preserved.
+        if ((error = crvic_generate_c_expr(expr->binary.lhs, sb))) return error;
+        sb_add_formatted(sb, " %s ", crvic_get_c_op(expr->binary.op));
+        if ((error = crvic_generate_c_expr(expr->binary.rhs, sb))) return error;
+        sb_add_string(sb, ")");
+        break;
+    case AST_EXPR_CALL:
+        if ((error = crvic_generate_c_expr(expr->call.callee, sb))) return error;
+        sb_add_string(sb, "(");
+        if ((error = crvic_generate_c_expr_sep_list(expr->call.args, ", ", sb))) return error;
+        sb_add_string(sb, ")");
+    case AST_EXPR_GET:
+        sb_add_formatted(sb, ""LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(expr->get.target));
+        break;
+    case AST_EXPR_INTEGER:
+        sb_add_formatted(sb, "%"PRId64, expr->integer.value);
+        break;
+    }
+    return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
+}
+
 enum cgen_error crvic_generate_c_main_header(struct ast_func_sig *sig, struct string_buffer *sb) {
     assert(lxl_sv_equal(sig->name, LXL_SV_FROM_STRLIT("main")));
     assert(sig->param_types.count == 0 && "Only allow parameter-less version for now.");
@@ -110,30 +140,20 @@ enum cgen_error crvic_generate_c_func_body(struct ast_list nodes, int indent_ste
     return crvic_generate_c_nodes(nodes, indent, indent_step, sb);
 }
 
-enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffer *sb) {
+enum cgen_error crvic_generate_c_expr_sep_list(struct ast_list nodes, const char *sep,
+                                               struct string_buffer *sb) {
+    if (nodes.count <= 0) return CGEN_OK;
     enum cgen_error error = CGEN_OK;
-    switch (expr->kind) {
-    case AST_EXPR_ASSIGN:
-        sb_add_string(sb, "(");
-        sb_add_formatted(sb, ""LXL_SV_FMT_SPEC" = ", LXL_SV_FMT_ARG(expr->assign.target));
-        if ((error - crvic_generate_c_expr(expr->assign.value, sb))) return error;
-        sb_add_string(sb, ")");
-        break;
-    case AST_EXPR_BINARY:
-        sb_add_string(sb, "(");  // Brackets to ensure precedence is preserved.
-        if ((error = crvic_generate_c_expr(expr->binary.lhs, sb))) return error;
-        sb_add_formatted(sb, " %s ", crvic_get_c_op(expr->binary.op));
-        if ((error = crvic_generate_c_expr(expr->binary.rhs, sb))) return error;
-        sb_add_string(sb, ")");
-        break;
-    case AST_EXPR_GET:
-        sb_add_formatted(sb, ""LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(expr->get.target));
-        break;
-    case AST_EXPR_INTEGER:
-        sb_add_formatted(sb, "%"PRId64, expr->integer.value);
-        break;
+    struct ast_node node = nodes.items[0];
+    if (node.kind != AST_EXPR) return CGEN_UNEXPECTED_STMT;
+    if ((error = crvic_generate_c_expr(node.expr, sb))) return error;
+    for (size_t i = 1; i < nodes.count; ++i) {
+        node = nodes.items[i];
+        if (node.kind != AST_EXPR) return CGEN_UNEXPECTED_STMT;
+        sb_add_string(sb, sep);
+        if ((error = crvic_generate_c_expr(node.expr, sb))) return error;
     }
-    return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
+    return CGEN_OK;
 }
 
 const char *crvic_get_c_op(enum ast_bin_op_kind op) {

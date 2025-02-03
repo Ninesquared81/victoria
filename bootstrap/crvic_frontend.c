@@ -237,6 +237,19 @@ static struct ast_expr *parse_expr(struct region *region);
 static struct ast_stmt *parse_stmt(struct region *region);
 static struct ast_expr parse_assign(struct region *region);
 
+static struct ast_list parse_arg_list(struct region *region) {
+    struct ast_list args = {.allocator = STDLIB_ALLOCATOR_ARD};
+    while (!match(TOKEN_BKT_ROUND_RIGHT)) {
+        struct ast_expr *arg = parse_expr(region);
+        DA_APPEND(&args, EXPR_NODE(arg));
+        if (!match(TOKEN_COMMA)) {
+            consume(TOKEN_BKT_ROUND_RIGHT, "Expect ')' after argument list");
+            break;
+        }
+    }
+    return args;
+}
+
 static struct ast_expr parse_primary(struct region *region) {
     struct ast_expr expr = {0};
     if (match(TOKEN_LIT_INTEGER)) {
@@ -282,7 +295,14 @@ static struct ast_expr parse_suffix(struct region *region) {
         NOT_SUPPORTED_YET_PREVIOUS();
     }
     else if (match(TOKEN_BKT_ROUND_LEFT)) {
-        NOT_SUPPORTED_YET_PREVIOUS();
+        struct ast_expr *callee = new_expr(region);
+        *callee = expr;
+        struct ast_list args = parse_arg_list(region);
+        expr = (struct ast_expr) {
+            .kind = AST_EXPR_CALL,
+            .call = {
+                .callee = callee,
+                .args = args}};
     }
     else if (match(TOKEN_BKT_SQUARE_LEFT)) {
         NOT_SUPPORTED_YET_PREVIOUS();
