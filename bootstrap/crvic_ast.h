@@ -26,6 +26,7 @@ enum ast_expr_kind {
 enum ast_stmt_kind {
     AST_STMT_DECL,  // Declaration statement.
     AST_STMT_EXPR,  // Expression statement.
+    AST_STMT_IF,    // If statement.
 };
 
 enum ast_decl_kind {
@@ -94,6 +95,11 @@ struct ast_stmt {
         struct {
             struct ast_expr *expr;
         } expr;
+        struct {
+            struct ast_expr *cond;
+            struct ast_list then_clause;
+            struct ast_list else_clause;
+        } if_;
     };
 };
 

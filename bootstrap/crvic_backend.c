@@ -44,6 +44,19 @@ enum cgen_error crvic_generate_c_stmt(struct ast_stmt *stmt, int indent, int ind
         error = crvic_generate_c_expr(stmt->expr.expr, sb);
         sb_add_string(sb, ";\n");
         break;
+    case AST_STMT_IF:
+        sb_add_string(sb, "if (");
+        if ((error = crvic_generate_c_expr(stmt->if_.cond, sb))) return error;
+        sb_add_string(sb, ") {\n");
+        if ((error = crvic_generate_c_nodes(
+                 stmt->if_.then_clause, indent + indent_step, indent_step, sb))) return error;
+        sb_add_formatted(sb, "%*s}\n", indent, "");
+        if (stmt->if_.else_clause.count == 0) break;  // No else clause.
+        sb_add_formatted(sb, "%*selse {\n", indent, "");
+        if ((error = crvic_generate_c_nodes(
+                 stmt->if_.else_clause, indent + indent_step, indent_step, sb))) return error;
+        sb_add_formatted(sb, "%*s}\n", indent, "");
+        break;
     }
     return error;
 }

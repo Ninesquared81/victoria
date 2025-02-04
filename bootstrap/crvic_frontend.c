@@ -484,10 +484,34 @@ struct ast_decl *try_parse_decl(struct region *region) {
     return NULL;
 }
 
+struct ast_stmt parse_if(struct region *region) {
+    struct ast_expr *cond = parse_expr(region);
+    consume(TOKEN_BKT_CURLY_LEFT, "Expect '{' after 'if' condition");
+    struct ast_list then_clause = parse_block(region);
+    struct ast_list else_clause = {.allocator = STDLIB_ALLOCATOR_ARD};
+    if (match(TOKEN_KW_ELSE)) {
+        if (match(TOKEN_BKT_CURLY_LEFT)) {
+            else_clause = parse_block(region);
+        }
+        else {
+            consume(TOKEN_KW_IF, "Expect '{' or 'if' after 'else'");
+            struct ast_stmt *elif_clause = new_stmt(region);
+            *elif_clause = parse_if(region);
+            DA_APPEND(&else_clause, STMT_NODE(elif_clause));
+        }
+    }
+    return (struct ast_stmt) {
+        .kind = AST_STMT_IF,
+        .if_ = {
+            .cond = cond,
+            .then_clause = then_clause,
+            .else_clause = else_clause}};
+}
+
 struct ast_stmt *parse_stmt(struct region *region) {
     struct ast_stmt *stmt = new_stmt(region);
     if (match(TOKEN_KW_IF)) {
-        NOT_SUPPORTED_YET_PREVIOUS();
+        *stmt = parse_if(region);
     }
     else {
         struct ast_decl *decl = try_parse_decl(region);

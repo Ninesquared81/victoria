@@ -8,6 +8,21 @@ func main() {
     putchar(108)
     putchar(108)
     putchar(111)
+    putchar(44)
+    putchar(32)
+    if 0 {
+        putchar(87)
+        putchar(111)
+        putchar(114)
+        putchar(108)
+        putchar(100)
+    } else {
+        putchar(84)
+        putchar(104)
+        putchar(101)
+        putchar(114)
+        putchar(101)
+    }
     putchar(33)
     putchar(10)
 }
