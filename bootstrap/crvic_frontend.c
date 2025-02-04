@@ -238,7 +238,7 @@ static struct ast_stmt *parse_stmt(struct region *region);
 static struct ast_expr parse_assign(struct region *region);
 
 static struct ast_list parse_arg_list(struct region *region) {
-    struct ast_list args = {.allocator = STDLIB_ALLOCATOR_ARD};
+    struct ast_list args = {0};
     while (!match(TOKEN_BKT_ROUND_RIGHT)) {
         struct ast_expr *arg = parse_expr(region);
         DA_APPEND(&args, EXPR_NODE(arg));
@@ -376,7 +376,7 @@ struct ast_expr *parse_expr(struct region *region) {
 
 struct ast_list parse_block(struct region *region) {
     ignore_line_ending();  // Ignore LF after '{'.
-    struct ast_list stmts = {.allocator = STDLIB_ALLOCATOR_ARD};
+    struct ast_list stmts = {0};
     while (!match(TOKEN_BKT_CURLY_RIGHT)) {
         ensure_not_at_end("Unclosed block statement");
         struct ast_stmt *stmt = parse_stmt(region);
@@ -490,7 +490,7 @@ struct ast_stmt parse_if(struct region *region) {
     ignore_line_ending();
     consume(TOKEN_BKT_CURLY_LEFT, "Expect '{' after 'if' condition");
     struct ast_list then_clause = parse_block(region);
-    struct ast_list else_clause = {.allocator = STDLIB_ALLOCATOR_ARD};
+    struct ast_list else_clause = {0};
     if (match(TOKEN_KW_ELSE)) {
         ignore_line_ending();
         if (match(TOKEN_BKT_CURLY_LEFT)) {
@@ -537,7 +537,7 @@ struct ast_stmt *parse_stmt(struct region *region) {
 }
 
 struct ast_list parse(struct region *region) {
-    struct ast_list nodes = {.allocator = STDLIB_ALLOCATOR_ARD};
+    struct ast_list nodes = {0};
     advance();  // Prime parser with first token;
     for (; ignore_line_ending(), !parser_is_finished();) {
         struct ast_node current_node = {0};

@@ -17,7 +17,11 @@
 #define DA_APPEND(da, item)                                             \
     do {                                                                \
         if ((da)->count >= (da)->capacity) {                            \
-            assert((da)->allocator.reallocate != NULL);                 \
+            if ((da)->allocator.reallocate == NULL) {                   \
+                assert((da)->allocator.allocate == NULL &&              \
+                       (da)->allocator.deallocate == NULL);             \
+                (da)->allocator = STDLIB_ALLOCATOR_ARD;                 \
+            }                                                           \
             size_t new_capacity = DA_GROW_CAPACITY((da)->capacity);     \
             void *new_items = (da)->allocator.reallocate(               \
                 (da)->items,                                            \
