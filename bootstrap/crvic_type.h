@@ -23,11 +23,16 @@ enum type_primitive {
 
 typedef int TypeID;   // Type for types.
 
-struct type_list {
+struct type_decl {
+    struct lxl_string_view name;
+    TypeID type;
+};
+
+struct type_decl_list {
     struct allocatorARD allocator;
     size_t capacity;
     size_t count;
-    TypeID *items;
+    struct type_decl *items;
 };
 
 #endif

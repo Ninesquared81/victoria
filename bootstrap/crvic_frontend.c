@@ -393,25 +393,26 @@ static struct ast_decl *parse_func_decl(struct region *region) {
     struct ast_func_sig *sig = region_allocate(sizeof *sig, region);
     *sig = (struct ast_func_sig) {
         .name = lxl_token_value(name_token),
-        .param_types.allocator = STDLIB_ALLOCATOR_ARD,
+        .params.allocator = STDLIB_ALLOCATOR_ARD,
     };
     consume(TOKEN_BKT_ROUND_LEFT, "Expect '(' after function name");
-    struct sv_list param_names = {.allocator = STDLIB_ALLOCATOR_ARD};
     while (!match(TOKEN_BKT_ROUND_RIGHT)) {
         ensure_not_at_end("Unclosed function parameter list");
         struct lxl_token param_token = consume(TOKEN_IDENTIFIER, "Expect parameter name");
         consume(TOKEN_COLON, "Expect ':' after parameter name");
         TypeID param_type = parse_type("Expect type after parameter name");
         struct lxl_string_view param_name = lxl_token_value(param_token);
-        DA_APPEND(&param_names, param_name);
-        DA_APPEND(&sig->param_types, param_type);
+        struct type_decl param = {
+            .name = param_name,
+            .type = param_type};
+        DA_APPEND(&sig->params, param);
         if (!match(TOKEN_COMMA)) {
             // Allow no trailing comma.
-            consume(TOKEN_BKT_ROUND_RIGHT, "Expect ')' at end of parameter list");
+            consume(TOKEN_BKT_ROUND_RIGHT, "Expect ',' after parameter or ')' at end of parameter list");
             break;
         }
     }
-    sig->arity = sig->param_types.count;
+    sig->arity = sig->params.count;
     if (match(TOKEN_ARROW_RIGHT)) {
         TypeID ret_type = parse_type("Expect return type after '->'");
         sig->ret_type = ret_type;

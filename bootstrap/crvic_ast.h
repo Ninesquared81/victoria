@@ -56,7 +56,7 @@ struct ast_func_sig {
     struct lxl_string_view name;
     TypeID ret_type;
     int arity;
-    struct type_list param_types;
+    struct type_decl_list params;
 };
 
 struct ast_expr {

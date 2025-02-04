@@ -112,7 +112,7 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
 
 enum cgen_error crvic_generate_c_main_header(struct ast_func_sig *sig, struct string_buffer *sb) {
     assert(lxl_sv_equal(sig->name, LXL_SV_FROM_STRLIT("main")));
-    assert(sig->param_types.count == 0 && "Only allow parameter-less version for now.");
+    assert(sig->params.count == 0 && "Only allow parameter-less version for now.");
     sb_add_string(sb, "int main(void)");
         return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
 }
@@ -121,15 +121,19 @@ enum cgen_error crvic_generate_c_func_header(struct ast_func_sig *sig, struct st
     if (lxl_sv_equal(sig->name, LXL_SV_FROM_STRLIT("main"))) return crvic_generate_c_main_header(sig, sb);
     sb_add_formatted(sb, "%s "LXL_SV_FMT_SPEC"(",
                      crvic_get_c_type(sig->ret_type), LXL_SV_FMT_ARG(sig->name));
-    if (sig->param_types.count >= 1) {
-        sb_add_formatted(sb, "%s", crvic_get_c_type(sig->param_types.items[0]));
+    if (sig->params.count >= 1) {
+        struct type_decl param = sig->params.items[0];
+        sb_add_formatted(sb, "%s "LXL_SV_FMT_SPEC"",
+                         crvic_get_c_type(param.type), LXL_SV_FMT_ARG(param.name));
     }
     else {
         // No parameters; use `void` in parameter list for strict adherence to (pre-C23) C standard.
         sb_add_string(sb, "void");
     }
-    for (size_t i = 1; i < sig->param_types.count; ++i) {
-        sb_add_formatted(sb, ", %s", crvic_get_c_type(sig->param_types.items[i]));
+    for (size_t i = 1; i < sig->params.count; ++i) {
+        struct type_decl param = sig->params.items[i];
+        sb_add_formatted(sb, ", %s "LXL_SV_FMT_SPEC"",
+                         crvic_get_c_type(param.type), LXL_SV_FMT_ARG(param.name));
     }
     sb_add_string(sb, ")");
     return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
