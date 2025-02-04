@@ -485,15 +485,19 @@ struct ast_decl *try_parse_decl(struct region *region) {
 }
 
 struct ast_stmt parse_if(struct region *region) {
+    ignore_line_ending();
     struct ast_expr *cond = parse_expr(region);
+    ignore_line_ending();
     consume(TOKEN_BKT_CURLY_LEFT, "Expect '{' after 'if' condition");
     struct ast_list then_clause = parse_block(region);
     struct ast_list else_clause = {.allocator = STDLIB_ALLOCATOR_ARD};
     if (match(TOKEN_KW_ELSE)) {
+        ignore_line_ending();
         if (match(TOKEN_BKT_CURLY_LEFT)) {
             else_clause = parse_block(region);
         }
         else {
+            // Should we allow LF here? For now, we won't.
             consume(TOKEN_KW_IF, "Expect '{' or 'if' after 'else'");
             struct ast_stmt *elif_clause = new_stmt(region);
             *elif_clause = parse_if(region);
