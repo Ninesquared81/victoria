@@ -12,7 +12,7 @@ CRVIC_HEADERS = $(wildcard crvic*.h)
 crvic.exe: $(CRVIC_SOURCES) $(CRVIC_HEADERS) lexer.c lexel.h region.c region.h ubiqs.h
 	$(CC) $(CFLAGS) $(CRVIC_SOURCES) lexer.c region.c -o crvic.exe
 
-out.c: crvic.exe
+out.c: crvic.exe in.vic
 	crvic.exe
 
 out.exe: out.c
