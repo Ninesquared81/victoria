@@ -21,6 +21,7 @@ enum ast_expr_kind {
     AST_EXPR_CALL,     // Function call.
     AST_EXPR_GET,      // Get (the value of a variable, etc.) expression.
     AST_EXPR_INTEGER,  // Integer literal expression.
+    AST_EXPR_WHEN,     // When (conditional) expression.
 };
 
 enum ast_stmt_kind {
@@ -83,6 +84,11 @@ struct ast_expr {
         struct {
             int64_t value;
         } integer;
+        struct {
+            struct ast_expr *cond;
+            struct ast_expr *then_expr;
+            struct ast_expr *else_expr;
+        } when;
     };
 };
 

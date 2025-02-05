@@ -266,6 +266,19 @@ static struct ast_expr parse_primary(struct region *region) {
         expr = parse_assign(region);
         consume(TOKEN_BKT_ROUND_RIGHT, "Expect ')' after grouped expression");
     }
+    else if (match(TOKEN_KW_WHEN)) {
+        struct ast_expr *cond = parse_expr(region);
+        consume(TOKEN_KW_THEN, "Expect 'then' after condition in when expression");
+        struct ast_expr *then_expr = parse_expr(region);
+        consume(TOKEN_KW_ELSE, "Expect 'else' after then branch in when expression");
+        struct ast_expr *else_expr = parse_expr(region);
+        expr = (struct ast_expr) {
+            .kind = AST_EXPR_WHEN,
+            .when = {
+                .cond = cond,
+                .then_expr = then_expr,
+                .else_expr = else_expr}};
+    }
     else {
         parse_error_current_show_token("Expect expression");
     }

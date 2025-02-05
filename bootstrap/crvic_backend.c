@@ -119,6 +119,15 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
     case AST_EXPR_INTEGER:
         sb_add_formatted(sb, "%"PRId64, expr->integer.value);
         break;
+    case AST_EXPR_WHEN:
+        sb_add_string(sb, "((");  // Outer '(', Conditon '('.
+        if ((error = crvic_generate_c_expr(expr->when.cond, sb))) return error;
+        sb_add_string(sb, ") ? (");  // Condition ')', Then '('.
+        if ((error = crvic_generate_c_expr(expr->when.then_expr, sb))) return error;
+        sb_add_string(sb, ") : (");  // Then ')', Else '('.
+        if ((error = crvic_generate_c_expr(expr->when.else_expr, sb))) return error;
+        sb_add_string(sb, "))");   // Else ')', Outer ')'.
+        break;
     }
     return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
 }
