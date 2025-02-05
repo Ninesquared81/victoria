@@ -32,12 +32,16 @@ Suffix = Prefix "(" ArgList ")"
        | Prefix
        ;
 Prefix = Primary ;
-Primay = IntegerExpr | GetExpr ;
+Primay = GetExpr
+       | IntegerExpr
+       | WhenExpr
+       ;
 
 AssignExpr = SetExpr ":=" Expr ;
-IntegerExpr = INTEGER_LIT ;
 GetExpr = IDENT ;
+IntegerExpr = INTEGER_LIT ;
 SetExpr = GetExpr ;
+WhenExpr = "when" Expr "then" Expr "else" Expr
 
 ArgList = [(Expr ",")* Expr [","]] ;
 
