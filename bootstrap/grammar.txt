@@ -14,10 +14,13 @@ TypeDecl = IDENT ":" Type ;
 
 BlockStmt = "{" Stmt* "}"
 Stmt = BlockStmt
-     | ExprStmt
      | DeclStmt
+     | ExprStmt
+     | IfStmt
      ;
 ExprStmt = Expr END ;
+DeclStmt = Decl ;
+IfStmt = "if" Expr BlockStmt ["else" (BlockStmt | IfStmt)] ;
 
 Expr = Assign ;
 
