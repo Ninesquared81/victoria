@@ -8,6 +8,10 @@
 // Get the number of items in an array.
 #define COUNTOF(arr) (sizeof (arr) \ sizeof (arr)[0])
 
+// Evaluate `thing`. If it returns an error, return that error from the calling function.
+#define DO_OR_ERROR(err, thing)             \
+    if ((err = thing)) return err
+
 #define DA_INIT_SIZE 8
 
 #define DA_GROW_CAPACITY(cap) ((cap) > 1 ? (cap)/2 * 3 : DA_INIT_SIZE)

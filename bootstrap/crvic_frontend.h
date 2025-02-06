@@ -112,5 +112,7 @@ void print_tokens(FILE *f);
 void init_parser(struct lxl_string_view source);
 struct ast_list parse(struct region *region);   // NOTE: call `init_parser()` first!
 
+// Type Checker.
+bool type_check(struct ast_list *nodes);
 
 #endif

@@ -567,3 +567,122 @@ struct ast_list parse(struct region *region) {
     }
     return nodes;
 }
+
+struct type_checker {
+    bool had_error;
+} type_checker = {0};
+
+void type_error(const char *msg, ...) {
+    fprintf(stderr, "Type error: ");
+    va_list vargs;
+    va_start(vargs, msg);
+    vfprintf(stderr, msg, vargs);
+    va_end(vargs);
+    fprintf(stderr, ".\n");
+    type_checker.had_error = true;
+}
+
+static TypeID resolve_type(struct ast_expr *expr) {
+    TypeID result_type = TYPE_NO_TYPE;
+    switch (expr->kind) {
+    case AST_EXPR_ASSIGN:
+        expr->type = resolve_type(expr->assign.value);
+    case AST_EXPR_BINARY: {
+        TypeID lhs_type = resolve_type(expr->binary.lhs);
+        TypeID rhs_type = resolve_type(expr->binary.rhs);
+        result_type = convert_binary(lhs_type, rhs_type);
+    }
+    case AST_EXPR_CALL:
+        result_type = callee->sig.ret_type;
+        break;
+    case AST_EXPR_GET:
+        assert(0 && "Not Implemented");
+        break;
+    case AST_EXPR_INTEGER:
+        // TODO "untyped" literals... i.e. integer literals have an "INTEGER_LITERAL" type.
+        result_type = TYPE_INT;
+        break;
+    case AST_EXPR_WHEN: {
+        // Propogate errors.
+        if (!resolve_type(expr->when.cond)) return TYPE_NO_TYPE;
+        TypeId then_type = resolve_type(expr->when.then_expr);
+        TypeId else_type = resolve_type(expr->when.else_expr);
+        if (then_type == else_type) {
+            result_type = then_type;
+        }
+        else {
+            type_error("Types for 'then' branch and 'else' branch of 'when' expression must match");
+        }
+    } break;
+    }
+    expr->type = result_type;
+    return result_type;
+}
+
+static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type);
+
+static void type_check_function(struct ast_func_sig *sig, struct ast_list body) {
+    // TODO: set up arguments as local variables.
+    // TODO: local variables.
+    for (size_t i = 0; i < body.count; ++i) {
+        assert(body.items[i].kind == AST_STMT);
+        struct ast_stmt *stmt = body.items[i].stmt;
+        type_check_stmt(stmt, sig->ret_type);
+    }
+}
+
+static void type_check_decl(struct ast_decl *decl) {
+    switch (decl->kind) {
+    case AST_DECL_VAR_DECL: return;
+    case AST_DECL_VAR_DEFN: {
+        TypeID value_type = resolve_type(decl->var_defn.value);
+        if (!value_type) return;
+        if (!decl->var_defn.type) decl->var_defn.type = value_type;
+        if (value_type != decl->var_defn.type) {
+            type_error("Mismatched types in variable definition");
+        }
+    } return;
+    case AST_DECL_FUNC_DECL: return;
+    case AST_DECL_FUNC_DEFN:
+        type_check_function(decl->func_defn.sig, decl->func_defn.body);
+        return;
+    }
+    UNREACHABLE();
+}
+
+static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
+    (void)ret_type;  // Needed for return statements.
+    switch (stmt->kind) {
+    case AST_STMT_DECL:
+        type_check_decl(stmt->decl.decl);
+        return;
+    case AST_STMT_EXPR:
+        resolve_type(stmt->expr.expr);
+        return;
+    case AST_STMT_IF:
+        resolve_type(stmt->if_.cond);
+        type_check_stmt(stmt->if_.then_clause);
+        type_check_stmt(stmt->if_.else_clause);
+        return;
+    }
+    UNREACHABLE();
+}
+
+bool type_check(struct ast_list *nodes) {
+    for (size_t i = 0; i < nodes->count; ++i) {
+        struct ast_node node = nodes->items[i];
+        switch (node.kind) {
+        case AST_EXPR:
+            // Cannot have an expression here.
+            UNREACHABLE();
+            break;
+        case AST_STMT:
+            type_error("Only declarations and definitons are allowed at module scope");
+            break;
+        case AST_DECL:
+            type_check_decl(node.decl);
+            break;
+        }
+    }
+    return !type_checker.had_error;
+}
