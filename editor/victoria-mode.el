@@ -1,4 +1,4 @@
-;;; victoria-mode.el -- Major mode for Victoria -*- lexical-bingind: t -*-
+;;; victoria-mode.el -- Major mode for Victoria -*- lexical-binding: t -*-
 
 (require 'go-mode)
 
