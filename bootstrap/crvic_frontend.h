@@ -113,6 +113,7 @@ void init_parser(struct lxl_string_view source);
 struct ast_list parse(struct region *region);   // NOTE: call `init_parser()` first!
 
 // Type Checker.
+void init_type_checker(void);
 bool type_check(struct ast_list *nodes);
 
 #endif

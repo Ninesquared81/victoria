@@ -1,6 +1,8 @@
 #ifndef UBIQS_H
 #define UBIQS_H
 
+#include <assert.h>  // assert.
+#include <stdint.h>  // uint32_t.
 #include <stdlib.h>  // malloc, realloc, free.
 
 #include "lexel.h"   // struct lxl_string_view.
@@ -9,8 +11,11 @@
 #define COUNTOF(arr) (sizeof (arr) \ sizeof (arr)[0])
 
 // Evaluate `thing`. If it returns an error, return that error from the calling function.
-#define DO_OR_ERROR(err, thing)             \
+#define DO_OR_ERROR(err, thing)                 \
     if ((err = thing)) return err
+
+#define UNREACHABLE()                           \
+    assert(0 && "Unreachable")
 
 #define DA_INIT_SIZE 8
 
@@ -117,5 +122,14 @@ struct sv_list {
     size_t count;
     struct lxl_string_view *items;
 };
+
+static inline uint32_t hash_sv(struct lxl_string_view sv) {
+    uint32_t hash = 2166136261u;
+    for (size_t i = 0; i < sv.length; i++) {
+        hash ^= (uint8_t)sv.start[i];
+        hash *= 16777619;
+    }
+    return hash;
+}
 
 #endif  // UBIQS_H

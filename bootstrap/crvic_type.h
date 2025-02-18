@@ -1,7 +1,13 @@
 #ifndef CRVIC_TYPE_H
 #define CRVIC_TYPE_H
 
+#include <stdbool.h>  // bool.
+
+#include "lexel.h"  // struct lxl_string_view.
+
 #include "ubiqs.h"  // Allocator interface.
+
+#define PTR_WIDTH 64
 
 enum type_primitive {
     TYPE_NO_TYPE,      // Sentinel type denoting no type.
@@ -34,5 +40,17 @@ struct type_decl_list {
     size_t count;
     struct type_decl *items;
 };
+
+enum signedness {
+    SIGN_SIGNED = -1,     // Can be tested with x < 0.
+    SIGN_NO_SIGN = 0,     // Can be tested with !x.
+    SIGN_UNSIGNED = 1,    // Can be tested with x > 0.
+};
+
+bool is_integer_type(TypeID type);
+enum signedness sign_of_type(TypeID type);
+struct lxl_string_view get_type_sv(TypeID type);
+TypeID get_sized_int(TypeID type);
+TypeID max_type_rank(TypeID type1, TypeID type2);
 
 #endif

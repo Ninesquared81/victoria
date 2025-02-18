@@ -12,6 +12,8 @@
 
 #include "crvic_ast.h"
 #include "crvic_frontend.h"
+#include "crvic_function.h"
+#include "crvic_symbol_table.h"
 
 #define NOT_SUPPORTED_YET(token)                                        \
     do {                                                                \
@@ -62,6 +64,13 @@ static void parse_error_show_token_vargs(struct lxl_token token, const char *res
     print_line_with_token(token);
     parser.panic_mode = true;
     exit(1);
+}
+
+static void parse_error_previous_show_token(const char *restrict fmt, ...) {
+    va_list vargs;
+    va_start(vargs, fmt);
+    parse_error_show_token_vargs(parser.previous_token, fmt, vargs);
+    va_end(vargs);
 }
 
 static void parse_error_current_show_token(const char *restrict fmt, ...) {
@@ -310,11 +319,15 @@ static struct ast_expr parse_suffix(struct region *region) {
     else if (match(TOKEN_BKT_ROUND_LEFT)) {
         struct ast_expr *callee = new_expr(region);
         *callee = expr;
+        if (callee->kind != AST_EXPR_GET) {
+            parse_error_previous_show_token("Callee must be an identifier");
+        }
         struct ast_list args = parse_arg_list(region);
         expr = (struct ast_expr) {
             .kind = AST_EXPR_CALL,
             .call = {
-                .callee = callee,
+                .callee_name = callee->get.target,
+                .arity = args.count,
                 .args = args}};
     }
     else if (match(TOKEN_BKT_SQUARE_LEFT)) {
@@ -403,8 +416,8 @@ static struct ast_decl *parse_func_decl(struct region *region) {
     struct ast_decl *decl = new_decl(region);
     *decl = (struct ast_decl) {0};
     struct lxl_token name_token = consume(TOKEN_IDENTIFIER, "Expect function name");
-    struct ast_func_sig *sig = region_allocate(sizeof *sig, region);
-    *sig = (struct ast_func_sig) {
+    struct func_sig *sig = region_allocate(sizeof *sig, region);
+    *sig = (struct func_sig) {
         .name = lxl_token_value(name_token),
         .params.allocator = STDLIB_ALLOCATOR_ARD,
     };
@@ -447,7 +460,7 @@ static struct ast_decl *parse_func_decl(struct region *region) {
             .kind = AST_DECL_FUNC_DECL,
             .func_decl = {
                 .sig = sig,
-                .kind = AST_FUNC_EXTERNAL}};
+                .kind = FUNC_EXTERNAL}};
     }
     else {
         parse_error_current_show_token("Expect '{' or ':=' after function signature");
@@ -570,7 +583,21 @@ struct ast_list parse(struct region *region) {
 
 struct type_checker {
     bool had_error;
+    struct symbol_table symbols;
 } type_checker = {0};
+
+#define SYMBOL_TABLE_CAPACITY 1024
+
+void init_type_checker(void) {
+    static struct st_slot *slot_pool[SYMBOL_TABLE_CAPACITY] = {0};
+    static struct symbol symbol_pool[8 * SYMBOL_TABLE_CAPACITY] = {0};
+    static struct region node_region = REGION_FROM_ARRAY(symbol_pool);
+    type_checker.symbols = (struct symbol_table) {
+        .capacity = SYMBOL_TABLE_CAPACITY,
+        .slots = slot_pool,
+        .node_pool = &node_region,
+    };
+}
 
 void type_error(const char *msg, ...) {
     fprintf(stderr, "Type error: ");
@@ -582,22 +609,122 @@ void type_error(const char *msg, ...) {
     type_checker.had_error = true;
 }
 
+void name_error(const char *msg, ...) {
+    fprintf(stderr, "Name error: ");
+    va_list vargs;
+    va_start(vargs, msg);
+    vfprintf(stderr, msg, vargs);
+    va_end(vargs);
+    fprintf(stderr, ".\n");
+    type_checker.had_error = true;
+}
+
+static bool expect_integer_type(TypeID type) {
+    if (is_integer_type(type)) return true;
+    struct lxl_string_view actual_type_sv = get_type_sv(type);
+    type_error("Expect integer type, not '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(actual_type_sv));
+    return false;
+}
+
+static TypeID convert_binary(TypeID lhs_type, TypeID rhs_type) {
+    if (!expect_integer_type(lhs_type)) return TYPE_NO_TYPE;
+    if (!expect_integer_type(rhs_type)) return TYPE_NO_TYPE;
+    if (sign_of_type(lhs_type) == sign_of_type(rhs_type)) {
+        return max_type_rank(lhs_type, rhs_type);
+    }
+    type_error("Cannot mix signed and unsigned here");
+    return TYPE_NO_TYPE;
+}
+
 static TypeID resolve_type(struct ast_expr *expr) {
     TypeID result_type = TYPE_NO_TYPE;
     switch (expr->kind) {
-    case AST_EXPR_ASSIGN:
-        expr->type = resolve_type(expr->assign.value);
+    case AST_EXPR_ASSIGN: {
+        struct lxl_string_view name = expr->assign.target;
+        struct symbol *target_symbol = lookup_symbol(&type_checker.symbols, st_key_of(name));
+        if (!target_symbol) {
+            name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
+            break;
+        }
+        if (target_symbol->kind != SYMBOL_VAR) {
+            name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a variable", LXL_SV_FMT_ARG(name));
+            break;
+        }
+        result_type = resolve_type(expr->assign.value);
+        if (result_type != target_symbol->var.type) {
+            struct lxl_string_view result_type_name = get_type_sv(result_type);
+            struct lxl_string_view target_type_name = get_type_sv(target_symbol->var.type);
+            type_error("Cannot assign value of type '"LXL_SV_FMT_SPEC"' to variable '"
+                       LXL_SV_FMT_SPEC"' of type '"LXL_SV_FMT_SPEC"'",
+                       LXL_SV_FMT_ARG(result_type_name), LXL_SV_FMT_ARG(name),
+                       LXL_SV_FMT_ARG(target_type_name));
+        }
+    } break;
     case AST_EXPR_BINARY: {
         TypeID lhs_type = resolve_type(expr->binary.lhs);
         TypeID rhs_type = resolve_type(expr->binary.rhs);
         result_type = convert_binary(lhs_type, rhs_type);
-    }
-    case AST_EXPR_CALL:
-        result_type = callee->sig.ret_type;
-        break;
-    case AST_EXPR_GET:
-        assert(0 && "Not Implemented");
-        break;
+    } break;
+    case AST_EXPR_CALL: {
+        struct lxl_string_view callee_name = expr->call.callee_name;
+        struct symbol *symbol = lookup_symbol(&type_checker.symbols, st_key_of(callee_name));
+        if (!symbol) {
+            name_error("Unknown function '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(callee_name));
+            break;
+        }
+        if (symbol->kind != SYMBOL_FUNC) {
+            name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a function", LXL_SV_FMT_ARG(callee_name));
+            break;
+        }
+        assert(symbol && symbol->kind == SYMBOL_FUNC);
+        struct symbol_func *callee = &symbol->func;
+        // Set the result type here to avoid a cascade of type errors, even if the arguments are incorrect.
+        result_type = callee->sig->ret_type;
+        int expected_arity = callee->sig->arity;
+        int actual_arity = expr->call.arity;
+        if (actual_arity < expected_arity) {
+            type_error("Not enough arguments passed to '"LXL_SV_FMT_SPEC"': expected %d, but got %d",
+                       LXL_SV_FMT_ARG(callee_name), expected_arity, actual_arity);
+            break;
+        }
+        if (actual_arity > expected_arity) {
+            type_error("Too many arguments passed to '"LXL_SV_FMT_SPEC"': expected %d, but got %d",
+                       LXL_SV_FMT_ARG(callee_name), expected_arity, actual_arity);
+            break;
+        }
+        assert(actual_arity == expected_arity);
+        assert((size_t)actual_arity == expr->call.args.count);
+        assert((size_t)expected_arity == callee->sig->params.count);
+        for (int i = 0; i < actual_arity; ++i) {
+            // Parameter: expected, argument: actual.
+            struct type_decl param = callee->sig->params.items[i];
+            struct ast_node arg = expr->call.args.items[i];
+            assert(arg.kind == AST_EXPR);
+            TypeID arg_type = resolve_type(arg.expr);
+            if (arg_type == TYPE_NO_TYPE) continue;  // Skip unknown type.
+            if (arg_type != param.type) {
+                struct lxl_string_view param_type_name = get_type_sv(param.type);
+                struct lxl_string_view arg_type_name = get_type_sv(arg_type);
+                type_error("Expected type '"LXL_SV_FMT_SPEC"' for parameter '"LXL_SV_FMT_SPEC"' "
+                           "of function '"LXL_SV_FMT_SPEC"', but got type '"LXL_SV_FMT_SPEC"'",
+                           LXL_SV_FMT_ARG(param_type_name), LXL_SV_FMT_ARG(param.name),
+                           LXL_SV_FMT_ARG(callee_name), LXL_SV_FMT_ARG(arg_type_name));
+            }
+        }
+    } break;
+    case AST_EXPR_GET: {
+        struct lxl_string_view name = expr->get.target;
+        struct symbol *target_symbol = lookup_symbol(&type_checker.symbols, st_key_of(name));
+        if (!target_symbol) {
+            name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
+            break;
+        }
+        if (target_symbol->kind != SYMBOL_VAR) {
+            name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a variable", LXL_SV_FMT_ARG(name));
+            break;
+        }
+        result_type = target_symbol->var.type;
+    } break;
     case AST_EXPR_INTEGER:
         // TODO "untyped" literals... i.e. integer literals have an "INTEGER_LITERAL" type.
         result_type = TYPE_INT;
@@ -605,8 +732,8 @@ static TypeID resolve_type(struct ast_expr *expr) {
     case AST_EXPR_WHEN: {
         // Propogate errors.
         if (!resolve_type(expr->when.cond)) return TYPE_NO_TYPE;
-        TypeId then_type = resolve_type(expr->when.then_expr);
-        TypeId else_type = resolve_type(expr->when.else_expr);
+        TypeID then_type = resolve_type(expr->when.then_expr);
+        TypeID else_type = resolve_type(expr->when.else_expr);
         if (then_type == else_type) {
             result_type = then_type;
         }
@@ -621,19 +748,60 @@ static TypeID resolve_type(struct ast_expr *expr) {
 
 static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type);
 
-static void type_check_function(struct ast_func_sig *sig, struct ast_list body) {
+static void type_check_function(struct func_sig *sig, struct ast_list *body) {
+    struct st_key key = st_key_of(sig->name);
+    struct symbol *symbol = lookup_symbol(&type_checker.symbols, key);
+    if (symbol == NULL) {
+        // New definition.
+        bool result = insert_symbol(&type_checker.symbols, key, (struct symbol) {
+                .kind = SYMBOL_FUNC,
+                .func = {
+                    .sig = sig,
+                    .kind = FUNC_INTERNAL,
+                    .body = body}});
+        assert(result);
+    }
+    else {
+        // Definition of exisiting function.
+        if (symbol->func.body != NULL) {
+            type_error("Redefinition of function '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(sig->name));
+        }
+        if (symbol->func.kind == FUNC_EXTERNAL) {
+            type_error("Cannot define function '"LXL_SV_FMT_SPEC"' previously defined as 'external'",
+                       LXL_SV_FMT_ARG(sig->name));
+        }
+    }
     // TODO: set up arguments as local variables.
     // TODO: local variables.
-    for (size_t i = 0; i < body.count; ++i) {
-        assert(body.items[i].kind == AST_STMT);
-        struct ast_stmt *stmt = body.items[i].stmt;
+    for (size_t i = 0; i < body->count; ++i) {
+        assert(body->items[i].kind == AST_STMT);
+        struct ast_stmt *stmt = body->items[i].stmt;
         type_check_stmt(stmt, sig->ret_type);
     }
 }
 
+static bool compare_sigs(struct func_sig *sig1, struct func_sig *sig2) {
+    assert(sig1 && sig2);
+    assert((size_t)sig1->arity == sig1->params.count);
+    assert((size_t)sig2->arity == sig2->params.count);
+    if (sig1->arity != sig2->arity) return false;
+    for (int i = 0; i < sig1->arity; ++i) {
+        // NOTE: parameter names are allowed to differ.
+        if (sig1->params.items[i].type != sig2->params.items[i].type) return false;
+    }
+    return true;
+}
+
 static void type_check_decl(struct ast_decl *decl) {
     switch (decl->kind) {
-    case AST_DECL_VAR_DECL: return;
+    case AST_DECL_VAR_DECL: {
+        struct symbol symbol = {
+            .kind = SYMBOL_VAR,
+            .var = {.type = decl->var_decl.type}};
+        if (!insert_symbol(&type_checker.symbols, st_key_of(decl->var_decl.name), symbol)) {
+            name_error("Redeclaration of symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(decl->var_decl.name));
+        }
+    } return;
     case AST_DECL_VAR_DEFN: {
         TypeID value_type = resolve_type(decl->var_defn.value);
         if (!value_type) return;
@@ -641,13 +809,72 @@ static void type_check_decl(struct ast_decl *decl) {
         if (value_type != decl->var_defn.type) {
             type_error("Mismatched types in variable definition");
         }
+        struct symbol symbol = {
+            .kind = SYMBOL_VAR,
+            .var = {.type = decl->var_defn.type}};
+        if (!insert_symbol(&type_checker.symbols, st_key_of(decl->var_decl.name), symbol)) {
+            name_error("Redeclaration of symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(decl->var_decl.name));
+        }
     } return;
-    case AST_DECL_FUNC_DECL: return;
+    case AST_DECL_FUNC_DECL: {
+        struct func_sig *sig = decl->func_decl.sig;
+        struct st_key key = st_key_of(sig->name);
+        struct symbol *symbol = lookup_symbol(&type_checker.symbols, key);
+        if (symbol == NULL) {
+            // Unseen function; add it to the symbol table.
+            bool result = insert_symbol(&type_checker.symbols, key, (struct symbol) {
+                    .kind = SYMBOL_FUNC,
+                    .func = {
+                        .sig = sig,
+                        .kind = decl->func_decl.kind,
+                        .body = NULL}});
+            assert(result);  // This should be a new symbol in the table.
+        }
+        else {
+            // Re-declaration.
+            if (symbol->func.kind != decl->func_decl.kind) {
+                // Cannot redeclare with different linkage.
+                const char *prev_linkage = "external";
+                const char *new_linkage = "internal";
+                if (symbol->func.kind == FUNC_EXTERNAL) {
+                    assert(decl->func_decl.kind == FUNC_INTERNAL);
+                }
+                else {
+                    assert(decl->func_decl.kind == FUNC_EXTERNAL);
+                    prev_linkage = "internal";
+                    new_linkage = "external";
+                }
+                type_error("Cannot redeclare function '"LXL_SV_FMT_SPEC"' as '%s'"
+                           " following previous declaration as '%s'",
+                           LXL_SV_FMT_ARG(sig->name), prev_linkage, new_linkage);
+            }
+            if (!compare_sigs(sig, symbol->func.sig)) {
+                type_error("Function '"LXL_SV_FMT_SPEC"' redeclared with different signature",
+                           LXL_SV_FMT_ARG(sig->name));
+            }
+        }
+    } return;
     case AST_DECL_FUNC_DEFN:
-        type_check_function(decl->func_defn.sig, decl->func_defn.body);
+        type_check_function(decl->func_defn.sig, &decl->func_defn.body);
         return;
     }
     UNREACHABLE();
+}
+
+static void type_check_stmt_list(struct ast_list stmts, TypeID ret_type) {
+    for (size_t i = 0; i < stmts.count; ++i) {
+        struct ast_node node = stmts.items[i];
+        assert(node.kind != AST_EXPR);
+        if (node.kind == AST_STMT) {
+            type_check_stmt(node.stmt, ret_type);
+        }
+        else if (node.kind == AST_DECL) {
+            type_check_decl(node.decl);
+        }
+        else {
+            UNREACHABLE();
+        }
+    }
 }
 
 static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
@@ -661,8 +888,8 @@ static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
         return;
     case AST_STMT_IF:
         resolve_type(stmt->if_.cond);
-        type_check_stmt(stmt->if_.then_clause);
-        type_check_stmt(stmt->if_.else_clause);
+        type_check_stmt_list(stmt->if_.then_clause, ret_type);
+        type_check_stmt_list(stmt->if_.else_clause, ret_type);
         return;
     }
     UNREACHABLE();

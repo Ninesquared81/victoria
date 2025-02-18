@@ -23,8 +23,8 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
                                       struct string_buffer *sb);
 enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffer *sb);
 
-enum cgen_error crvic_generate_c_main_header(struct ast_func_sig *sig, struct string_buffer *sb);
-enum cgen_error crvic_generate_c_func_header(struct ast_func_sig *sig, struct string_buffer *sb);
+enum cgen_error crvic_generate_c_main_header(struct func_sig *sig, struct string_buffer *sb);
+enum cgen_error crvic_generate_c_func_header(struct func_sig *sig, struct string_buffer *sb);
 enum cgen_error crvic_generate_c_func_body(struct ast_list nodes, int indent_step, struct string_buffer *sb);
 enum cgen_error crvic_generate_c_expr_sep_list(struct ast_list nodes, const char *sep,
                                                struct string_buffer *sb);

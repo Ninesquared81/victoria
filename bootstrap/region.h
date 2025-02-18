@@ -10,13 +10,19 @@ struct region {
     struct allocatorAD parent_allocator;
     size_t capacity;
     size_t alloc_count;
-    char data[];
+    char *data;
 };
 
 // Create a region that can hold `size` bytes using the given allocator.
 struct region *create_region(struct allocatorAD allocator, size_t size);
 // Detsroy the region.
 void destroy_region(struct region *region);
+
+// Make a region with the given backing buffer.
+struct region region_from_buffer(size_t buf_size, void *buffer);
+
+#define REGION_FROM_ARRAY(arr) \
+    (struct region) {.capacity = sizeof arr, .data = (char *)arr}
 
 // Allocate inside region.
 void *region_allocate(size_t size, void *region);

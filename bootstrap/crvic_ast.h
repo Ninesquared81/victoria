@@ -7,6 +7,7 @@
 
 #include "ubiqs.h"  // struct allocatorARD.
 
+#include "crvic_function.h"
 #include "crvic_type.h"  // TypeID.
 
 enum ast_node_kind {
@@ -42,23 +43,11 @@ enum ast_bin_op_kind {
     AST_BIN_MUL,  // Multiplication operator `*`.
 };
 
-enum ast_func_decl_kind {
-    AST_FUNC_EXTERNAL,  // A function defined externally (possibly in a different language, like C).
-    AST_FUNC_INTERNAL,  // A function defined within this source file.
-};
-
 struct ast_list {
     struct allocatorARD allocator;
     size_t capacity;
     size_t count;
     struct ast_node *items;
-};
-
-struct ast_func_sig {
-    struct lxl_string_view name;
-    TypeID ret_type;
-    int arity;
-    struct type_decl_list params;
 };
 
 struct ast_expr {
@@ -75,7 +64,8 @@ struct ast_expr {
             enum ast_bin_op_kind op;
         } binary;
         struct {
-            struct ast_expr *callee;
+            struct lxl_string_view callee_name;
+            int arity;  // Number of arguments at call site.
             struct ast_list args;
         } call;
         struct {
@@ -122,11 +112,11 @@ struct ast_decl {
             struct ast_expr *value;
         } var_defn;
         struct {
-            struct ast_func_sig *sig;
-            enum ast_func_decl_kind kind;
+            struct func_sig *sig;
+            enum func_link_kind kind;
         } func_decl;
         struct {
-            struct ast_func_sig *sig;
+            struct func_sig *sig;
             struct ast_list body;
         } func_defn;
     };

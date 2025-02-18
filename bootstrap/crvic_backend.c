@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "crvic_backend.h"
+#include "crvic_function.h"
 
 enum cgen_error crvic_generate_c_file(struct ast_list nodes, struct string_buffer *sb) {
     int indent_step = 4;  // Number of spaces to indent by for each indent/dedent.
@@ -109,10 +110,10 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         sb_add_string(sb, ")");
         break;
     case AST_EXPR_CALL:
-        if ((error = crvic_generate_c_expr(expr->call.callee, sb))) return error;
-        sb_add_string(sb, "(");
+        sb_add_formatted(sb, ""LXL_SV_FMT_SPEC"(", LXL_SV_FMT_ARG(expr->call.callee_name));
         if ((error = crvic_generate_c_expr_sep_list(expr->call.args, ", ", sb))) return error;
         sb_add_string(sb, ")");
+        break;
     case AST_EXPR_GET:
         sb_add_formatted(sb, ""LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(expr->get.target));
         break;
@@ -132,14 +133,14 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
     return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
 }
 
-enum cgen_error crvic_generate_c_main_header(struct ast_func_sig *sig, struct string_buffer *sb) {
+enum cgen_error crvic_generate_c_main_header(struct func_sig *sig, struct string_buffer *sb) {
     assert(lxl_sv_equal(sig->name, LXL_SV_FROM_STRLIT("main")));
     assert(sig->params.count == 0 && "Only allow parameter-less version for now.");
     sb_add_string(sb, "int main(void)");
         return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
 }
 
-enum cgen_error crvic_generate_c_func_header(struct ast_func_sig *sig, struct string_buffer *sb) {
+enum cgen_error crvic_generate_c_func_header(struct func_sig *sig, struct string_buffer *sb) {
     if (lxl_sv_equal(sig->name, LXL_SV_FROM_STRLIT("main"))) return crvic_generate_c_main_header(sig, sb);
     sb_add_formatted(sb, "%s "LXL_SV_FMT_SPEC"(",
                      crvic_get_c_type(sig->ret_type), LXL_SV_FMT_ARG(sig->name));

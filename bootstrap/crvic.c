@@ -41,6 +41,12 @@ int main(void) {
     init_parser(source);  // This also initialises the lexer.
     struct region *region = create_region(STDLIB_ALLOCATOR_AD, REGION_SIZE);
     struct ast_list nodes = parse(region);
+    init_type_checker();
+    if (!type_check(&nodes)) {
+        // Error messages already printed.
+        destroy_region(region);
+        exit(1);
+    }
     static struct string_buffer sb = {0};
     enum cgen_error error = crvic_generate_c_file(nodes, &sb);
     destroy_region(region);

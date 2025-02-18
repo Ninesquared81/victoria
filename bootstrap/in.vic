@@ -3,30 +3,30 @@ func putchar(c:i32)->i32:= external
 func main() {
     var a := 42
     var b := a + 5
-    putchar(72)
-    putchar(101)
-    putchar(108)
-    putchar(108)
-    putchar(111)
-    var cond := 0
-    putchar(44)
-    putchar(32)
-    if cond
-    {
-        putchar(87)
-        putchar(111)
-        putchar(114)
-        putchar(108)
-        putchar(100)
-    }
-    else
-    {
-        putchar(84)
-        putchar(104)
-        putchar(101)
-        putchar(114)
-        putchar(101)
-    }
-    putchar(when cond then 33 else 46)
-    putchar(10)
+    # putchar(72)
+    # putchar(101)
+    # putchar(108)
+    # putchar(108)
+    # putchar(111)
+    # var cond := 0
+    # putchar(44)
+    # putchar(32)
+    # if cond
+    # {
+    #     putchar(87)
+    #     putchar(111)
+    #     putchar(114)
+    #     putchar(108)
+    #     putchar(100)
+    # }
+    # else
+    # {
+    #     putchar(84)
+    #     putchar(104)
+    #     putchar(101)
+    #     putchar(114)
+    #     putchar(101)
+    # }
+    # putchar(when cond then 33 else 46)
+    # putchar(10)
 }

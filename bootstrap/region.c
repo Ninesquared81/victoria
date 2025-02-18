@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdalign.h>
 #include <string.h>
 
@@ -9,14 +10,25 @@ struct region *create_region(struct allocatorAD allocator, size_t size) {
     r->parent_allocator = allocator;
     r->capacity = size;
     r->alloc_count = 0;
+    r->data = (char *)&r[1];
     return r;
 }
 
 void destroy_region(struct region *r) {
+    assert(r && r->parent_allocator.deallocate);
     size_t orig_size = r->capacity + sizeof *r;
     r->capacity = 0;
     r->alloc_count = 0;
+    r->data = NULL;
     DEALLOCATE(r->parent_allocator, r, orig_size);
+}
+
+struct region region_from_buffer(size_t buf_size, void *buffer) {
+    return (struct region) {
+        .capacity = buf_size,
+        .data = buffer,
+        // Other fields zero.
+    };
 }
 
 static size_t alignment_offset(intptr_t iptr, size_t size) {
@@ -28,7 +40,7 @@ static size_t alignment_offset(intptr_t iptr, size_t size) {
     int align_real = 1 << shift_by;
     assert(iptr > 1);
     // Note: iptr_align_shifted is defined on the shifted interval [1, align_real]
-    // rather than the usual [0, align_real - 1]. This is so we cann subtract it from
+    // rather than the usual [0, align_real - 1]. This is so we can subtract it from
     // align_real to get the needed offset (if we're already aligned, this should be 0).
     int iptr_align_shifted = (iptr-1) % align_real + 1;
     assert(0 < iptr_align_shifted && iptr_align_shifted <= align_real);
