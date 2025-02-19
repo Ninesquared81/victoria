@@ -114,6 +114,22 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         if ((error = crvic_generate_c_expr_sep_list(expr->call.args, ", ", sb))) return error;
         sb_add_string(sb, ")");
         break;
+    case AST_EXPR_CONVERT:
+        if (expr->convert.kind == CONVERT_AS) {
+            // 'as' conversion.
+            sb_add_formatted(sb, "((union {%s value; %s as;}){.value = ",
+                             crvic_get_c_type(expr->convert.operand->type),
+                             crvic_get_c_type(expr->convert.target_type));
+            if ((error = crvic_generate_c_expr(expr->convert.operand, sb))) return error;
+            sb_add_string(sb, "}.as)");
+        }
+        else {
+            // 'to' conversion.
+            sb_add_formatted(sb, "((%s)", crvic_get_c_type(expr->convert.target_type));
+            if ((error = crvic_generate_c_expr(expr->convert.operand, sb))) return error;
+            sb_add_string(sb, ")");
+        }
+        break;
     case AST_EXPR_GET:
         sb_add_formatted(sb, ""LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(expr->get.target));
         break;

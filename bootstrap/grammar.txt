@@ -29,6 +29,7 @@ Equality = Term ;
 Term = Factor (("+") Factor)* ;
 Factor = Suffix (("*") Suffix)* ;
 Suffix = Prefix "(" ArgList ")"
+       | Prefix ("as" | "to") Type
        | Prefix
        ;
 Prefix = Primary ;
@@ -55,9 +56,9 @@ END = "\n" | ";" ;
 Operator precedence:
 High
 
-primary  "123", "abc"
+primary  "123", "abc", "when...then...else..."
 prefix
-suffix
+suffix   "()", "as T", "to T"
 factor   "*"
 term     "+"
 equality "=="

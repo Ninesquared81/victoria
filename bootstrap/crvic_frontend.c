@@ -333,6 +333,20 @@ static struct ast_expr parse_suffix(struct region *region) {
     else if (match(TOKEN_BKT_SQUARE_LEFT)) {
         NOT_SUPPORTED_YET_PREVIOUS();
     }
+    else if (match(TOKEN_KW_AS) || match(TOKEN_KW_TO)) {
+        struct lxl_token conversion = parser.previous_token;
+        struct lxl_string_view conv_sv = lxl_token_value(conversion);
+        TypeID target_type = parse_type("Expect target type for '"LXL_SV_FMT_SPEC"' conversion",
+                                        LXL_SV_FMT_ARG(conv_sv));
+        struct ast_expr *operand = new_expr(region);
+        *operand = expr;
+        expr = (struct ast_expr) {
+            .kind = AST_EXPR_CONVERT,
+            .convert = {
+                .operand = operand,
+                .target_type = target_type,
+                .kind = (conversion.token_type == TOKEN_KW_AS) ? CONVERT_AS : CONVERT_TO}};
+    }
     return expr;
 }
 
@@ -711,6 +725,15 @@ static TypeID resolve_type(struct ast_expr *expr) {
                            LXL_SV_FMT_ARG(callee_name), LXL_SV_FMT_ARG(arg_type_name));
             }
         }
+    } break;
+    case AST_EXPR_CONVERT: {
+        if (expr->convert.kind == CONVERT_AS) {
+            // TODO: ensure 'as' conversion is compatible.
+        }
+        else {
+            // TODO: ensure 'to' conversion is compatible.
+        }
+        result_type = expr->convert.target_type;
     } break;
     case AST_EXPR_GET: {
         struct lxl_string_view name = expr->get.target;

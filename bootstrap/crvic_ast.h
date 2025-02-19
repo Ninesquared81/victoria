@@ -20,6 +20,7 @@ enum ast_expr_kind {
     AST_EXPR_ASSIGN,   // Assignment expression.
     AST_EXPR_BINARY,   // Binary operation.
     AST_EXPR_CALL,     // Function call.
+    AST_EXPR_CONVERT,  // Explicit type conversion.
     AST_EXPR_GET,      // Get (the value of a variable, etc.) expression.
     AST_EXPR_INTEGER,  // Integer literal expression.
     AST_EXPR_WHEN,     // When (conditional) expression.
@@ -68,6 +69,11 @@ struct ast_expr {
             int arity;  // Number of arguments at call site.
             struct ast_list args;
         } call;
+        struct {
+            struct ast_expr *operand;
+            TypeID target_type;
+            enum type_conv_kind kind;
+        } convert;
         struct {
             struct lxl_string_view target;
         } get;

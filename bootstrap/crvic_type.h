@@ -47,6 +47,11 @@ enum signedness {
     SIGN_UNSIGNED = 1,    // Can be tested with x > 0.
 };
 
+enum type_conv_kind {
+    CONVERT_AS,
+    CONVERT_TO,
+};
+
 bool is_integer_type(TypeID type);
 enum signedness sign_of_type(TypeID type);
 struct lxl_string_view get_type_sv(TypeID type);
