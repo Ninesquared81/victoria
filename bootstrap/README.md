@@ -15,3 +15,23 @@ Lexing is currently done using [lexel](https://github.com/Ninesquared81/lexel) (
 Lexel is sufficient for now so will likely be used even by the self-hosted compiler (at first, at least).
 The file `lexer.c` provides a convenient wrapper around lexel which makes calling it from Victoria easier
 (we won't have to worry about the lexer struct itself, only the token struct).
+
+## rVic
+
+Restricted Victoria (rVic) is a minimal subset of Victoria. That is, it is forward-compatible with the full
+Victoria langauge. Its full feature list is summarised below (ticked off when they're implemented in the
+bootstrap compiler).
+
+- [x] External function declaration.
+
+- [x] (Internal) function definition/declaration.
+
+- [x] Function calls (internal/external). NOTE: must be declared before call.
+
+- [x] Integer types (`i8`&ndash;`i64`, `u8`&ndash;`u16`, `int`, `uint`).
+
+- [ ] Pointer types (`^T`, `^mut T`).
+
+- [ ] Array types.
+
+- [ ] Record types.
