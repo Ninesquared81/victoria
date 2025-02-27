@@ -7,8 +7,6 @@
 
 #include "ubiqs.h"  // Allocator interface.
 
-#define PTR_WIDTH 64
-
 enum type_primitive {
     TYPE_NO_TYPE,      // Sentinel type denoting no type.
     TYPE_ABSURD,       // Absurd type `!`. Used to denote expressions that do not return.
@@ -27,7 +25,10 @@ enum type_primitive {
     TYPE_PRIMITIVE_COUNT  // Number of primitive types. Not an actual type.
 };
 
-typedef int TypeID;   // Type for types.
+typedef int TypeID;             // Unique ID for a type (i.e., an index into the type table).
+
+typedef intptr_t  VIC_INT;      // C type for Victoria `int` type.
+typedef uintptr_t VIC_UINT;     // C type for Victoria `uint` type.
 
 struct type_decl {
     struct lxl_string_view name;
@@ -51,6 +52,37 @@ enum type_conv_kind {
     CONVERT_AS,
     CONVERT_TO,
 };
+
+// A 'kind' is the type of a type.
+enum kind {
+    KIND_NO_KIND,               // Sentinel kind denoting no kind.
+    KIND_PRIMITIVE,             // Primitive type (see above).
+    KIND_ENUM,                  // Enumeration type.
+    KIND_RECORD,                // Record type (named product type).
+};
+
+struct type_info {
+    enum kind kind;               // Kind of type T.
+    size_t size;                  // sizeof(T).
+    struct lxl_string_view repr;  // Textual representation of T.
+    union {
+        /* struct {} primitive_type; */
+        struct {
+            // Note: NO underlying type (default is Victoria's `int` type).
+            size_t field_count;
+            struct lxl_string_view *field_names;
+            VIC_INT *field_values;
+        } enum_type;
+        struct {
+            size_t field_count;
+            struct lxl_string_view *field_names;
+            TypeID *field_types;
+        } record_type;
+    };
+};
+
+void add_type(struct type_info info);
+struct type_info *get_type(TypeID type);
 
 bool is_integer_type(TypeID type);
 enum signedness sign_of_type(TypeID type);

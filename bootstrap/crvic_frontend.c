@@ -167,7 +167,7 @@ static bool check_assignment_target(struct ast_expr expr) {
     return expr.kind == AST_EXPR_GET;
 }
 
-static TypeID get_type(struct lxl_token token) {
+static TypeID token_to_type(struct lxl_token token) {
     switch (token.token_type) {
     case TOKEN_KW_I8: return TYPE_I8;
     case TOKEN_KW_I16: return TYPE_I16;
@@ -185,7 +185,7 @@ static TypeID get_type(struct lxl_token token) {
 
 static TypeID parse_type(const char *fmt, ...) {
     static_assert(TYPE_NO_TYPE == 0, "TYPE_NO_TYPE should be 'falsy'");
-    TypeID type = get_type(parser.current_token);
+    TypeID type = token_to_type(parser.current_token);
     if (type) {
         advance();
         return type;

@@ -2,6 +2,39 @@
 
 #include "crvic_type.h"
 
+#define TYPE_TABLE_CAPACITY 1024
+
+static struct type_info types[TYPE_TABLE_CAPACITY] = {
+    [TYPE_NO_TYPE] = {.kind = KIND_NO_KIND,   .size = 0, .repr = LXL_SV_FROM_STRLIT("<No type>")},
+    [TYPE_ABSURD]  = {.kind = KIND_PRIMITIVE, .size = 0, .repr = LXL_SV_FROM_STRLIT("!")},
+    [TYPE_UNIT]    = {.kind = KIND_PRIMITIVE, .size = 0, .repr = LXL_SV_FROM_STRLIT("()")},
+    [TYPE_I8]      = {.kind = KIND_PRIMITIVE, .size = 1, .repr = LXL_SV_FROM_STRLIT("i8")},
+    [TYPE_I16]     = {.kind = KIND_PRIMITIVE, .size = 2, .repr = LXL_SV_FROM_STRLIT("i16")},
+    [TYPE_I32]     = {.kind = KIND_PRIMITIVE, .size = 4, .repr = LXL_SV_FROM_STRLIT("i32")},
+    [TYPE_I64]     = {.kind = KIND_PRIMITIVE, .size = 8, .repr = LXL_SV_FROM_STRLIT("i64")},
+    [TYPE_U8]      = {.kind = KIND_PRIMITIVE, .size = 1, .repr = LXL_SV_FROM_STRLIT("u8")},
+    [TYPE_U16]     = {.kind = KIND_PRIMITIVE, .size = 1, .repr = LXL_SV_FROM_STRLIT("u16")},
+    [TYPE_U32]     = {.kind = KIND_PRIMITIVE, .size = 4, .repr = LXL_SV_FROM_STRLIT("u32")},
+    [TYPE_U64]     = {.kind = KIND_PRIMITIVE, .size = 8, .repr = LXL_SV_FROM_STRLIT("u64")},
+    [TYPE_INT]     = {.kind = KIND_PRIMITIVE, .size = sizeof(VIC_INT),  .repr = LXL_SV_FROM_STRLIT("int")},
+    [TYPE_UINT]    = {.kind = KIND_PRIMITIVE, .size = sizeof(VIC_UINT), .repr = LXL_SV_FROM_STRLIT("uint")},
+    /* ... Other types to be filled in later ... */
+};
+
+static int type_count = TYPE_PRIMITIVE_COUNT;
+static_assert(TYPE_PRIMITIVE_COUNT <= TYPE_TABLE_CAPACITY, "Increase type table capacity");
+
+void add_type(struct type_info info) {
+    assert(type_count >= TYPE_TABLE_CAPACITY && "We need a bigger type table!");
+    types[type_count++] = info;
+}
+
+struct type_info *get_type(TypeID id) {
+    assert(0 <= id && id < type_count);
+    return &types[id];
+}
+
+
 bool is_integer_type(TypeID type) {
     static_assert(TYPE_I8 < TYPE_U8, "Signed types assumed before unsigned");
     static_assert(TYPE_INT < TYPE_UINT, "Signed types assumed before unsigned");
@@ -15,33 +48,15 @@ enum signedness sign_of_type(TypeID type) {
 }
 
 struct lxl_string_view get_type_sv(TypeID type) {
-    assert(type < TYPE_PRIMITIVE_COUNT);
-    switch ((enum type_primitive)type) {
-    case TYPE_NO_TYPE: return LXL_SV_FROM_STRLIT("<No type>");
-    case TYPE_ABSURD:  return LXL_SV_FROM_STRLIT("!");
-    case TYPE_UNIT:    return LXL_SV_FROM_STRLIT("()");
-    case TYPE_I8:      return LXL_SV_FROM_STRLIT("i8");
-    case TYPE_I16:     return LXL_SV_FROM_STRLIT("i16");
-    case TYPE_I32:     return LXL_SV_FROM_STRLIT("i32");
-    case TYPE_I64:     return LXL_SV_FROM_STRLIT("i64");
-    case TYPE_U8:      return LXL_SV_FROM_STRLIT("u8");
-    case TYPE_U16:     return LXL_SV_FROM_STRLIT("u16");
-    case TYPE_U32:     return LXL_SV_FROM_STRLIT("u32");
-    case TYPE_U64:     return LXL_SV_FROM_STRLIT("u64");
-    case TYPE_INT:     return LXL_SV_FROM_STRLIT("int");
-    case TYPE_UINT:    return LXL_SV_FROM_STRLIT("uint");
-    // Not a type:
-    case TYPE_PRIMITIVE_COUNT:
-        break;
-    }
-    UNREACHABLE();
-    return LXL_SV_FROM_STRLIT("<TYPE_PRIMITIVE_COUNT: not a valid type>");
+    struct type_info *info = get_type(type);
+    assert(info);
+    return info->repr;
 }
 
 TypeID get_sized_int(TypeID type) {
     if (!is_integer_type(type)) return TYPE_NO_TYPE;
-    if (type == TYPE_INT)  return (PTR_WIDTH == 64) ? TYPE_I64 : TYPE_I32;
-    if (type == TYPE_UINT) return (PTR_WIDTH == 64) ? TYPE_U64 : TYPE_U32;
+    if (type == TYPE_INT)  return (sizeof(VIC_INT)  == 64) ? TYPE_I64 : TYPE_I32;
+    if (type == TYPE_UINT) return (sizeof(VIC_UINT) == 64) ? TYPE_U64 : TYPE_U32;
     return type;
 }
 
