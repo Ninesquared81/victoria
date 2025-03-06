@@ -37,6 +37,7 @@ enum ast_decl_kind {
     AST_DECL_VAR_DEFN,  // Variable definition.
     AST_DECL_FUNC_DECL, // (External) function declaration.
     AST_DECL_FUNC_DEFN, // Function definition.
+    AST_DECL_TYPE_DEFN, // Type (alias) definition.
 };
 
 enum ast_bin_op_kind {
@@ -125,6 +126,10 @@ struct ast_decl {
             struct func_sig *sig;
             struct ast_list body;
         } func_defn;
+        struct {
+            struct lxl_string_view alias;
+            TypeID type;
+        } type_defn;
     };
 };
 

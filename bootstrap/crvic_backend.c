@@ -89,8 +89,11 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
         }
         sb_add_string(sb, "}\n");
         break;
+    case AST_DECL_TYPE_DEFN:
+        /* No code generation. (?) */
+        break;
     }
-        return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
+    return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
 }
 
 enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffer *sb) {

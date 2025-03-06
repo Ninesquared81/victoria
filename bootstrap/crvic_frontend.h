@@ -88,6 +88,7 @@ enum token_type {
     TOKEN_KW_RETURN,
     TOKEN_KW_THEN,
     TOKEN_KW_TO,
+    TOKEN_KW_TYPE,
     TOKEN_KW_U8,
     TOKEN_KW_U16,
     TOKEN_KW_U32,

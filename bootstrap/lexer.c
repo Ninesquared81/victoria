@@ -321,6 +321,7 @@ const char *token_type_string(struct lxl_token token) {
     case TOKEN_KW_RETURN:              return "TOKEN_KW_RETURN";
     case TOKEN_KW_THEN:                return "TOKEN_KW_THEN";
     case TOKEN_KW_TO:                  return "TOKEN_KW_TO";
+    case TOKEN_KW_TYPE:                return "TOKEN_KW_TYPE";
     case TOKEN_KW_U8:                  return "TOKEN_KW_U8";
     case TOKEN_KW_U16:                 return "TOKEN_KW_U16";
     case TOKEN_KW_U32:                 return "TOKEN_KW_U32";

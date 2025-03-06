@@ -485,7 +485,7 @@ static struct ast_decl *parse_func_decl(struct region *region) {
 struct ast_decl *parse_var_decl(struct region *region) {
     struct ast_decl *decl = new_decl(region);
     *decl = (struct ast_decl) {0};
-    struct lxl_token name_token = consume(TOKEN_IDENTIFIER, "Expect variable name after `var`");
+    struct lxl_token name_token = consume(TOKEN_IDENTIFIER, "Expect variable name after 'var'");
     struct lxl_string_view name = lxl_token_value(name_token);
     TypeID type = TYPE_NO_TYPE;
     if (match(TOKEN_COLON)) {
@@ -501,7 +501,7 @@ struct ast_decl *parse_var_decl(struct region *region) {
         }
     }
     else {
-        consume(TOKEN_COLON_EQUALS, "Expect `:=` or `: T =` after variable name");
+        consume(TOKEN_COLON_EQUALS, "Expect ':=' or ': T =' after variable name");
     }
     struct ast_expr *value = parse_expr(region);
     end_statement();
@@ -514,12 +514,30 @@ struct ast_decl *parse_var_decl(struct region *region) {
     return decl;
 }
 
+struct ast_decl *parse_type_defn(struct region *region) {
+    struct lxl_token alias_token = consume(TOKEN_IDENTIFIER, "Expect alias after 'type'");
+    struct lxl_string_view alias = lxl_token_value(alias_token);
+    consume(TOKEN_COLON_EQUALS, "Expect ':=' after type alias");
+    struct ast_decl *decl = new_decl(region);
+    TypeID type = parse_type("Expect type after ':=' in type alias definition");
+    end_statement();
+    *decl = (struct ast_decl) {
+        .kind = AST_DECL_TYPE_DEFN,
+        .type_defn = {
+            .alias = alias,
+            .type = type}};
+    return decl;
+}
+
 struct ast_decl *try_parse_decl(struct region *region) {
     if (match(TOKEN_KW_FUNC)) {
         return parse_func_decl(region);
     }
     if (match(TOKEN_KW_VAR)) {
         return parse_var_decl(region);
+    }
+    if (match(TOKEN_KW_TYPE)) {
+        return parse_type_defn(region);
     }
     return NULL;
 }
@@ -879,6 +897,9 @@ static void type_check_decl(struct ast_decl *decl) {
     } return;
     case AST_DECL_FUNC_DEFN:
         type_check_function(decl->func_defn.sig, &decl->func_defn.body);
+        return;
+    case AST_DECL_TYPE_DEFN:
+        /* No type checking. */
         return;
     }
     UNREACHABLE();
