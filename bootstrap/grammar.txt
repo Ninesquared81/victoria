@@ -4,11 +4,13 @@ Decl = VarDecl
      | VarDefn
      | FuncDecl
      | FuncDefn
+     | TypeAliasDefn
      ;
 VarDecl = "var" TypeDecl END ;
 VarDefn = "var" IDENT (":=" | ":" Type "=") Expr END ;
 FuncDecl = "func" "(" [(TypeDecl ",")* TypeDecl [","]] ")" ["->" Type] ":=" "external" END ;
 FuncDefn = "func" "(" [(TypeDecl ",")* TypeDecl [","]] ")" ["->" Type] BlockStmt ;
+TypeAliasDefn = "type" IDENT ":=" Type END ;
 
 TypeDecl = IDENT ":" Type ;
 
@@ -48,7 +50,12 @@ ArgList = [(Expr ",")* Expr [","]] ;
 
 Type = BUILTIN_TYPE
      | IDENT
+     | RecordType
+     | EnumType
      ;
+
+RecordType = "record" "{" [(TypeDecl ",")* TypeDecl [","]] "}" ;
+EnumType = "enum" [":" Type] "{" [(TypeDecl ",")* TypeDecl [","]] "}" ;
 
 END = "\n" | ";" ;
 
