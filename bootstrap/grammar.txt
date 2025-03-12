@@ -55,7 +55,7 @@ Type = BUILTIN_TYPE
      ;
 
 RecordType = "record" "{" [(TypeDecl ",")* TypeDecl [","]] "}" ;
-EnumType = "enum" [":" Type] "{" [(TypeDecl ",")* TypeDecl [","]] "}" ;
+EnumType = "enum" [":" Type] "{" ((GetExpr | AssignExpr) ",")* (GetExpr | AssignExpr) [","] "}" ;
 
 END = "\n" | ";" ;
 
