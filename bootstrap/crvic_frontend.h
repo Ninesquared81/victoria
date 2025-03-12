@@ -101,6 +101,9 @@ enum token_type {
     TOKEN_KW_WHILE,
 };
 
+// General.
+void init_frontend(struct lxl_string_view source);
+
 // Lexer.
 struct lxl_lexer *init_lexer(struct lxl_string_view source);
 struct lxl_token next_token(void);
@@ -110,11 +113,9 @@ void print_token(struct lxl_token token, FILE *f);
 void print_tokens(FILE *f);
 
 // Parser.
-void init_parser(struct lxl_string_view source);
 struct ast_list parse(struct region *region);   // NOTE: call `init_parser()` first!
 
 // Type Checker.
-void init_type_checker(void);
 bool type_check(struct ast_list *nodes);
 
 #endif

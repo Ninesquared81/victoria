@@ -38,10 +38,9 @@ int main(void) {
     const char *in_filename = "in.vic";
     const char *out_filename = "out.c";
     struct lxl_string_view source = read_source(in_filename);
-    init_parser(source);  // This also initialises the lexer.
+    init_frontend(source);  // This also initialises the lexer.
     struct region *region = create_region(STDLIB_ALLOCATOR_AD, REGION_SIZE);
     struct ast_list nodes = parse(region);
-    init_type_checker();
     if (!type_check(&nodes)) {
         // Error messages already printed.
         destroy_region(region);

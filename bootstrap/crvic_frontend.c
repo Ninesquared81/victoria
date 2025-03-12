@@ -29,10 +29,28 @@ struct parser {
     bool panic_mode;
 };
 
+struct type_checker {
+    bool had_error;
+};
+
 static struct parser parser = {0};
 
-void init_parser(struct lxl_string_view source) {
+static struct symbol_table symbols = {0};
+
+static struct type_checker type_checker = {0};
+
+#define SYMBOL_TABLE_CAPACITY 1024
+
+void init_frontend(struct lxl_string_view source) {
     parser.lexer = init_lexer(source);
+    static struct st_slot *slot_pool[SYMBOL_TABLE_CAPACITY] = {0};
+    static struct symbol symbol_pool[8 * SYMBOL_TABLE_CAPACITY] = {0};
+    static struct region node_region = REGION_FROM_ARRAY(symbol_pool);
+    symbols = (struct symbol_table) {
+        .capacity = SYMBOL_TABLE_CAPACITY,
+        .slots = slot_pool,
+        .node_pool = &node_region,
+    };
 }
 
 static void report_location(struct lxl_token token) {
@@ -79,6 +97,28 @@ static void parse_error_current_show_token(const char *restrict fmt, ...) {
     parse_error_show_token_vargs(parser.current_token, fmt, vargs);
     va_end(vargs);
 }
+
+void type_error(const char *msg, ...) {
+    fprintf(stderr, "Type error: ");
+    va_list vargs;
+    va_start(vargs, msg);
+    vfprintf(stderr, msg, vargs);
+    va_end(vargs);
+    fprintf(stderr, ".\n");
+    type_checker.had_error = true;
+}
+
+void name_error(const char *msg, ...) {
+    fprintf(stderr, "Name error: ");
+    va_list vargs;
+    va_start(vargs, msg);
+    vfprintf(stderr, msg, vargs);
+    va_end(vargs);
+    fprintf(stderr, ".\n");
+    parser.panic_mode = true;
+    type_checker.had_error = true;
+}
+
 
 static bool parser_is_finished(void) {
     return LXL_TOKEN_IS_END(parser.current_token);
@@ -185,10 +225,25 @@ static TypeID token_to_type(struct lxl_token token) {
 
 static TypeID parse_type(const char *fmt, ...) {
     static_assert(TYPE_NO_TYPE == 0, "TYPE_NO_TYPE should be 'falsy'");
+    // Basic types.
     TypeID type = token_to_type(parser.current_token);
     if (type) {
         advance();
         return type;
+    }
+    // Type aliases.
+    if (match(TOKEN_IDENTIFIER)) {
+        struct lxl_string_view sv = lxl_token_value(parser.previous_token);
+        struct symbol *symbol = lookup_symbol(&symbols, st_key_of(sv));
+        if (!symbol) {
+            name_error("Unknown type '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(sv));
+            return TYPE_NO_TYPE;
+        }
+        if (symbol->kind != SYMBOL_TYPE_ALIAS) {
+            parse_error_previous_show_token("Symbol '"LXL_SV_FMT_SPEC"' is not a type", LXL_SV_FMT_ARG(sv));
+            return TYPE_NO_TYPE;
+        }
+        return symbol->type_alias.type;
     }
     // Not a type.
     va_list vargs;
@@ -526,6 +581,14 @@ struct ast_decl *parse_type_defn(struct region *region) {
         .type_defn = {
             .alias = alias,
             .type = type}};
+    bool insert_result =
+        insert_symbol(&symbols, st_key_of(alias),
+                      (struct symbol) {
+                          .kind = SYMBOL_TYPE_ALIAS,
+                          .type_alias = {.type = type}});
+    if (!insert_result) {
+        name_error("Cannot redefine symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(alias));
+    }
     return decl;
 }
 
@@ -613,44 +676,6 @@ struct ast_list parse(struct region *region) {
     return nodes;
 }
 
-struct type_checker {
-    bool had_error;
-    struct symbol_table symbols;
-} type_checker = {0};
-
-#define SYMBOL_TABLE_CAPACITY 1024
-
-void init_type_checker(void) {
-    static struct st_slot *slot_pool[SYMBOL_TABLE_CAPACITY] = {0};
-    static struct symbol symbol_pool[8 * SYMBOL_TABLE_CAPACITY] = {0};
-    static struct region node_region = REGION_FROM_ARRAY(symbol_pool);
-    type_checker.symbols = (struct symbol_table) {
-        .capacity = SYMBOL_TABLE_CAPACITY,
-        .slots = slot_pool,
-        .node_pool = &node_region,
-    };
-}
-
-void type_error(const char *msg, ...) {
-    fprintf(stderr, "Type error: ");
-    va_list vargs;
-    va_start(vargs, msg);
-    vfprintf(stderr, msg, vargs);
-    va_end(vargs);
-    fprintf(stderr, ".\n");
-    type_checker.had_error = true;
-}
-
-void name_error(const char *msg, ...) {
-    fprintf(stderr, "Name error: ");
-    va_list vargs;
-    va_start(vargs, msg);
-    vfprintf(stderr, msg, vargs);
-    va_end(vargs);
-    fprintf(stderr, ".\n");
-    type_checker.had_error = true;
-}
-
 static bool expect_integer_type(TypeID type) {
     if (is_integer_type(type)) return true;
     struct lxl_string_view actual_type_sv = get_type_sv(type);
@@ -673,7 +698,7 @@ static TypeID resolve_type(struct ast_expr *expr) {
     switch (expr->kind) {
     case AST_EXPR_ASSIGN: {
         struct lxl_string_view name = expr->assign.target;
-        struct symbol *target_symbol = lookup_symbol(&type_checker.symbols, st_key_of(name));
+        struct symbol *target_symbol = lookup_symbol(&symbols, st_key_of(name));
         if (!target_symbol) {
             name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
             break;
@@ -699,7 +724,7 @@ static TypeID resolve_type(struct ast_expr *expr) {
     } break;
     case AST_EXPR_CALL: {
         struct lxl_string_view callee_name = expr->call.callee_name;
-        struct symbol *symbol = lookup_symbol(&type_checker.symbols, st_key_of(callee_name));
+        struct symbol *symbol = lookup_symbol(&symbols, st_key_of(callee_name));
         if (!symbol) {
             name_error("Unknown function '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(callee_name));
             break;
@@ -755,7 +780,7 @@ static TypeID resolve_type(struct ast_expr *expr) {
     } break;
     case AST_EXPR_GET: {
         struct lxl_string_view name = expr->get.target;
-        struct symbol *target_symbol = lookup_symbol(&type_checker.symbols, st_key_of(name));
+        struct symbol *target_symbol = lookup_symbol(&symbols, st_key_of(name));
         if (!target_symbol) {
             name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
             break;
@@ -791,10 +816,10 @@ static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type);
 
 static void type_check_function(struct func_sig *sig, struct ast_list *body) {
     struct st_key key = st_key_of(sig->name);
-    struct symbol *symbol = lookup_symbol(&type_checker.symbols, key);
+    struct symbol *symbol = lookup_symbol(&symbols, key);
     if (symbol == NULL) {
         // New definition.
-        bool result = insert_symbol(&type_checker.symbols, key, (struct symbol) {
+        bool result = insert_symbol(&symbols, key, (struct symbol) {
                 .kind = SYMBOL_FUNC,
                 .func = {
                     .sig = sig,
@@ -839,7 +864,7 @@ static void type_check_decl(struct ast_decl *decl) {
         struct symbol symbol = {
             .kind = SYMBOL_VAR,
             .var = {.type = decl->var_decl.type}};
-        if (!insert_symbol(&type_checker.symbols, st_key_of(decl->var_decl.name), symbol)) {
+        if (!insert_symbol(&symbols, st_key_of(decl->var_decl.name), symbol)) {
             name_error("Redeclaration of symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(decl->var_decl.name));
         }
     } return;
@@ -853,17 +878,17 @@ static void type_check_decl(struct ast_decl *decl) {
         struct symbol symbol = {
             .kind = SYMBOL_VAR,
             .var = {.type = decl->var_defn.type}};
-        if (!insert_symbol(&type_checker.symbols, st_key_of(decl->var_decl.name), symbol)) {
+        if (!insert_symbol(&symbols, st_key_of(decl->var_decl.name), symbol)) {
             name_error("Redeclaration of symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(decl->var_decl.name));
         }
     } return;
     case AST_DECL_FUNC_DECL: {
         struct func_sig *sig = decl->func_decl.sig;
         struct st_key key = st_key_of(sig->name);
-        struct symbol *symbol = lookup_symbol(&type_checker.symbols, key);
+        struct symbol *symbol = lookup_symbol(&symbols, key);
         if (symbol == NULL) {
             // Unseen function; add it to the symbol table.
-            bool result = insert_symbol(&type_checker.symbols, key, (struct symbol) {
+            bool result = insert_symbol(&symbols, key, (struct symbol) {
                     .kind = SYMBOL_FUNC,
                     .func = {
                         .sig = sig,

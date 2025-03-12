@@ -5,6 +5,7 @@
 
 enum symbol_kind {
     SYMBOL_FUNC,       // Function symbol.
+    SYMBOL_TYPE_ALIAS, // Type alias symbol.
     SYMBOL_VAR,        // Variable symbol.
 };
 
@@ -12,6 +13,10 @@ struct symbol_func {
     struct func_sig *sig;
     enum func_link_kind kind;
     struct ast_list *body;
+};
+
+struct symbol_type_alias {
+    TypeID type;
 };
 
 struct symbol_var {
@@ -22,6 +27,7 @@ struct symbol {
     enum symbol_kind kind;
     union {
         struct symbol_func func;
+        struct symbol_type_alias type_alias;
         struct symbol_var var;
     };
 };
