@@ -200,6 +200,7 @@ struct lxl_lexer *init_lexer(struct lxl_string_view source) {
         "return",        TOKEN_KW_RETURN,
         "then",          TOKEN_KW_THEN,
         "to",            TOKEN_KW_TO,
+        "type",          TOKEN_KW_TYPE,
         "u8",            TOKEN_KW_U8,
         "u16",           TOKEN_KW_U16,
         "u32",           TOKEN_KW_U32,
