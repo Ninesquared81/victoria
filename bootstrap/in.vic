@@ -3,7 +3,8 @@ func putchar(c:i32)->i32:= external
 func main() {
     var a := 42
     var b := a + 5
-    putchar(72 to i32)
+    type Z := i32
+    putchar(72 to Z)
     putchar(101 to i32)
     putchar(108 to i32)
     putchar(108 to i32)
