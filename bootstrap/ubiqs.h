@@ -83,7 +83,7 @@ struct allocatorARD {
 
 // Reallocate using a custom allocator (ARD only).
 #define REALLOCATE(a, orig, new_size, old_size) \
-    (a).reallocate(orrig, new_size, old_size, (a).ctx)
+    (a).reallocate(orig, new_size, old_size, (a).ctx)
 
 // Wrapper around stdlib malloc() to work with allocator interface.
 static inline void *allocator_malloc(size_t size, void *ctx) {
