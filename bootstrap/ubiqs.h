@@ -85,6 +85,18 @@ struct allocatorARD {
 #define REALLOCATE(a, orig, new_size, old_size) \
     (a).reallocate(orig, new_size, old_size, (a).ctx)
 
+// Allocate an array of `count` elements, each of size `elem_size`.
+#define ALLOCATE_ARRAY(a, count, elem_size)     \
+    ALLOCATE(a, (count)*(elem_size))
+
+// Deallocate an array of `count` elements, each of size `elem_size`.
+#define DEALLOCATE_ARRAY(a, orig, count, elem_size)     \
+    DEALLOCATE(a, orig, (count)*(elem_size))
+
+// Rellocate an array from `old_count` elements to `new_count` elements with elements of size `elem_size`.
+#define REALLOCATE_ARRAY(a, orig, new_count, old_count, elem_size)      \
+    REALLOCATE(a, orig, (new_count)*(elem_size), (old_count)*(elem_size))
+
 // Wrapper around stdlib malloc() to work with allocator interface.
 static inline void *allocator_malloc(size_t size, void *ctx) {
     (void)ctx;
