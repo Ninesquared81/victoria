@@ -35,6 +35,21 @@ struct type_info *get_type(TypeID id) {
     return &types[id];
 }
 
+TypeID find_record_type(struct type_decl_list fields) {
+    for (int i = TYPE_PRIMITIVE_COUNT; i < type_count; ++i) {
+        struct type_info *info = get_type(i);
+        if (info->kind == KIND_RECORD && DA_EQ(&info->record_type.fields, &fields)) return i;
+    }
+    return TYPE_NO_TYPE;
+}
+
+size_t calculate_record_size(struct type_decl_list fields) {
+    size_t size = 0;
+    for (int i = 0; i < fields.count; ++i) {
+        size += get_type(fields.items[i].type)->size;
+    }
+    return size;
+}
 
 bool is_integer_type(TypeID type) {
     static_assert(TYPE_I8 < TYPE_U8, "Signed types assumed before unsigned");

@@ -92,6 +92,9 @@ struct type_info {
 TypeID add_type(struct type_info info);
 struct type_info *get_type(TypeID type);
 
+TypeID find_record_type(struct type_decl_list fields);
+size_t calculate_record_size(struct type_decl_list fields);
+
 bool is_integer_type(TypeID type);
 enum signedness sign_of_type(TypeID type);
 struct lxl_string_view get_type_sv(TypeID type);

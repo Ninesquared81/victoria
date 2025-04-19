@@ -258,7 +258,7 @@ static TypeID parse_type(const char *fmt, ...) {
         TypeID record_type = find_record_type(fields);
         if (!record_type) {
             // Record not found; add it to the type table.
-            struct type_decl_list new_fields =  promote_da(fields.items, fields.count);
+            struct type_decl_list new_fields =  PROMOTE_DA(&fields);
             record_type = add_type((struct type_info) {
                     .kind = KIND_RECORD,
                     .size = calculate_record_size(new_fields),
