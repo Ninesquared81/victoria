@@ -51,6 +51,7 @@ void *region_allocate(size_t size, void *region) {
     assert(region);
     struct region *r = region;
     r->alloc_count += alignment_offset((intptr_t)&r->data[r->alloc_count], size);
+    if (r->capacity - r->alloc_count < size) return NULL;
     void *ptr = &r->data[r->alloc_count];
     r->alloc_count += size;
     return ptr;
