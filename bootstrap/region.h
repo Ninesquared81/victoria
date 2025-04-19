@@ -34,6 +34,7 @@ void *region_reallocate(void *orig, size_t new_size, size_t old_size, void *regi
 // Deallocate inside region. If `orig` was not the last allocation, do nothing.
 void region_deallocate(void *orig, size_t size, void *region);
 
+// Create an allocator object for the given region (by pointer).
 #define region_allocatorARD(region) ((struct allocatorARD) {            \
             .ctx = region, .allocate = region_allocate,                 \
             .deallocate = region_deallocate, .reallocate = region_reallocate})
