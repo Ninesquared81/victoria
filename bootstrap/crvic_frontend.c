@@ -241,6 +241,35 @@ static TypeID parse_type(const char *fmt, ...) {
         }
         return symbol->type_alias.type;
     }
+    // Record types.
+    if (match(TOKEN_RECORD)) {
+        begin_temp();
+        consume(TOKEN_BKT_CURLY_LEFT, "Expect '{' after 'record'");
+        struct field_pair {
+            struct lxl_string_view name;
+            TypeID type;
+        };
+        struct type_decl_list fields = {.allocator = temp};
+        while (!check(TOKEN_BKT_CURLY_RIGHT)) {
+            struct lxl_token field_name_token = consume(TOKEN_IDENTIFIER, "Expect field name");
+            consume(TOKEN_COLON, "Expect ':' after field name");
+            struct lxl_string_view field_name = lxl_token_value(field_name_token);
+            TypeID field_type = parse_type("Expect field type after ':'");
+            DA_APPEND(&fields, (struct field_pair) {.name = field_name, .type = field_type});
+            if (!match(TOKEN_COMMA)) break;
+        }
+        consume(TOKEN_BKT_CURLY_RIGHT, "Expect '}' after record definition");
+        TypeID record_type = find_record_type(fields);
+        if (!record_type) {
+            // Record not found; add it to the type table.
+            struct type_decl_list new_fields =  promote_da(fields->items, fields->count);
+            record_type = add_type((struct type_info) {
+                    .kind = KIND_RECORD,
+                    .size = calculate_record_size(new_fields),
+                    .record_type = {.fields = new_fields}});
+        }
+        return record_type;
+    }
     // Not a type.
     va_list vargs;
     va_start(vargs, fmt);
