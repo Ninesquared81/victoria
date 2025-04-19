@@ -24,9 +24,10 @@ static struct type_info types[TYPE_TABLE_CAPACITY] = {
 static int type_count = TYPE_PRIMITIVE_COUNT;
 static_assert(TYPE_PRIMITIVE_COUNT <= TYPE_TABLE_CAPACITY, "Increase type table capacity");
 
-void add_type(struct type_info info) {
+TypeID add_type(struct type_info info) {
     assert(type_count >= TYPE_TABLE_CAPACITY && "We need a bigger type table!");
     types[type_count++] = info;
+    return type_count - 1;
 }
 
 struct type_info *get_type(TypeID id) {

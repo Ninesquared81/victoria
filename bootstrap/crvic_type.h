@@ -81,7 +81,7 @@ struct type_info {
     };
 };
 
-void add_type(struct type_info info);
+TypeID add_type(struct type_info info);
 struct type_info *get_type(TypeID type);
 
 bool is_integer_type(TypeID type);
