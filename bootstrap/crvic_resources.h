@@ -3,7 +3,7 @@
 
 #include "region.h"
 
-#define REGION_SIZE 0x4000
+#define REGION_SIZE 0x400000
 
 extern struct allocatorARD perm;  // Allocator for permanent allocations.
 extern struct allocatorARD temp;  // Allocator for temporary allocations.

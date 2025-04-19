@@ -39,7 +39,7 @@ static struct symbol_table symbols = {0};
 
 static struct type_checker type_checker = {0};
 
-#define SYMBOL_TABLE_CAPACITY 1024
+#define SYMBOL_TABLE_CAPACITY 128
 
 void init_frontend(struct lxl_string_view source) {
     parser.lexer = init_lexer(source);
