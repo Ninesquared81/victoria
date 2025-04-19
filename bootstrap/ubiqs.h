@@ -4,6 +4,7 @@
 #include <assert.h>  // assert.
 #include <stdint.h>  // uint32_t.
 #include <stdlib.h>  // malloc, realloc, free.
+#include <string.h>  // memcmp.
 
 #include "lexel.h"   // struct lxl_string_view.
 
@@ -105,6 +106,11 @@ struct allocatorARD {
 // pointers to owned memory, these must be deallocated first.
 #define DA_DEALLOCATE(da)                                               \
     DEALLOCATE_ARRAY((da)->allocator, (da)->items, (da)->capacity, sizeof((da)->items[0])))
+
+#define DA_EQ(a, b)                                                     \
+    (sizeof((a)->items[0]) == sizeof((b)->items[0]) &&                  \
+     (a)->count == (b)->count &&                                        \
+     memcmp((a)->items, (b)->items, sizeof(a)->items[0]) == 0)
 
 
 // Wrapper around stdlib malloc() to work with allocator interface.
