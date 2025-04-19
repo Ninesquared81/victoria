@@ -14,36 +14,9 @@
 #define DO_OR_ERROR(err, thing)                 \
     if ((err = thing)) return err
 
+// Mark a path of execution as unreachable. Uses `assert()` so will be disabled in non-debug builds.
 #define UNREACHABLE()                           \
     assert(0 && "Unreachable")
-
-#define DA_INIT_SIZE 8
-
-#define DA_GROW_CAPACITY(cap) ((cap) > 1 ? (cap)/2 * 3 : DA_INIT_SIZE)
-
-// Append an item to the end of a type-generic dynamic array.
-// NB, the dynamic array struct must have the members .capacity, .count, .items and .allocator.
-#define DA_APPEND(da, item)                                             \
-    do {                                                                \
-        if ((da)->count >= (da)->capacity) {                            \
-            if ((da)->allocator.reallocate == NULL) {                   \
-                assert((da)->allocator.allocate == NULL &&              \
-                       (da)->allocator.deallocate == NULL);             \
-                (da)->allocator = STDLIB_ALLOCATOR_ARD;                 \
-            }                                                           \
-            size_t new_capacity = DA_GROW_CAPACITY((da)->capacity);     \
-            void *new_items = (da)->allocator.reallocate(               \
-                (da)->items,                                            \
-                new_capacity * sizeof item,                             \
-                (da)->capacity * sizeof item,                           \
-                (da)->allocator.ctx);                                   \
-            assert(new_items);                                          \
-            (da)->items = new_items;                                    \
-            (da)->capacity = new_capacity;                              \
-        }                                                               \
-        (da)->items[(da)->count++] = item;                              \
-    } while (0)
-
 
 // Custom allocator interface for an Allocate-Deallocate allocator (the simplest one).
 struct allocatorAD {
@@ -96,6 +69,40 @@ struct allocatorARD {
 // Rellocate an array from `old_count` elements to `new_count` elements with elements of size `elem_size`.
 #define REALLOCATE_ARRAY(a, orig, new_count, old_count, elem_size)      \
     REALLOCATE(a, orig, (new_count)*(elem_size), (old_count)*(elem_size))
+
+// Dynamic Arrays.
+
+// Default initiial size for a dynamic array.
+#define DA_INIT_SIZE 8
+
+// Grow a dynamic array by a factor of 3/2.
+#define DA_GROW_CAPACITY(cap) ((cap) > 1 ? (cap)/2 * 3 : DA_INIT_SIZE)
+
+// Append an item to the end of a type-generic dynamic array.
+// NB, the dynamic array struct must have the members .capacity, .count, .items and .allocator.
+#define DA_APPEND(da, item)                                             \
+    do {                                                                \
+        if ((da)->count >= (da)->capacity) {                            \
+            if ((da)->allocator.reallocate == NULL) {                   \
+                assert((da)->allocator.allocate == NULL &&              \
+                       (da)->allocator.deallocate == NULL);             \
+                (da)->allocator = STDLIB_ALLOCATOR_ARD;                 \
+            }                                                           \
+            size_t new_capacity = DA_GROW_CAPACITY((da)->capacity);     \
+            void *new_items = REALLOCATE_ARRAY((da)->allocator, (da)->items, sizeof((da)->items[0])); \
+            assert(new_items);                                          \
+            (da)->items = new_items;                                    \
+            (da)->capacity = new_capacity;                              \
+        }                                                               \
+        (da)->items[(da)->count++] = item;                              \
+    } while (0)
+
+// Deallocate a dynamic array.
+// NB, this only deallocates the backing array itself. If elements hold
+// pointers to owned memory, these must be deallocated first.
+#define DA_DEALLOCATE(da)                                               \
+    DEALLOCATE_ARRAY((da)->allocator, (da)->items, (da)->capacity, sizeof((da)->items[0])))
+
 
 // Wrapper around stdlib malloc() to work with allocator interface.
 static inline void *allocator_malloc(size_t size, void *ctx) {
