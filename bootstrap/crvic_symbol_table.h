@@ -46,7 +46,6 @@ struct st_slot {
 struct symbol_table {
     size_t capacity;
     struct st_slot **slots;
-    struct region *node_pool;
 };
 
 struct st_key st_key_of(struct lxl_string_view sv);

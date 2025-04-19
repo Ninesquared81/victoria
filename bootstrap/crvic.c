@@ -6,9 +6,9 @@
 #include "crvic_ast.h"
 #include "crvic_backend.h"
 #include "crvic_frontend.h"
+#include "crvic_resources.h"
 #include "crvic_type.h"
 
-#define REGION_SIZE 0x4000
 #define INBUF_SIZE 0x8000
 
 struct lxl_string_view read_source(const char *in_filename) {
@@ -35,20 +35,18 @@ struct lxl_string_view read_source(const char *in_filename) {
 }
 
 int main(void) {
+    init_crvic();
     const char *in_filename = "in.vic";
     const char *out_filename = "out.c";
     struct lxl_string_view source = read_source(in_filename);
     init_frontend(source);  // This also initialises the lexer.
-    struct region *region = create_region(STDLIB_ALLOCATOR_AD, REGION_SIZE);
-    struct ast_list nodes = parse(region);
+    struct ast_list nodes = parse(perm_region);
     if (!type_check(&nodes)) {
         // Error messages already printed.
-        destroy_region(region);
         exit(1);
     }
     static struct string_buffer sb = {0};
     enum cgen_error error = crvic_generate_c_file(nodes, &sb);
-    destroy_region(region);
     if (error) {
         fprintf(stderr, "Something went wrong: %d\n", error);
         return EXIT_FAILURE;

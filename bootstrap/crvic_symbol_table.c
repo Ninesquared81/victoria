@@ -29,7 +29,7 @@ bool insert_symbol(struct symbol_table *symbols, struct st_key key, struct symbo
     bool is_new_slot = *slot == NULL;
     if (is_new_slot) {
         // Unoccupied slot.
-        *slot = region_allocate(sizeof **slot, symbols->node_pool);
+        *slot = ALLOCATE(perm, sizeof **slot);
         **slot = (struct st_slot) {.key = key};
     }
     (*slot)->symbol = symbol;

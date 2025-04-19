@@ -7,12 +7,12 @@
 
 #include "lexel.h"
 
-#include "region.h"
 #include "ubiqs.h"
 
 #include "crvic_ast.h"
 #include "crvic_frontend.h"
 #include "crvic_function.h"
+#include "crvic_resources.h"
 #include "crvic_symbol_table.h"
 
 #define NOT_SUPPORTED_YET(token)                                        \
@@ -43,13 +43,9 @@ static struct type_checker type_checker = {0};
 
 void init_frontend(struct lxl_string_view source) {
     parser.lexer = init_lexer(source);
-    static struct st_slot *slot_pool[SYMBOL_TABLE_CAPACITY] = {0};
-    static struct symbol symbol_pool[8 * SYMBOL_TABLE_CAPACITY] = {0};
-    static struct region node_region = REGION_FROM_ARRAY(symbol_pool);
     symbols = (struct symbol_table) {
         .capacity = SYMBOL_TABLE_CAPACITY,
-        .slots = slot_pool,
-        .node_pool = &node_region,
+        .slots = ALLOCATE(perm, sizeof(struct st_slot[SYMBOL_TABLE_CAPACITY]));
     };
 }
 
@@ -174,20 +170,20 @@ static void end_statement(void) {
     ignore_line_ending();
 }
 
-static struct ast_expr *new_expr(struct region *region) {
-    struct ast_expr *expr = region_allocate(sizeof *expr, region);
+static struct ast_expr *new_expr(void) {
+    struct ast_expr *expr = ALLOCATE(perm, sizeof *expr);
     assert(expr != NULL && "We're gonna need a bigger region!");
     return expr;
 }
 
-static struct ast_stmt *new_stmt(struct region *region) {
-    struct ast_stmt *stmt = region_allocate(sizeof *stmt, region);
+static struct ast_stmt *new_stmt(void) {
+    struct ast_stmt *stmt = ALLOCATE(perm, sizeof *stmt);
     assert(stmt != NULL && "We're gonna need a bigger region!");
     return stmt;
 }
 
-static struct ast_decl *new_decl(struct region *region) {
-    struct ast_decl *decl = region_allocate(sizeof *decl, region);
+static struct ast_decl *new_decl(void) {
+    struct ast_decl *decl = ALLOCATE(perm, sizeof *decl);
     assert(decl != NULL && "We're gonna need a bigger region!");
     return decl;
 }
@@ -258,9 +254,9 @@ static bool is_digit(char c, int base) {
     return '0' <= c && c <= '9';
 }
 
-static uint64_t parse_integer(struct lxl_token token, struct region *region) {
+static uint64_t parse_integer(struct lxl_token token) {
     struct lxl_string_view orig = lxl_token_value(token);
-    char *start = region_allocate(orig.length + 1, region);
+    char *start = ALLOCATE(perm, orig.length + 1);
     size_t length = 0;
     size_t last_length = 0;
     int base = 10;  // Hard-coded for now.
@@ -293,18 +289,18 @@ static uint64_t parse_integer(struct lxl_token token, struct region *region) {
     return value;
 }
 
-static uint64_t parse_previous_integer(struct region *region) {
+static uint64_t parse_previous_integer(void) {
     return parse_integer(parser.previous_token, region);
 }
 
-static struct ast_expr *parse_expr(struct region *region);
-static struct ast_stmt *parse_stmt(struct region *region);
-static struct ast_expr parse_assign(struct region *region);
+static struct ast_expr *parse_expr(void);
+static struct ast_stmt *parse_stmt(void);
+static struct ast_expr parse_assign(void);
 
-static struct ast_list parse_arg_list(struct region *region) {
+static struct ast_list parse_arg_list(void) {
     struct ast_list args = {0};
     while (!match(TOKEN_BKT_ROUND_RIGHT)) {
-        struct ast_expr *arg = parse_expr(region);
+        struct ast_expr *arg = parse_expr();
         DA_APPEND(&args, EXPR_NODE(arg));
         if (!match(TOKEN_COMMA)) {
             consume(TOKEN_BKT_ROUND_RIGHT, "Expect ')' after argument list");
@@ -314,12 +310,12 @@ static struct ast_list parse_arg_list(struct region *region) {
     return args;
 }
 
-static struct ast_expr parse_primary(struct region *region) {
+static struct ast_expr parse_primary(void) {
     struct ast_expr expr = {0};
     if (match(TOKEN_LIT_INTEGER)) {
         expr = (struct ast_expr) {
             .kind = AST_EXPR_INTEGER,
-            .integer = {.value = parse_previous_integer(region)}};
+            .integer = {.value = parse_previous_integer()}};
     }
     else if (match(TOKEN_IDENTIFIER)) {
         expr = (struct ast_expr) {
@@ -327,15 +323,15 @@ static struct ast_expr parse_primary(struct region *region) {
             .get = {.target = lxl_token_value(parser.previous_token)}};
     }
     else if (match(TOKEN_BKT_ROUND_LEFT)) {
-        expr = parse_assign(region);
+        expr = parse_assign();
         consume(TOKEN_BKT_ROUND_RIGHT, "Expect ')' after grouped expression");
     }
     else if (match(TOKEN_KW_WHEN)) {
-        struct ast_expr *cond = parse_expr(region);
+        struct ast_expr *cond = parse_expr();
         consume(TOKEN_KW_THEN, "Expect 'then' after condition in when expression");
-        struct ast_expr *then_expr = parse_expr(region);
+        struct ast_expr *then_expr = parse_expr();
         consume(TOKEN_KW_ELSE, "Expect 'else' after then branch in when expression");
-        struct ast_expr *else_expr = parse_expr(region);
+        struct ast_expr *else_expr = parse_expr();
         expr = (struct ast_expr) {
             .kind = AST_EXPR_WHEN,
             .when = {
@@ -349,7 +345,7 @@ static struct ast_expr parse_primary(struct region *region) {
     return expr;
 }
 
-static struct ast_expr parse_prefix(struct region *region) {
+static struct ast_expr parse_prefix(void) {
     struct ast_expr expr = {0};
     if (match(TOKEN_MINUS)) {
         NOT_SUPPORTED_YET_PREVIOUS();
@@ -358,13 +354,13 @@ static struct ast_expr parse_prefix(struct region *region) {
         NOT_SUPPORTED_YET_PREVIOUS();
     }
     else {
-        expr = parse_primary(region);
+        expr = parse_primary();
     }
     return expr;
 }
 
-static struct ast_expr parse_suffix(struct region *region) {
-    struct ast_expr expr = parse_prefix(region);
+static struct ast_expr parse_suffix(void) {
+    struct ast_expr expr = parse_prefix();
     if (match(TOKEN_CARET)) {
         NOT_SUPPORTED_YET_PREVIOUS();
     }
@@ -372,12 +368,12 @@ static struct ast_expr parse_suffix(struct region *region) {
         NOT_SUPPORTED_YET_PREVIOUS();
     }
     else if (match(TOKEN_BKT_ROUND_LEFT)) {
-        struct ast_expr *callee = new_expr(region);
+        struct ast_expr *callee = new_expr();
         *callee = expr;
         if (callee->kind != AST_EXPR_GET) {
             parse_error_previous_show_token("Callee must be an identifier");
         }
-        struct ast_list args = parse_arg_list(region);
+        struct ast_list args = parse_arg_list();
         expr = (struct ast_expr) {
             .kind = AST_EXPR_CALL,
             .call = {
@@ -393,7 +389,7 @@ static struct ast_expr parse_suffix(struct region *region) {
         struct lxl_string_view conv_sv = lxl_token_value(conversion);
         TypeID target_type = parse_type("Expect target type for '"LXL_SV_FMT_SPEC"' conversion",
                                         LXL_SV_FMT_ARG(conv_sv));
-        struct ast_expr *operand = new_expr(region);
+        struct ast_expr *operand = new_expr();
         *operand = expr;
         expr = (struct ast_expr) {
             .kind = AST_EXPR_CONVERT,
@@ -405,13 +401,13 @@ static struct ast_expr parse_suffix(struct region *region) {
     return expr;
 }
 
-static struct ast_expr parse_factor(struct region *region) {
-    struct ast_expr expr = parse_suffix(region);
+static struct ast_expr parse_factor(void) {
+    struct ast_expr expr = parse_suffix();
     while (match(TOKEN_STAR)) {
-        struct ast_expr *lhs = new_expr(region);
-        struct ast_expr *rhs = new_expr(region);
+        struct ast_expr *lhs = new_expr();
+        struct ast_expr *rhs = new_expr();
         *lhs = expr;
-        *rhs = parse_suffix(region);
+        *rhs = parse_suffix();
         expr = (struct ast_expr) {
             .kind = AST_EXPR_BINARY,
             .binary = {
@@ -422,13 +418,13 @@ static struct ast_expr parse_factor(struct region *region) {
     return expr;
 }
 
-static struct ast_expr parse_term(struct region *region) {
-    struct ast_expr expr = parse_factor(region);
+static struct ast_expr parse_term(void) {
+    struct ast_expr expr = parse_factor();
     while (match(TOKEN_PLUS)) {
-        struct ast_expr *lhs = new_expr(region);
-        struct ast_expr *rhs = new_expr(region);
+        struct ast_expr *lhs = new_expr();
+        struct ast_expr *rhs = new_expr();
         *lhs = expr;
-        *rhs = parse_factor(region);
+        *rhs = parse_factor();
         expr = (struct ast_expr) {
             .kind = AST_EXPR_BINARY,
             .binary = {
@@ -439,8 +435,8 @@ static struct ast_expr parse_term(struct region *region) {
     return expr;
 }
 
-static struct ast_expr parse_compare(struct region *region) {
-    struct ast_expr expr = parse_term(region);
+static struct ast_expr parse_compare(void) {
+    struct ast_expr expr = parse_term();
     if (check_comparison()) {
         struct lxl_token op = advance();
         // NOTE: I want to support multi-way comparisons.
@@ -449,11 +445,11 @@ static struct ast_expr parse_compare(struct region *region) {
     return expr;
 }
 
-static struct ast_expr parse_assign(struct region *region) {
-    struct ast_expr expr = parse_compare(region);
+static struct ast_expr parse_assign(void) {
+    struct ast_expr expr = parse_compare();
     if (check_assignment_target(expr) && match(TOKEN_COLON_EQUALS)) {
-        struct ast_expr *value = new_expr(region);
-        *value = parse_compare(region);
+        struct ast_expr *value = new_expr();
+        *value = parse_compare();
         expr = (struct ast_expr) {
             .kind = AST_EXPR_ASSIGN,
             .assign = {
@@ -463,29 +459,29 @@ static struct ast_expr parse_assign(struct region *region) {
     return expr;
 }
 
-struct ast_expr *parse_expr(struct region *region) {
-    struct ast_expr *expr = new_expr(region);
-    *expr = parse_assign(region);
+struct ast_expr *parse_expr(void) {
+    struct ast_expr *expr = new_expr();
+    *expr = parse_assign();
     return expr;
 }
 
-struct ast_list parse_block(struct region *region) {
+struct ast_list parse_block(void) {
     ignore_line_ending();  // Ignore LF after '{'.
     struct ast_list stmts = {0};
     while (!match(TOKEN_BKT_CURLY_RIGHT)) {
         ensure_not_at_end("Unclosed block statement");
-        struct ast_stmt *stmt = parse_stmt(region);
+        struct ast_stmt *stmt = parse_stmt();
         DA_APPEND(&stmts, STMT_NODE(stmt));
     }
     ignore_line_ending();  // Ignore LF after '}'.
     return stmts;
 }
 
-static struct ast_decl *parse_func_decl(struct region *region) {
-    struct ast_decl *decl = new_decl(region);
+static struct ast_decl *parse_func_decl(void) {
+    struct ast_decl *decl = new_decl();
     *decl = (struct ast_decl) {0};
     struct lxl_token name_token = consume(TOKEN_IDENTIFIER, "Expect function name");
-    struct func_sig *sig = region_allocate(sizeof *sig, region);
+    struct func_sig *sig = ALLOCATE(perm, sizeof *sig);
     *sig = (struct func_sig) {
         .name = lxl_token_value(name_token),
         .params.allocator = STDLIB_ALLOCATOR_ARD,
@@ -521,7 +517,7 @@ static struct ast_decl *parse_func_decl(struct region *region) {
             .kind = AST_DECL_FUNC_DEFN,
             .func_defn = {
                 .sig = sig,
-                .body = parse_block(region)}};
+                .body = parse_block()}};
     }
     else if (match(TOKEN_COLON_EQUALS)) {
         consume(TOKEN_KW_EXTERNAL, "Expect 'external' after ':=' for function");
@@ -537,8 +533,8 @@ static struct ast_decl *parse_func_decl(struct region *region) {
     return decl;
 }
 
-struct ast_decl *parse_var_decl(struct region *region) {
-    struct ast_decl *decl = new_decl(region);
+struct ast_decl *parse_var_decl(void) {
+    struct ast_decl *decl = new_decl();
     *decl = (struct ast_decl) {0};
     struct lxl_token name_token = consume(TOKEN_IDENTIFIER, "Expect variable name after 'var'");
     struct lxl_string_view name = lxl_token_value(name_token);
@@ -558,7 +554,7 @@ struct ast_decl *parse_var_decl(struct region *region) {
     else {
         consume(TOKEN_COLON_EQUALS, "Expect ':=' or ': T =' after variable name");
     }
-    struct ast_expr *value = parse_expr(region);
+    struct ast_expr *value = parse_expr();
     end_statement();
     *decl = (struct ast_decl) {
         .kind = AST_DECL_VAR_DEFN,
@@ -569,11 +565,11 @@ struct ast_decl *parse_var_decl(struct region *region) {
     return decl;
 }
 
-struct ast_decl *parse_type_defn(struct region *region) {
+struct ast_decl *parse_type_defn(void) {
     struct lxl_token alias_token = consume(TOKEN_IDENTIFIER, "Expect alias after 'type'");
     struct lxl_string_view alias = lxl_token_value(alias_token);
     consume(TOKEN_COLON_EQUALS, "Expect ':=' after type alias");
-    struct ast_decl *decl = new_decl(region);
+    struct ast_decl *decl = new_decl();
     TypeID type = parse_type("Expect type after ':=' in type alias definition");
     end_statement();
     *decl = (struct ast_decl) {
@@ -592,36 +588,36 @@ struct ast_decl *parse_type_defn(struct region *region) {
     return decl;
 }
 
-struct ast_decl *try_parse_decl(struct region *region) {
+struct ast_decl *try_parse_decl(void) {
     if (match(TOKEN_KW_FUNC)) {
-        return parse_func_decl(region);
+        return parse_func_decl();
     }
     if (match(TOKEN_KW_VAR)) {
-        return parse_var_decl(region);
+        return parse_var_decl();
     }
     if (match(TOKEN_KW_TYPE)) {
-        return parse_type_defn(region);
+        return parse_type_defn();
     }
     return NULL;
 }
 
-struct ast_stmt parse_if(struct region *region) {
+struct ast_stmt parse_if(void) {
     ignore_line_ending();
-    struct ast_expr *cond = parse_expr(region);
+    struct ast_expr *cond = parse_expr();
     ignore_line_ending();
     consume(TOKEN_BKT_CURLY_LEFT, "Expect '{' after 'if' condition");
-    struct ast_list then_clause = parse_block(region);
+    struct ast_list then_clause = parse_block();
     struct ast_list else_clause = {0};
     if (match(TOKEN_KW_ELSE)) {
         ignore_line_ending();
         if (match(TOKEN_BKT_CURLY_LEFT)) {
-            else_clause = parse_block(region);
+            else_clause = parse_block();
         }
         else {
             // Should we allow LF here? For now, we won't.
             consume(TOKEN_KW_IF, "Expect '{' or 'if' after 'else'");
-            struct ast_stmt *elif_clause = new_stmt(region);
-            *elif_clause = parse_if(region);
+            struct ast_stmt *elif_clause = new_stmt();
+            *elif_clause = parse_if();
             DA_APPEND(&else_clause, STMT_NODE(elif_clause));
         }
     }
@@ -633,13 +629,13 @@ struct ast_stmt parse_if(struct region *region) {
             .else_clause = else_clause}};
 }
 
-struct ast_stmt *parse_stmt(struct region *region) {
-    struct ast_stmt *stmt = new_stmt(region);
+struct ast_stmt *parse_stmt(void) {
+    struct ast_stmt *stmt = new_stmt();
     if (match(TOKEN_KW_IF)) {
-        *stmt = parse_if(region);
+        *stmt = parse_if();
     }
     else {
-        struct ast_decl *decl = try_parse_decl(region);
+        struct ast_decl *decl = try_parse_decl();
         if (decl != NULL) {
             // Declaration statement.
             *stmt = (struct ast_stmt) {
@@ -650,19 +646,19 @@ struct ast_stmt *parse_stmt(struct region *region) {
             // Expression statement.
             *stmt = (struct ast_stmt) {
                 .kind = AST_STMT_EXPR,
-                .expr = {.expr = parse_expr(region)}};
+                .expr = {.expr = parse_expr()}};
             end_statement();
         }
     }
     return stmt;
 }
 
-struct ast_list parse(struct region *region) {
+struct ast_list parse(void) {
     struct ast_list nodes = {0};
     advance();  // Prime parser with first token;
     for (; ignore_line_ending(), !parser_is_finished();) {
         struct ast_node current_node = {0};
-        struct ast_decl *decl = try_parse_decl(region);
+        struct ast_decl *decl = try_parse_decl();
         if (decl != NULL) {
             current_node = (struct ast_node) {
                 .kind = AST_DECL,
