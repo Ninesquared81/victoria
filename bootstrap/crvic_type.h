@@ -37,8 +37,8 @@ struct type_decl {
 
 struct type_decl_list {
     struct allocatorARD allocator;
-    size_t capacity;
-    size_t count;
+    int capacity;
+    int count;
     struct type_decl *items;
 };
 
@@ -61,6 +61,18 @@ enum kind {
     KIND_RECORD,                // Record type (named product type).
 };
 
+struct enum_field {
+    struct lxl_string_view name;
+    VIC_INT value;
+};
+
+struct enum_field_list {
+    struct allocatorARD allocator;
+    int capacity;
+    int count;
+    struct enum_field *items;
+};
+
 struct type_info {
     enum kind kind;               // Kind of type T.
     size_t size;                  // sizeof(T).
@@ -69,14 +81,10 @@ struct type_info {
         /* struct {} primitive_type; */
         struct {
             // Note: NO underlying type (default is Victoria's `int` type).
-            size_t field_count;
-            struct lxl_string_view *field_names;
-            VIC_INT *field_values;
+            struct enum_field_list fields;
         } enum_type;
         struct {
-            size_t field_count;
-            struct lxl_string_view *field_names;
-            TypeID *field_types;
+            struct type_decl_list fields;
         } record_type;
     };
 };
