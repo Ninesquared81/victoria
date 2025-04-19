@@ -89,7 +89,10 @@ struct allocatorARD {
                 (da)->allocator = STDLIB_ALLOCATOR_ARD;                 \
             }                                                           \
             size_t new_capacity = DA_GROW_CAPACITY((da)->capacity);     \
-            void *new_items = REALLOCATE_ARRAY((da)->allocator, (da)->items, sizeof((da)->items[0])); \
+            void *new_items = REALLOCATE_ARRAY(                         \
+                (da)->allocator, (da)->items,                           \
+                new_capacity, (da)->capacity,                           \
+                sizeof((da)->items[0]));                                \
             assert(new_items);                                          \
             (da)->items = new_items;                                    \
             (da)->capacity = new_capacity;                              \

@@ -2,6 +2,7 @@
 
 #include "region.h"
 
+#include "crvic_resources.h"
 #include "crvic_symbol_table.h"
 
 static bool keys_equal(struct st_key a, struct st_key b) {

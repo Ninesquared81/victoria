@@ -7,9 +7,12 @@
 struct allocatorARD perm = {0};  // Allocator for permanent allocations.
 struct allocatorARD temp = {0};  // Allocator for temporary allocations.
 
-void crvic_init(void) {
-    static struct region *perm_region = create_region(STDLIB_ALLOCATOR_AD, REGION_SIZE);
-    static struct region *temp_region = create_region(STDLIB_ALLOCATOR_AD, REGION_SIZE);
+static struct region *perm_region = NULL;
+static struct region *temp_region = NULL;
+
+void init_crvic(void) {
+    perm_region = create_region(STDLIB_ALLOCATOR_AD, REGION_SIZE);
+    temp_region = create_region(STDLIB_ALLOCATOR_AD, REGION_SIZE);
     perm = region_allocatorARD(perm_region);
     temp = region_allocatorARD(temp_region);
     assert(perm_region && temp_region && "Not enough memory :o");
@@ -23,5 +26,5 @@ void *promote_allocation(void *temp_mem, size_t size) {
 }
 
 void begin_temp(void) {
-    reset_region(temp);
+    region_reset(temp_region);
 }

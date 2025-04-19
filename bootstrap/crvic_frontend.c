@@ -45,8 +45,7 @@ void init_frontend(struct lxl_string_view source) {
     parser.lexer = init_lexer(source);
     symbols = (struct symbol_table) {
         .capacity = SYMBOL_TABLE_CAPACITY,
-        .slots = ALLOCATE(perm, sizeof(struct st_slot[SYMBOL_TABLE_CAPACITY]));
-    };
+        .slots = ALLOCATE(perm, sizeof(struct st_slot[SYMBOL_TABLE_CAPACITY]))};
 }
 
 static void report_location(struct lxl_token token) {
@@ -242,27 +241,24 @@ static TypeID parse_type(const char *fmt, ...) {
         return symbol->type_alias.type;
     }
     // Record types.
-    if (match(TOKEN_RECORD)) {
+    if (match(TOKEN_KW_RECORD)) {
         begin_temp();
         consume(TOKEN_BKT_CURLY_LEFT, "Expect '{' after 'record'");
-        struct field_pair {
-            struct lxl_string_view name;
-            TypeID type;
-        };
         struct type_decl_list fields = {.allocator = temp};
         while (!check(TOKEN_BKT_CURLY_RIGHT)) {
             struct lxl_token field_name_token = consume(TOKEN_IDENTIFIER, "Expect field name");
             consume(TOKEN_COLON, "Expect ':' after field name");
             struct lxl_string_view field_name = lxl_token_value(field_name_token);
             TypeID field_type = parse_type("Expect field type after ':'");
-            DA_APPEND(&fields, (struct field_pair) {.name = field_name, .type = field_type});
+            struct type_decl field = {.name = field_name, .type = field_type};
+            DA_APPEND(&fields, field);
             if (!match(TOKEN_COMMA)) break;
         }
         consume(TOKEN_BKT_CURLY_RIGHT, "Expect '}' after record definition");
         TypeID record_type = find_record_type(fields);
         if (!record_type) {
             // Record not found; add it to the type table.
-            struct type_decl_list new_fields =  promote_da(fields->items, fields->count);
+            struct type_decl_list new_fields =  promote_da(fields.items, fields.count);
             record_type = add_type((struct type_info) {
                     .kind = KIND_RECORD,
                     .size = calculate_record_size(new_fields),
@@ -284,8 +280,9 @@ static bool is_digit(char c, int base) {
 }
 
 static uint64_t parse_integer(struct lxl_token token) {
+    begin_temp();
     struct lxl_string_view orig = lxl_token_value(token);
-    char *start = ALLOCATE(perm, orig.length + 1);
+    char *start = ALLOCATE(temp, orig.length + 1);
     size_t length = 0;
     size_t last_length = 0;
     int base = 10;  // Hard-coded for now.
@@ -314,12 +311,11 @@ static uint64_t parse_integer(struct lxl_token token) {
     start[length] = 0;
     uint64_t value = strtoull(start, NULL, base);
     static_assert(sizeof value == sizeof 0ULL, "Unsupported integer size");
-    region_deallocate(start, orig.length + 1, region);
     return value;
 }
 
 static uint64_t parse_previous_integer(void) {
-    return parse_integer(parser.previous_token, region);
+    return parse_integer(parser.previous_token);
 }
 
 static struct ast_expr *parse_expr(void);
@@ -775,8 +771,8 @@ static TypeID resolve_type(struct ast_expr *expr) {
             break;
         }
         assert(actual_arity == expected_arity);
-        assert((size_t)actual_arity == expr->call.args.count);
-        assert((size_t)expected_arity == callee->sig->params.count);
+        assert(actual_arity == expr->call.args.count);
+        assert(expected_arity == callee->sig->params.count);
         for (int i = 0; i < actual_arity; ++i) {
             // Parameter: expected, argument: actual.
             struct type_decl param = callee->sig->params.items[i];
@@ -864,7 +860,7 @@ static void type_check_function(struct func_sig *sig, struct ast_list *body) {
     }
     // TODO: set up arguments as local variables.
     // TODO: local variables.
-    for (size_t i = 0; i < body->count; ++i) {
+    for (int i = 0; i < body->count; ++i) {
         assert(body->items[i].kind == AST_STMT);
         struct ast_stmt *stmt = body->items[i].stmt;
         type_check_stmt(stmt, sig->ret_type);
@@ -873,8 +869,8 @@ static void type_check_function(struct func_sig *sig, struct ast_list *body) {
 
 static bool compare_sigs(struct func_sig *sig1, struct func_sig *sig2) {
     assert(sig1 && sig2);
-    assert((size_t)sig1->arity == sig1->params.count);
-    assert((size_t)sig2->arity == sig2->params.count);
+    assert(sig1->arity == sig1->params.count);
+    assert(sig2->arity == sig2->params.count);
     if (sig1->arity != sig2->arity) return false;
     for (int i = 0; i < sig1->arity; ++i) {
         // NOTE: parameter names are allowed to differ.
@@ -956,7 +952,7 @@ static void type_check_decl(struct ast_decl *decl) {
 }
 
 static void type_check_stmt_list(struct ast_list stmts, TypeID ret_type) {
-    for (size_t i = 0; i < stmts.count; ++i) {
+    for (int i = 0; i < stmts.count; ++i) {
         struct ast_node node = stmts.items[i];
         assert(node.kind != AST_EXPR);
         if (node.kind == AST_STMT) {
@@ -990,7 +986,7 @@ static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
 }
 
 bool type_check(struct ast_list *nodes) {
-    for (size_t i = 0; i < nodes->count; ++i) {
+    for (int i = 0; i < nodes->count; ++i) {
         struct ast_node node = nodes->items[i];
         switch (node.kind) {
         case AST_EXPR:

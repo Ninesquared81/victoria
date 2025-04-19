@@ -47,8 +47,8 @@ enum ast_bin_op_kind {
 
 struct ast_list {
     struct allocatorARD allocator;
-    size_t capacity;
-    size_t count;
+    int capacity;
+    int count;
     struct ast_node *items;
 };
 

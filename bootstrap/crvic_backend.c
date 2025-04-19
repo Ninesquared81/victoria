@@ -16,7 +16,7 @@ enum cgen_error crvic_generate_c_nodes(struct ast_list nodes, int indent, int in
                                        struct string_buffer *sb) {
     assert(indent >= 0 && indent_step >= 0);
     enum cgen_error error = CGEN_OK;
-    for (size_t i = 0; i < nodes.count; ++i) {
+    for (int i = 0; i < nodes.count; ++i) {
         struct ast_node node = nodes.items[i];
         switch (node.kind) {
         case AST_EXPR:
@@ -172,7 +172,7 @@ enum cgen_error crvic_generate_c_func_header(struct func_sig *sig, struct string
         // No parameters; use `void` in parameter list for strict adherence to (pre-C23) C standard.
         sb_add_string(sb, "void");
     }
-    for (size_t i = 1; i < sig->params.count; ++i) {
+    for (int i = 1; i < sig->params.count; ++i) {
         struct type_decl param = sig->params.items[i];
         sb_add_formatted(sb, ", %s "LXL_SV_FMT_SPEC"",
                          crvic_get_c_type(param.type), LXL_SV_FMT_ARG(param.name));
@@ -193,7 +193,7 @@ enum cgen_error crvic_generate_c_expr_sep_list(struct ast_list nodes, const char
     struct ast_node node = nodes.items[0];
     if (node.kind != AST_EXPR) return CGEN_UNEXPECTED_STMT;
     if ((error = crvic_generate_c_expr(node.expr, sb))) return error;
-    for (size_t i = 1; i < nodes.count; ++i) {
+    for (int i = 1; i < nodes.count; ++i) {
         node = nodes.items[i];
         if (node.kind != AST_EXPR) return CGEN_UNEXPECTED_STMT;
         sb_add_string(sb, sep);
