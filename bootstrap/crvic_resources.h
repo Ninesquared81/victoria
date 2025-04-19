@@ -14,6 +14,12 @@ void init_crvic(void);  // Initialise crvic resources. Must be called at start o
 // NOTE: the temporary allocation is NOT cleaned up. Temporary allocation cleanup is left to the caller.
 void *promote_allocation(void *temp_mem, size_t size);
 
+#define PROMOTE_DA(temp_da)                                             \
+    {       .allocator = perm,                                          \
+            .capacity = (temp_da)->count,                               \
+            .count = (temp_da)->count,                                  \
+            .items = promote_allocation((temp_da)->items, (temp_da)->count * sizeof((temp_da)->items[0]))}
+
 // Begin a series of temporary allocations.
 void begin_temp(void);
 
