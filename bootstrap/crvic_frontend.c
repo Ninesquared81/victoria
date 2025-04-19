@@ -243,17 +243,23 @@ static TypeID parse_type(const char *fmt, ...) {
     // Record types.
     if (match(TOKEN_KW_RECORD)) {
         begin_temp();
+        ignore_line_ending();
         consume(TOKEN_BKT_CURLY_LEFT, "Expect '{' after 'record'");
         struct type_decl_list fields = {.allocator = temp};
         while (!check(TOKEN_BKT_CURLY_RIGHT)) {
+            ignore_line_ending();
             struct lxl_token field_name_token = consume(TOKEN_IDENTIFIER, "Expect field name");
+            ignore_line_ending();
             consume(TOKEN_COLON, "Expect ':' after field name");
+            ignore_line_ending();
             struct lxl_string_view field_name = lxl_token_value(field_name_token);
             TypeID field_type = parse_type("Expect field type after ':'");
+            ignore_line_ending();
             struct type_decl field = {.name = field_name, .type = field_type};
             DA_APPEND(&fields, field);
             if (!match(TOKEN_COMMA)) break;
         }
+        ignore_line_ending();
         consume(TOKEN_BKT_CURLY_RIGHT, "Expect '}' after record definition");
         TypeID record_type = find_record_type(fields);
         if (!record_type) {
