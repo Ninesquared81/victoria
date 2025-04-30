@@ -38,6 +38,7 @@ Prefix = Primary ;
 Primay = GetExpr
        | IntegerExpr
        | WhenExpr
+       | ConstructorExpr
        ;
 
 AssignExpr = SetExpr ":=" Expr ;
@@ -45,6 +46,7 @@ GetExpr = IDENT ;
 IntegerExpr = INTEGER_LIT ;
 SetExpr = GetExpr ;
 WhenExpr = "when" Expr "then" Expr "else" Expr
+ConstructorExpr = IDENT "{" [(AssignExpr ",")* AssignExpr [","]] "}"
 
 ArgList = [(Expr ",")* Expr [","]] ;
 
