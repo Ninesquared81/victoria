@@ -20,7 +20,7 @@ enum ast_expr_kind {
     AST_EXPR_ASSIGN,   // Assignment expression.
     AST_EXPR_BINARY,   // Binary operation.
     AST_EXPR_CALL,     // Function call.
-    AST_CONSTRUCTOR,   // Type constructor expression.
+    AST_EXPR_CONSTRUCTOR, // Type constructor expression.
     AST_EXPR_CONVERT,  // Explicit type conversion.
     AST_EXPR_GET,      // Get (the value of a variable, etc.) expression.
     AST_EXPR_INTEGER,  // Integer literal expression.
