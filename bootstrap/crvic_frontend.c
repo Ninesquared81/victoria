@@ -812,6 +812,20 @@ static TypeID resolve_type(struct ast_expr *expr) {
             }
         }
     } break;
+    case AST_EXPR_CONSTRUCTOR: {
+        struct lxl_string_view name = expr->constructor.name;
+        struct symbol *symbol = lookup_symbol(&symbols, st_key_of(name));
+        if (!symbol) {
+            name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
+            break;
+        }
+        if (symbol->kind != SYMBOL_TYPE_ALIAS) {
+            name_error("Symbol '"LXL_SV_FMT_SPEC"' is not not a type", LXL_SV_FMT_ARG(name));
+            break;
+        }
+        // TODO: check the fields are correct for this type.
+        result_type = symbol->type_alias.type;
+    } break;
     case AST_EXPR_CONVERT: {
         if (expr->convert.kind == CONVERT_AS) {
             // TODO: ensure 'as' conversion is compatible.
