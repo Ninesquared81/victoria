@@ -328,10 +328,13 @@ static struct ast_expr *parse_expr(void);
 static struct ast_stmt *parse_stmt(void);
 static struct ast_expr parse_assign(void);
 
-static struct ast_list parse_comma_list(enum token_type terminator, const char *message) {
+static struct ast_expr parse_compare(void);
+
+static struct ast_list parse_comma_list_no_assign(enum token_type terminator, const char *message) {
     struct ast_list args = {0};
     while (!match(terminator)) {
-        struct ast_expr *arg = parse_expr();
+        struct ast_expr *arg = new_expr();
+        *arg = parse_compare();  // Do not allow assign expressions.
         DA_APPEND(&args, EXPR_NODE(arg));
         if (!match(TOKEN_COMMA)) {
             consume(terminator, message);
@@ -342,7 +345,7 @@ static struct ast_list parse_comma_list(enum token_type terminator, const char *
 }
 
 static struct ast_list parse_arg_list(void) {
-    return parse_comma_list(TOKEN_BKT_ROUND_RIGHT, "Expect ')' after argument list");
+    return parse_comma_list_no_assign(TOKEN_BKT_ROUND_RIGHT, "Expect ')' after argument list");
 }
 
 static struct ast_expr parse_primary(void) {
@@ -355,7 +358,7 @@ static struct ast_expr parse_primary(void) {
     else if (match(TOKEN_IDENTIFIER)) {
         struct lxl_string_view name = lxl_token_value(parser.previous_token);
         if (match(TOKEN_BKT_CURLY_LEFT)) {
-            struct ast_list inits = parse_comma_list(TOKEN_BKT_CURLY_RIGHT,
+            struct ast_list inits = parse_comma_list_no_assign(TOKEN_BKT_CURLY_RIGHT,
                                                      "Expect '}' after initialiser list");
             expr = (struct ast_expr) {
                 .kind = AST_EXPR_CONSTRUCTOR,
