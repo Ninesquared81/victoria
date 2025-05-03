@@ -823,8 +823,37 @@ static TypeID resolve_type(struct ast_expr *expr) {
             name_error("Symbol '"LXL_SV_FMT_SPEC"' is not not a type", LXL_SV_FMT_ARG(name));
             break;
         }
-        // TODO: check the fields are correct for this type.
-        result_type = symbol->type_alias.type;
+        TypeID type = symbol->type_alias.type;
+        struct type_info *info = get_type(type);
+        if (info->kind == KIND_RECORD) {
+            if (info->record_type.fields.count != expr->constructor.init_list.count) {
+                type_error("Incorrect number of fields in initialiser list for type '"
+                           LXL_SV_FMT_SPEC"'; expected %d but got %d",
+                           LXL_SV_FMT_ARG(name), info->record_type.fields.count,
+                           expr->constructor.init_list.count);
+                break;
+            }
+            for (int i = 0; i < info->record_type.fields.count; ++i) {
+                TypeID expected_type = info->record_type.fields.items[i].type;
+                struct ast_node node = expr->constructor.init_list.items[i];
+                assert(node.kind == AST_EXPR);
+                TypeID actual_type = resolve_type(node.expr);
+                if (expected_type != actual_type) {
+                    struct lxl_string_view expected_sv = get_type_sv(expected_type);
+                    struct lxl_string_view actual_sv = get_type_sv(actual_type);
+                    type_error("Expected type '"LXL_SV_FMT_SPEC "' for field %d of type '"
+                               LXL_SV_FMT_SPEC"', but got type '"LXL_SV_FMT_SPEC"'",
+                               LXL_SV_FMT_ARG(expected_sv), LXL_SV_FMT_ARG(name),
+                               LXL_SV_FMT_ARG(actual_sv));
+                    break;
+                }
+            }
+        }
+        else {
+            type_error("Invalid type for constructor: '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
+            break;
+        }
+        result_type = type;
     } break;
     case AST_EXPR_CONVERT: {
         if (expr->convert.kind == CONVERT_AS) {
