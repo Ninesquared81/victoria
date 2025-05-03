@@ -46,6 +46,14 @@ void init_frontend(struct lxl_string_view source) {
     symbols = (struct symbol_table) {
         .capacity = SYMBOL_TABLE_CAPACITY,
         .slots = ALLOCATE(perm, sizeof(struct st_slot[SYMBOL_TABLE_CAPACITY]))};
+    insert_symbol(&symbols, st_key_of(LXL_SV_FROM_STRLIT("int")),
+                  (struct symbol) {
+                      .kind = SYMBOL_TYPE_ALIAS,
+                      .type_alias = {.type = TYPE_I64}});
+    insert_symbol(&symbols, st_key_of(LXL_SV_FROM_STRLIT("uint")),
+                  (struct symbol) {
+                      .kind = SYMBOL_TYPE_ALIAS,
+                      .type_alias = {.type = TYPE_U64}});
 }
 
 static void report_location(struct lxl_token token) {
@@ -208,12 +216,13 @@ static TypeID token_to_type(struct lxl_token token) {
     case TOKEN_KW_I16: return TYPE_I16;
     case TOKEN_KW_I32: return TYPE_I32;
     case TOKEN_KW_I64: return TYPE_I64;
-    case TOKEN_KW_INT: return TYPE_INT;
     case TOKEN_KW_U8: return TYPE_U8;
     case TOKEN_KW_U16: return TYPE_U16;
     case TOKEN_KW_U32: return TYPE_U32;
     case TOKEN_KW_U64: return TYPE_U64;
-    case TOKEN_KW_UINT: return TYPE_UINT;
+    case TOKEN_KW_INT:
+    case TOKEN_KW_UINT:
+        return lookup_symbol(&symbols, st_key_of(lxl_token_value(token)))->type_alias.type;
     }
     return TYPE_NO_TYPE;
 }
@@ -884,7 +893,7 @@ static TypeID resolve_type(struct ast_expr *expr) {
     } break;
     case AST_EXPR_INTEGER:
         // TODO "untyped" literals... i.e. integer literals have an "INTEGER_LITERAL" type.
-        result_type = TYPE_INT;
+        result_type = lookup_symbol(&symbols, st_key_of(LXL_SV_FROM_STRLIT("int")))->type_alias.type;
         break;
     case AST_EXPR_WHEN: {
         // Propogate errors.

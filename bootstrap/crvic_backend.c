@@ -231,8 +231,6 @@ const char *crvic_get_c_type(TypeID type) {
     case TYPE_U16: return "uint16_t";
     case TYPE_U32: return "uint32_t";
     case TYPE_U64: return "uint64_t";
-    case TYPE_INT: return "intptr_t";
-    case TYPE_UINT: return "uintptr_t";
     case TYPE_PRIMITIVE_COUNT:
         assert(0 && "Bad type 'TYPE_PRIMITIVE_COUNT'");
         break;

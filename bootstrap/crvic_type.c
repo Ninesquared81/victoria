@@ -19,8 +19,6 @@ static struct type_info types[TYPE_TABLE_CAPACITY] = {
     [TYPE_U16]     = {.kind = KIND_PRIMITIVE, .size = 1, .repr = LXL_SV_FROM_STRLIT("u16")},
     [TYPE_U32]     = {.kind = KIND_PRIMITIVE, .size = 4, .repr = LXL_SV_FROM_STRLIT("u32")},
     [TYPE_U64]     = {.kind = KIND_PRIMITIVE, .size = 8, .repr = LXL_SV_FROM_STRLIT("u64")},
-    [TYPE_INT]     = {.kind = KIND_PRIMITIVE, .size = sizeof(VIC_INT),  .repr = LXL_SV_FROM_STRLIT("int")},
-    [TYPE_UINT]    = {.kind = KIND_PRIMITIVE, .size = sizeof(VIC_UINT), .repr = LXL_SV_FROM_STRLIT("uint")},
     /* ... Other types to be filled in later ... */
 };
 
@@ -97,13 +95,12 @@ struct lxl_string_view make_record_repr(struct type_decl_list fields) {
 
 bool is_integer_type(TypeID type) {
     static_assert(TYPE_I8 < TYPE_U8, "Signed types assumed before unsigned");
-    static_assert(TYPE_INT < TYPE_UINT, "Signed types assumed before unsigned");
-    return TYPE_I8 <= type && type <= TYPE_UINT;
+    return TYPE_I8 <= type && type <= TYPE_U64;
 }
 
 enum signedness sign_of_type(TypeID type) {
-    if ((TYPE_I8 <= type && type <= TYPE_I64) || type == TYPE_INT) return SIGN_SIGNED;
-    if ((TYPE_U8 <= type && type <= TYPE_U64) || type == TYPE_UINT) return SIGN_UNSIGNED;
+    if (TYPE_I8 <= type && type <= TYPE_I64) return SIGN_SIGNED;
+    if (TYPE_U8 <= type && type <= TYPE_U64) return SIGN_UNSIGNED;
     return SIGN_NO_SIGN;
 }
 
@@ -111,13 +108,6 @@ struct lxl_string_view get_type_sv(TypeID type) {
     struct type_info *info = get_type(type);
     assert(info);
     return info->repr;
-}
-
-TypeID get_sized_int(TypeID type) {
-    if (!is_integer_type(type)) return TYPE_NO_TYPE;
-    if (type == TYPE_INT)  return (sizeof(VIC_INT)  == 64) ? TYPE_I64 : TYPE_I32;
-    if (type == TYPE_UINT) return (sizeof(VIC_UINT) == 64) ? TYPE_U64 : TYPE_U32;
-    return type;
 }
 
 TypeID max_type_rank(TypeID type1, TypeID type2) {
@@ -188,5 +178,5 @@ TypeID max_type_rank(TypeID type1, TypeID type2) {
         [TYPE_U64][TYPE_U32] = TYPE_U64,
         [TYPE_U64][TYPE_U64] = TYPE_U64,
     };
-    return ranks[get_sized_int(type1)][get_sized_int(type2)];
+    return ranks[type1][type2];
 }
