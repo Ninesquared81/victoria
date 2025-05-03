@@ -267,6 +267,7 @@ static TypeID parse_type(const char *fmt, ...) {
             struct type_decl_list new_fields =  PROMOTE_DA(&fields);
             record_type = add_type((struct type_info) {
                     .kind = KIND_RECORD,
+                    .repr = make_record_repr(new_fields),
                     .size = calculate_record_size(new_fields),
                     .record_type = {.fields = new_fields}});
         }
@@ -846,7 +847,8 @@ static TypeID resolve_type(struct ast_expr *expr) {
                     struct lxl_string_view actual_sv = get_type_sv(actual_type);
                     type_error("Expected type '"LXL_SV_FMT_SPEC "' for field %d of type '"
                                LXL_SV_FMT_SPEC"', but got type '"LXL_SV_FMT_SPEC"'",
-                               LXL_SV_FMT_ARG(expected_sv), LXL_SV_FMT_ARG(name),
+                               LXL_SV_FMT_ARG(expected_sv),
+                               i, LXL_SV_FMT_ARG(name),
                                LXL_SV_FMT_ARG(actual_sv));
                     break;
                 }

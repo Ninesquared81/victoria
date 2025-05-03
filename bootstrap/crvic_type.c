@@ -1,5 +1,8 @@
 #include <assert.h>
 
+#include "lexel.h"
+
+#include "crvic_resources.h"
 #include "crvic_type.h"
 
 #define TYPE_TABLE_CAPACITY 1024
@@ -49,6 +52,47 @@ size_t calculate_record_size(struct type_decl_list fields) {
         size += get_type(fields.items[i].type)->size;
     }
     return size;
+}
+
+struct lxl_string_view make_record_repr(struct type_decl_list fields) {
+    if (fields.count == 0) return LXL_SV_FROM_STRLIT("record {}");
+    ptrdiff_t capacity = 32;
+    char *repr = ALLOCATE(perm, capacity);
+    char *ptr = repr;
+    const char header[] = "record {";
+    assert((ptrdiff_t)(sizeof header) <= capacity);
+    memcpy(ptr, header, sizeof header - 1);
+    ptr += sizeof header - 1;
+    for (int i = 0; i < fields.count; ++i) {
+        struct lxl_string_view name_sv = fields.items[i].name;
+        struct lxl_string_view type_sv = get_type_sv(fields.items[i].type);
+        // NOTE: +2 for ': ', +2 for ', '.
+        ptrdiff_t needed_size = name_sv.length + 2 + type_sv.length + 2;
+        ptrdiff_t count = ptr - repr;
+        if (count + needed_size > capacity) {
+            ptrdiff_t old_capacity = capacity;
+            capacity += capacity + needed_size;
+            assert(capacity > count + needed_size);
+            repr = REALLOCATE(perm, repr, capacity, old_capacity);
+            assert(repr);
+        }
+        memcpy(ptr, name_sv.start, name_sv.length);
+        ptr += name_sv.length;
+        *ptr++ = ':';
+        *ptr++ = ' ';
+        memcpy(ptr, type_sv.start, type_sv.length);
+        ptr += type_sv.length;
+        *ptr++ = ',';
+        *ptr++ = ' ';
+    }
+    // Overwrite last ', ' with '}\0'. We catch the empty record case at the top of the function,
+    // so this is well-defined.
+    ptr[-2] = '}';
+    ptr[-1] = '\0';
+    // Shrink allocation to avoid over-allocation.
+    repr = REALLOCATE(perm, repr, ptr - repr, capacity);
+    assert(repr);
+    return lxl_sv_from_startend(repr, ptr);
 }
 
 bool is_integer_type(TypeID type) {
