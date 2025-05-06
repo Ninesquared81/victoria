@@ -137,7 +137,12 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         }
         break;
     case AST_EXPR_GET:
-        sb_add_formatted(sb, ""LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(expr->get.target));
+        assert(expr->get.kind = AST_TARGET_IDENTIFIER);
+        sb_add_formatted(sb, ""LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(expr->get.target.identifier));
+        for (struct get_expr *get = &expr->get; get->rest != NULL; get = get->rest) {
+            assert(get->kind = AST_TARGET_IDENTIFIER);
+            sb_add_formatted(sb, "."LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(get->target.identifier));
+        }
         break;
     case AST_EXPR_INTEGER:
         sb_add_formatted(sb, "%"PRId64, expr->integer.value);

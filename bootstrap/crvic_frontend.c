@@ -429,7 +429,7 @@ static struct ast_expr parse_primary(void) {
         else {
             expr = (struct ast_expr) {
                 .kind = AST_EXPR_GET,
-                .get = {.target = name}};
+                .get = {.target.identifier = name}};
         }
     }
     else if (match(TOKEN_BKT_ROUND_LEFT)) {
@@ -487,7 +487,7 @@ static struct ast_expr parse_suffix(void) {
         expr = (struct ast_expr) {
             .kind = AST_EXPR_CALL,
             .call = {
-                .callee_name = callee->get.target,
+                .callee_name = callee->get.target.identifier,
                 .arity = args.count,
                 .args = args}};
     }
@@ -563,7 +563,7 @@ static struct ast_expr parse_assign(void) {
         expr = (struct ast_expr) {
             .kind = AST_EXPR_ASSIGN,
             .assign = {
-                .target = expr.get.target,
+                .target = expr.get.target.identifier,
                 .value = value}};
     }
     return expr;
@@ -929,7 +929,7 @@ static TypeID resolve_type(struct ast_expr *expr) {
         result_type = expr->convert.target_type;
     } break;
     case AST_EXPR_GET: {
-        struct lxl_string_view name = expr->get.target;
+        struct lxl_string_view name = expr->get.target.identifier;
         struct symbol *target_symbol = lookup_symbol(&symbols, st_key_of(name));
         if (!target_symbol) {
             name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));

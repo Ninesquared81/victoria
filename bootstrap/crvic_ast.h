@@ -46,6 +46,10 @@ enum ast_bin_op_kind {
     AST_BIN_MUL,  // Multiplication operator `*`.
 };
 
+enum target_kind {
+    AST_TARGET_IDENTIFIER,  // Identifier (variable, field, etc.).
+};
+
 struct ast_list {
     struct allocatorARD allocator;
     int capacity;
@@ -80,8 +84,12 @@ struct ast_expr {
             TypeID target_type;
             enum type_conv_kind kind;
         } convert;
-        struct {
-            struct lxl_string_view target;
+        struct get_expr {
+            struct get_expr *rest;  // RHS of `.` operator, optional.
+            union {
+                struct lxl_string_view identifier;
+            } target;
+            enum target_kind kind;
         } get;
         struct {
             int64_t value;
