@@ -144,6 +144,7 @@ struct lxl_lexer *init_lexer(struct lxl_string_view source) {
         ":=",          TOKEN_COLON_EQUALS,
         ":",           TOKEN_COLON,
         "$",           TOKEN_DOLLAR,
+        ".",           TOKEN_DOT,
         "==",          TOKEN_EQUALS_EQUALS,
         "=",           TOKEN_EQUALS,
         ">>=",         TOKEN_GREATER_GREATER_EQUALS,
