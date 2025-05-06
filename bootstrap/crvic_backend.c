@@ -136,8 +136,8 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
             sb_add_string(sb, ")");
         }
         break;
-    case AST_EXPR_GET:
-        sb_add_formatted(sb, ""LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(expr->get.target));
+    case AST_EXPR_IDENTIFIER:
+        sb_add_formatted(sb, ""LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(expr->identifier.name));
         break;
     case AST_EXPR_INTEGER:
         sb_add_formatted(sb, "%"PRId64, expr->integer.value);
