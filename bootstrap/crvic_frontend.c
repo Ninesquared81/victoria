@@ -321,6 +321,7 @@ static TypeID parse_type(const char *fmt, ...) {
             struct type_decl field = {.name = field_name, .type = field_type};
             DA_APPEND(&fields, field);
             if (!match(TOKEN_COMMA)) break;
+            ignore_line_ending();
         }
         ignore_line_ending();
         consume(TOKEN_BKT_CURLY_RIGHT, "Expect '}' after record definition");
@@ -359,6 +360,7 @@ static TypeID parse_type(const char *fmt, ...) {
             struct enum_field field = {.name = field_name, .value = field_value};
             DA_APPEND(&fields, field);
             if (!match(TOKEN_COMMA)) break;
+            ignore_line_ending();
         }
         ignore_line_ending();
         consume(TOKEN_BKT_CURLY_RIGHT, "Expect '}' after enum field list");
