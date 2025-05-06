@@ -1,4 +1,6 @@
 #include <assert.h>
+#include <inttypes.h>  // PRId64.
+#include <stdio.h>  // snprintf.
 
 #include "lexel.h"
 
@@ -84,6 +86,52 @@ struct lxl_string_view make_record_repr(struct type_decl_list fields) {
         *ptr++ = ' ';
     }
     // Overwrite last ', ' with '}\0'. We catch the empty record case at the top of the function,
+    // so this is well-defined.
+    ptr[-2] = '}';
+    ptr[-1] = '\0';
+    // Shrink allocation to avoid over-allocation.
+    repr = REALLOCATE(perm, repr, ptr - repr, capacity);
+    assert(repr);
+    return lxl_sv_from_startend(repr, ptr);
+}
+
+
+TypeID find_enum_type(struct enum_field_list fields) {
+    for (int i = TYPE_PRIMITIVE_COUNT; i < type_count; ++i) {
+        struct type_info *info = get_type(i);
+        if (info->kind == KIND_ENUM && DA_EQ(&info->enum_type.fields, &fields)) return i;
+    }
+    return TYPE_NO_TYPE;
+}
+
+struct lxl_string_view make_enum_repr(struct enum_field_list fields) {
+    if (fields.count == 0) return LXL_SV_FROM_STRLIT("enum {}");
+    ptrdiff_t capacity = 32;
+    char *repr = ALLOCATE(perm, capacity);
+    char *ptr = repr;
+    const char header[] = "enum {";
+    assert((ptrdiff_t)(sizeof header) <= capacity);
+    memcpy(ptr, header, sizeof header - 1);
+    ptr += sizeof header - 1;
+    for (int i = 0; i < fields.count; ++i) {
+        struct lxl_string_view name_sv = fields.items[i].name;
+        int64_t value = fields.items[i].value;
+        int value_length = snprintf(NULL, 0, " := %"PRId64", ", value);
+        // NOTE: extra chars habdled in snprintf().
+        ptrdiff_t needed_size = name_sv.length + value_length;
+        ptrdiff_t count = ptr - repr;
+        if (count + needed_size > capacity) {
+            ptrdiff_t old_capacity = capacity;
+            capacity += capacity + needed_size;
+            assert(capacity > count + needed_size);
+            repr = REALLOCATE(perm, repr, capacity, old_capacity);
+            assert(repr);
+        }
+        memcpy(ptr, name_sv.start, name_sv.length);
+        ptr += name_sv.length;
+        ptr += snprintf(ptr, capacity - count, " := %"PRId64", ", value);
+    }
+    // Overwrite last ', ' with '}\0'. We catch the empty enum case at the top of the function,
     // so this is well-defined.
     ptr[-2] = '}';
     ptr[-1] = '\0';

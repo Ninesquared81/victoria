@@ -27,6 +27,7 @@ struct parser {
     struct lxl_token current_token, previous_token;
     struct lxl_lexer *lexer;
     bool panic_mode;
+    VIC_INT enum_counter;
 };
 
 struct type_checker {
@@ -177,6 +178,14 @@ static void end_statement(void) {
     ignore_line_ending();
 }
 
+static void set_enum_counter(VIC_INT value) {
+    parser.enum_counter = value;
+}
+
+static VIC_INT next_enum_value(void) {
+    return parser.enum_counter++;
+}
+
 static struct ast_expr *new_expr(void) {
     struct ast_expr *expr = ALLOCATE(perm, sizeof *expr);
     assert(expr != NULL && "We're gonna need a bigger region!");
@@ -208,6 +217,50 @@ static bool check_comparison(void) {
 static bool check_assignment_target(struct ast_expr expr) {
     // For now, only variable names can be assignment tragets.
     return expr.kind == AST_EXPR_GET;
+}
+
+static bool is_digit(char c, int base) {
+    assert(base == 10);  // We only support base 10 ATM.
+    return '0' <= c && c <= '9';
+}
+
+static uint64_t parse_integer(struct lxl_token token) {
+    begin_temp();
+    struct lxl_string_view orig = lxl_token_value(token);
+    char *start = ALLOCATE(temp, orig.length + 1);
+    size_t length = 0;
+    size_t last_length = 0;
+    int base = 10;  // Hard-coded for now.
+    const char *const end = LXL_SV_END(orig);
+    for (const char *p = orig.start; p < end; ++p) {
+        if (is_digit(*p, base)) {
+            ++length;
+        }
+        else {
+            assert(length > last_length);
+            size_t run_length = length - last_length;
+            memcpy(start + last_length, p - run_length, run_length);
+            while (p < end && !is_digit(*++p, base)) {
+                /* Do nothing. */
+            }
+            if (p >= end) break;
+            last_length = length;
+            ++length;  // We consumed a digit.
+        }
+    }
+    if (last_length < length) {
+        size_t run_length = length - last_length;
+        memcpy(start + last_length, end - run_length, run_length);
+    }
+    assert(length <= orig.length);
+    start[length] = 0;
+    uint64_t value = strtoull(start, NULL, base);
+    static_assert(sizeof value == sizeof 0ULL, "Unsupported integer size");
+    return value;
+}
+
+static uint64_t parse_previous_integer(void) {
+    return parse_integer(parser.previous_token);
 }
 
 static TypeID token_to_type(struct lxl_token token) {
@@ -254,6 +307,7 @@ static TypeID parse_type(const char *fmt, ...) {
         begin_temp();
         ignore_line_ending();
         consume(TOKEN_BKT_CURLY_LEFT, "Expect '{' after 'record'");
+        ignore_line_ending();
         struct type_decl_list fields = {.allocator = temp};
         while (!check(TOKEN_BKT_CURLY_RIGHT)) {
             ignore_line_ending();
@@ -273,14 +327,52 @@ static TypeID parse_type(const char *fmt, ...) {
         TypeID record_type = find_record_type(fields);
         if (!record_type) {
             // Record not found; add it to the type table.
-            struct type_decl_list new_fields =  PROMOTE_DA(&fields);
+            fields = (struct type_decl_list) PROMOTE_DA(&fields);
             record_type = add_type((struct type_info) {
                     .kind = KIND_RECORD,
-                    .repr = make_record_repr(new_fields),
-                    .size = calculate_record_size(new_fields),
-                    .record_type = {.fields = new_fields}});
+                    .repr = make_record_repr(fields),
+                    .size = calculate_record_size(fields),
+                    .record_type = {.fields = fields}});
         }
         return record_type;
+    }
+    // Enum types.
+    if (match(TOKEN_KW_ENUM)) {
+        begin_temp();
+        ignore_line_ending();
+        consume(TOKEN_BKT_CURLY_LEFT, "Expect '{' after 'enum'");  // Note: NO underling type allowed yet.
+        struct enum_field_list fields = {.allocator = temp};
+        ignore_line_ending();
+        set_enum_counter(0);
+        while (!check(TOKEN_BKT_CURLY_RIGHT)) {
+            ignore_line_ending();
+            struct lxl_token field_name_token = consume(TOKEN_IDENTIFIER, "Expect field name");
+            struct lxl_string_view field_name = lxl_token_value(field_name_token);
+            ignore_line_ending();
+            if (match(TOKEN_COLON_EQUALS)) {
+                // Specified value.
+                consume(TOKEN_LIT_INTEGER, "Expect integer literal value");
+                set_enum_counter(parse_previous_integer());
+            }
+            ignore_line_ending();
+            VIC_INT field_value = next_enum_value();
+            struct enum_field field = {.name = field_name, .value = field_value};
+            DA_APPEND(&fields, field);
+            if (!match(TOKEN_COMMA)) break;
+        }
+        ignore_line_ending();
+        consume(TOKEN_BKT_CURLY_RIGHT, "Expect '}' after enum field list");
+        TypeID enum_type = find_enum_type(fields);
+        if (!enum_type) {
+            // Enum not found; add it to the type table.
+            fields = (struct enum_field_list) PROMOTE_DA(&fields);
+            enum_type = add_type((struct type_info) {
+                    .kind = KIND_ENUM,
+                    .repr = make_enum_repr(fields),
+                    .size = sizeof(VIC_INT),
+                    .enum_type = {.fields = fields}});
+        }
+        return enum_type;
     }
     // Not a type.
     va_list vargs;
@@ -288,50 +380,6 @@ static TypeID parse_type(const char *fmt, ...) {
     parse_error_show_token_vargs(parser.current_token, fmt, vargs);
     va_end(vargs);
     return TYPE_NO_TYPE;
-}
-
-static bool is_digit(char c, int base) {
-    assert(base == 10);  // We only support base 10 ATM.
-    return '0' <= c && c <= '9';
-}
-
-static uint64_t parse_integer(struct lxl_token token) {
-    begin_temp();
-    struct lxl_string_view orig = lxl_token_value(token);
-    char *start = ALLOCATE(temp, orig.length + 1);
-    size_t length = 0;
-    size_t last_length = 0;
-    int base = 10;  // Hard-coded for now.
-    const char *const end = LXL_SV_END(orig);
-    for (const char *p = orig.start; p < end; ++p) {
-        if (is_digit(*p, base)) {
-            ++length;
-        }
-        else {
-            assert(length > last_length);
-            size_t run_length = length - last_length;
-            memcpy(start + last_length, p - run_length, run_length);
-            while (p < end && !is_digit(*++p, base)) {
-                /* Do nothing. */
-            }
-            if (p >= end) break;
-            last_length = length;
-            ++length;  // We consumed a digit.
-        }
-    }
-    if (last_length < length) {
-        size_t run_length = length - last_length;
-        memcpy(start + last_length, end - run_length, run_length);
-    }
-    assert(length <= orig.length);
-    start[length] = 0;
-    uint64_t value = strtoull(start, NULL, base);
-    static_assert(sizeof value == sizeof 0ULL, "Unsupported integer size");
-    return value;
-}
-
-static uint64_t parse_previous_integer(void) {
-    return parse_integer(parser.previous_token);
 }
 
 static struct ast_expr *parse_expr(void);
