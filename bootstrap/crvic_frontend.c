@@ -429,7 +429,23 @@ static struct ast_expr parse_primary(void) {
         else {
             expr = (struct ast_expr) {
                 .kind = AST_EXPR_GET,
-                .get = {.target.identifier = name}};
+                .get = {
+                    .rest = NULL,
+                    .target.identifier = name,
+                    .kind = AST_TARGET_IDENTIFIER}};
+            struct get_expr **get = &expr.get.rest;
+            while (match(TOKEN_DOT)) {
+                *get = ALLOCATE(perm, sizeof **get);
+                assert(*get);
+                consume(TOKEN_IDENTIFIER, "Expect identifier after '.'");
+                // TODO: other target kinds.
+                name = lxl_token_value(parser.previous_token);
+                **get = (struct get_expr) {
+                    .rest = NULL,
+                    .target.identifier = name,
+                    .kind = AST_TARGET_IDENTIFIER};
+                get = &(*get)->rest;
+            }
         }
     }
     else if (match(TOKEN_BKT_ROUND_LEFT)) {
@@ -941,12 +957,13 @@ static TypeID resolve_type(struct ast_expr *expr) {
         }
         result_type = target_symbol->var.type;
         for (struct get_expr *get = expr->get.rest; get; get = get->rest) {
-            assert(get->kind = AST_TARGET_IDENTIFIER);
-            struct type_info *info = get_type(result_type);
+            TypeID lhs_type = result_type;
+            struct type_info *info = get_type(lhs_type);
+            assert(get->kind == AST_TARGET_IDENTIFIER);
             assert(info->kind = KIND_RECORD);
             result_type = get_record_field_type(info->record_type.fields, get->target.identifier);
             if (!result_type) {
-                struct lxl_string_view record_type_sv = get_type_sv(result_type);
+                struct lxl_string_view record_type_sv = get_type_sv(lhs_type);
                 type_error("Type '"LXL_SV_FMT_SPEC"' has no field '"LXL_SV_FMT_SPEC"'",
                            LXL_SV_FMT_ARG(record_type_sv), LXL_SV_FMT_ARG(get->target.identifier));
                 break;
