@@ -95,6 +95,13 @@ struct lxl_string_view make_record_repr(struct type_decl_list fields) {
     return lxl_sv_from_startend(repr, ptr);
 }
 
+TypeID get_record_field_type(struct type_decl_list fields, struct lxl_string_view field_name) {
+    for (int i = 0; i < fields.count; ++i) {
+        if (lxl_sv_equal(fields.items[i].name, field_name)) return fields.items[i].type;
+    }
+    return TYPE_NO_TYPE;
+}
+
 
 TypeID find_enum_type(struct enum_field_list fields) {
     for (int i = TYPE_PRIMITIVE_COUNT; i < type_count; ++i) {

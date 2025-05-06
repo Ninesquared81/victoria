@@ -940,6 +940,18 @@ static TypeID resolve_type(struct ast_expr *expr) {
             break;
         }
         result_type = target_symbol->var.type;
+        for (struct get_expr *get = expr->get.rest; get; get = get->rest) {
+            assert(get->kind = AST_TARGET_IDENTIFIER);
+            struct type_info *info = get_type(result_type);
+            assert(info->kind = KIND_RECORD);
+            result_type = get_record_field_type(info->record_type.fields, get->target.identifier);
+            if (!result_type) {
+                struct lxl_string_view record_type_sv = get_type_sv(result_type);
+                type_error("Type '"LXL_SV_FMT_SPEC"' has no field '"LXL_SV_FMT_SPEC"'",
+                           LXL_SV_FMT_ARG(record_type_sv), LXL_SV_FMT_ARG(get->target.identifier));
+                break;
+            }
+        }
     } break;
     case AST_EXPR_INTEGER:
         // TODO "untyped" literals... i.e. integer literals have an "INTEGER_LITERAL" type.

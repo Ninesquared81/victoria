@@ -95,6 +95,7 @@ struct type_info *get_type(TypeID type);
 TypeID find_record_type(struct type_decl_list fields);
 size_t calculate_record_size(struct type_decl_list fields);
 struct lxl_string_view make_record_repr(struct type_decl_list fields);
+TypeID get_record_field_type(struct type_decl_list fields, struct lxl_string_view field_name);
 
 TypeID find_enum_type(struct enum_field_list fields);
 struct lxl_string_view make_enum_repr(struct enum_field_list fields);
