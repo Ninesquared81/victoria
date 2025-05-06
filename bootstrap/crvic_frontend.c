@@ -216,7 +216,7 @@ static bool check_comparison(void) {
 
 static bool check_assignment_target(struct ast_expr expr) {
     // For now, only variable names can be assignment tragets.
-    return expr.kind == AST_EXPR_IDENTIFIER;
+    return expr.kind == AST_EXPR_GET;
 }
 
 static bool is_digit(char c, int base) {
@@ -428,8 +428,8 @@ static struct ast_expr parse_primary(void) {
         }
         else {
             expr = (struct ast_expr) {
-                .kind = AST_EXPR_IDENTIFIER,
-                .identifier = {.name = name}};
+                .kind = AST_EXPR_GET,
+                .get = {.target = name}};
         }
     }
     else if (match(TOKEN_BKT_ROUND_LEFT)) {
@@ -480,14 +480,14 @@ static struct ast_expr parse_suffix(void) {
     else if (match(TOKEN_BKT_ROUND_LEFT)) {
         struct ast_expr *callee = new_expr();
         *callee = expr;
-        if (callee->kind != AST_EXPR_IDENTIFIER) {
+        if (callee->kind != AST_EXPR_GET) {
             parse_error_previous_show_token("Callee must be an identifier");
         }
         struct ast_list args = parse_arg_list();
         expr = (struct ast_expr) {
             .kind = AST_EXPR_CALL,
             .call = {
-                .callee_name = callee->identifier.name,
+                .callee_name = callee->get.target,
                 .arity = args.count,
                 .args = args}};
     }
@@ -563,7 +563,7 @@ static struct ast_expr parse_assign(void) {
         expr = (struct ast_expr) {
             .kind = AST_EXPR_ASSIGN,
             .assign = {
-                .target = expr.identifier.name,
+                .target = expr.get.target,
                 .value = value}};
     }
     return expr;
@@ -928,8 +928,8 @@ static TypeID resolve_type(struct ast_expr *expr) {
         }
         result_type = expr->convert.target_type;
     } break;
-    case AST_EXPR_IDENTIFIER: {
-        struct lxl_string_view name = expr->identifier.name;
+    case AST_EXPR_GET: {
+        struct lxl_string_view name = expr->get.target;
         struct symbol *target_symbol = lookup_symbol(&symbols, st_key_of(name));
         if (!target_symbol) {
             name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
