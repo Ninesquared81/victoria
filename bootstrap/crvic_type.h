@@ -74,6 +74,7 @@ struct enum_field_list {
 };
 
 struct type_info {
+    TypeID id;                    // ID of type T.
     enum kind kind;               // Kind of type T.
     size_t size;                  // sizeof(T).
     struct lxl_string_view repr;  // Textual representation of T.

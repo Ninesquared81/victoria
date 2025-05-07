@@ -10,17 +10,17 @@
 #define TYPE_TABLE_CAPACITY 1024
 
 static struct type_info types[TYPE_TABLE_CAPACITY] = {
-    [TYPE_NO_TYPE] = {.kind = KIND_NO_KIND,   .size = 0, .repr = LXL_SV_FROM_STRLIT("<No type>")},
-    [TYPE_ABSURD]  = {.kind = KIND_PRIMITIVE, .size = 0, .repr = LXL_SV_FROM_STRLIT("!")},
-    [TYPE_UNIT]    = {.kind = KIND_PRIMITIVE, .size = 0, .repr = LXL_SV_FROM_STRLIT("()")},
-    [TYPE_I8]      = {.kind = KIND_PRIMITIVE, .size = 1, .repr = LXL_SV_FROM_STRLIT("i8")},
-    [TYPE_I16]     = {.kind = KIND_PRIMITIVE, .size = 2, .repr = LXL_SV_FROM_STRLIT("i16")},
-    [TYPE_I32]     = {.kind = KIND_PRIMITIVE, .size = 4, .repr = LXL_SV_FROM_STRLIT("i32")},
-    [TYPE_I64]     = {.kind = KIND_PRIMITIVE, .size = 8, .repr = LXL_SV_FROM_STRLIT("i64")},
-    [TYPE_U8]      = {.kind = KIND_PRIMITIVE, .size = 1, .repr = LXL_SV_FROM_STRLIT("u8")},
-    [TYPE_U16]     = {.kind = KIND_PRIMITIVE, .size = 1, .repr = LXL_SV_FROM_STRLIT("u16")},
-    [TYPE_U32]     = {.kind = KIND_PRIMITIVE, .size = 4, .repr = LXL_SV_FROM_STRLIT("u32")},
-    [TYPE_U64]     = {.kind = KIND_PRIMITIVE, .size = 8, .repr = LXL_SV_FROM_STRLIT("u64")},
+    [TYPE_NO_TYPE] = {.id = TYPE_NO_TYPE, .kind = KIND_NO_KIND,   .size = 0, .repr = LXL_SV_FROM_STRLIT("<No type>")},
+    [TYPE_ABSURD]  = {.id = TYPE_ABSURD,  .kind = KIND_PRIMITIVE, .size = 0, .repr = LXL_SV_FROM_STRLIT("!")},
+    [TYPE_UNIT]    = {.id = TYPE_UNIT,    .kind = KIND_PRIMITIVE, .size = 0, .repr = LXL_SV_FROM_STRLIT("()")},
+    [TYPE_I8]      = {.id = TYPE_I8,      .kind = KIND_PRIMITIVE, .size = 1, .repr = LXL_SV_FROM_STRLIT("i8")},
+    [TYPE_I16]     = {.id = TYPE_I16,     .kind = KIND_PRIMITIVE, .size = 2, .repr = LXL_SV_FROM_STRLIT("i16")},
+    [TYPE_I32]     = {.id = TYPE_I32,     .kind = KIND_PRIMITIVE, .size = 4, .repr = LXL_SV_FROM_STRLIT("i32")},
+    [TYPE_I64]     = {.id = TYPE_I64,     .kind = KIND_PRIMITIVE, .size = 8, .repr = LXL_SV_FROM_STRLIT("i64")},
+    [TYPE_U8]      = {.id = TYPE_U8,      .kind = KIND_PRIMITIVE, .size = 1, .repr = LXL_SV_FROM_STRLIT("u8")},
+    [TYPE_U16]     = {.id = TYPE_U16,     .kind = KIND_PRIMITIVE, .size = 1, .repr = LXL_SV_FROM_STRLIT("u16")},
+    [TYPE_U32]     = {.id = TYPE_U32,     .kind = KIND_PRIMITIVE, .size = 4, .repr = LXL_SV_FROM_STRLIT("u32")},
+    [TYPE_U64]     = {.id = TYPE_U64,     .kind = KIND_PRIMITIVE, .size = 8, .repr = LXL_SV_FROM_STRLIT("u64")},
     /* ... Other types to be filled in later ... */
 };
 
@@ -29,6 +29,7 @@ static_assert(TYPE_PRIMITIVE_COUNT <= TYPE_TABLE_CAPACITY, "Increase type table 
 
 TypeID add_type(struct type_info info) {
     assert(type_count < TYPE_TABLE_CAPACITY && "We need a bigger type table!");
+    info.id = type_count;
     types[type_count++] = info;
     return type_count - 1;
 }
