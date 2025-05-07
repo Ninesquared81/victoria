@@ -258,7 +258,8 @@ enum cgen_error crvic_generate_c_enum_defn(struct type_info info, int indent_ste
     sb_add_formatted(sb, "%s {\n", crvic_get_c_type(info.id));
     for (int i = 0; i < info.enum_type.fields.count; ++i) {
         struct enum_field field = info.enum_type.fields.items[i];
-        sb_add_formatted(sb, "%*s"LXL_SV_FMT_SPEC" = %"PRId64",\n", indent_step, "",
+        sb_add_formatted(sb, "%*sVICENUM_%d__%d_"LXL_SV_FMT_SPEC"__ = %"PRId64",\n",
+                         indent_step, "", info.id, i,
                          LXL_SV_FMT_ARG(field.name), field.value);
     }
     sb_add_string(sb, "};\n");
