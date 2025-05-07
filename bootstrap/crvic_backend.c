@@ -76,10 +76,14 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
     enum cgen_error error = CGEN_OK;
     switch (decl->kind) {
     case AST_DECL_VAR_DECL:
-        sb_add_formatted(sb, "int "LXL_SV_FMT_SPEC" = 0;\n", LXL_SV_FMT_ARG(decl->var_decl.name));
+        sb_add_formatted(sb, "%s "LXL_SV_FMT_SPEC" = 0;\n",
+                         crvic_get_c_type(decl->var_decl.type),
+                         LXL_SV_FMT_ARG(decl->var_decl.name));
         break;
     case AST_DECL_VAR_DEFN:
-        sb_add_formatted(sb, "int "LXL_SV_FMT_SPEC" = ", LXL_SV_FMT_ARG(decl->var_defn.name));
+        sb_add_formatted(sb, "%s "LXL_SV_FMT_SPEC" = ",
+                         crvic_get_c_type(decl->var_defn.type),
+                         LXL_SV_FMT_ARG(decl->var_defn.name));
         if ((error = crvic_generate_c_expr(decl->var_defn.value, sb))) return error;
         sb_add_string(sb, ";\n");
         break;
