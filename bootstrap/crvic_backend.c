@@ -1,15 +1,20 @@
 #include <assert.h>
 #include <inttypes.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "crvic_backend.h"
 #include "crvic_function.h"
+#include "crvic_resources.h"
 
 enum cgen_error crvic_generate_c_file(struct ast_list nodes, struct string_buffer *sb) {
     int indent_step = 4;  // Number of spaces to indent by for each indent/dedent.
     int indent = 0;  // Current indenation level.
     sb_add_string(sb, "#include <stdint.h>  // Fixed-width types.\n");
-    return crvic_generate_c_nodes(nodes, indent, indent_step, sb);
+    enum cgen_error ret = CGEN_OK;
+    if ((ret = crvic_generate_c_types(indent_step, sb)) != CGEN_OK) return ret;
+    if ((ret = crvic_generate_c_nodes(nodes, indent, indent_step, sb)) != CGEN_OK) return ret;
+    return CGEN_OK;
 }
 
 enum cgen_error crvic_generate_c_nodes(struct ast_list nodes, int indent, int indent_step,
@@ -210,6 +215,47 @@ enum cgen_error crvic_generate_c_expr_sep_list(struct ast_list nodes, const char
     return CGEN_OK;
 }
 
+enum cgen_error crvic_generate_c_types(int indent_step, struct string_buffer *sb) {
+    struct iterator it = get_type_iterator();
+    FOR_ITER(struct type_info, info, &it) {
+        enum cgen_error ret = CGEN_OK;
+        if (info->kind == KIND_RECORD) {
+            if ((ret = crvic_generate_c_record_defn(*info, indent_step, sb)) != CGEN_OK) return ret;
+        }
+        else if (info->kind == KIND_ENUM) {
+            if ((ret = crvic_generate_c_enum_defn(*info, indent_step, sb)) != CGEN_OK) return ret;
+        }
+    }
+    return CGEN_OK;
+}
+
+enum cgen_error crvic_generate_c_record_defn(struct type_info info, int indent_step,
+                                             struct string_buffer *sb) {
+    assert(info.kind == KIND_RECORD);
+    sb_add_formatted(sb, "%s {\n", crvic_get_c_type(info.id));
+    for (int i = 0; i < info.record_type.fields.count; ++i) {
+        struct type_decl field = info.record_type.fields.items[i];
+        sb_add_formatted(sb, "%*s%s "LXL_SV_FMT_SPEC";\n", indent_step, "",
+                         crvic_get_c_type(field.type),
+                         LXL_SV_FMT_ARG(field.name));
+    }
+    sb_add_string(sb, "};\n");
+    return CGEN_OK;
+}
+
+enum cgen_error crvic_generate_c_enum_defn(struct type_info info, int indent_step,
+                                           struct string_buffer *sb) {
+    assert(info.kind == KIND_ENUM);
+    sb_add_formatted(sb, "%s {\n", crvic_get_c_type(info.id));
+    for (int i = 0; i < info.enum_type.fields.count; ++i) {
+        struct enum_field field = info.enum_type.fields.items[i];
+        sb_add_formatted(sb, "%*s"LXL_SV_FMT_SPEC" = %"PRId64",\n", indent_step, "",
+                         LXL_SV_FMT_ARG(field.name), field.value);
+    }
+    sb_add_string(sb, "};\n");
+    return CGEN_OK;
+}
+
 const char *crvic_get_c_op(enum ast_bin_op_kind op) {
     switch (op) {
     case AST_BIN_ADD:
@@ -222,23 +268,32 @@ const char *crvic_get_c_op(enum ast_bin_op_kind op) {
 }
 
 const char *crvic_get_c_type(TypeID type) {
-    assert(type < TYPE_PRIMITIVE_COUNT);
-    switch ((enum type_primitive)type) {
-    case TYPE_NO_TYPE:
-    case TYPE_ABSURD:
-    case TYPE_UNIT:
-        return "void";
-    case TYPE_I8: return "int8_t";
-    case TYPE_I16: return "int16_t";
-    case TYPE_I32: return "int32_t";
-    case TYPE_I64: return "int64_t";
-    case TYPE_U8: return "uint8_t";
-    case TYPE_U16: return "uint16_t";
-    case TYPE_U32: return "uint32_t";
-    case TYPE_U64: return "uint64_t";
-    case TYPE_PRIMITIVE_COUNT:
-        assert(0 && "Bad type 'TYPE_PRIMITIVE_COUNT'");
-        break;
+    if (type < TYPE_PRIMITIVE_COUNT) {
+        switch ((enum type_primitive)type) {
+        case TYPE_NO_TYPE:
+        case TYPE_ABSURD:
+        case TYPE_UNIT:
+            return "void";
+        case TYPE_I8: return "int8_t";
+        case TYPE_I16: return "int16_t";
+        case TYPE_I32: return "int32_t";
+        case TYPE_I64: return "int64_t";
+        case TYPE_U8: return "uint8_t";
+        case TYPE_U16: return "uint16_t";
+        case TYPE_U32: return "uint32_t";
+        case TYPE_U64: return "uint64_t";
+        case TYPE_PRIMITIVE_COUNT:
+            UNREACHABLE();
+            return NULL;
+        }
     }
-    return NULL;
+    struct type_info *info = get_type(type);
+    assert(info);
+    assert(info->kind == KIND_RECORD || info->kind == KIND_ENUM);
+    const char *tag = (info->kind == KIND_RECORD) ? "struct" : "enum";
+    int count = snprintf(NULL, 0, "%s VICTYPE_%d__", tag, info->id);
+    // +1 for null terminator.
+    char *name = ALLOCATE(perm, count + 1);
+    snprintf(name, count + 1, "%s VICTYPE_%d__", tag, info->id);
+    return name;
 }
