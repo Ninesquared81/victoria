@@ -154,7 +154,7 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         assert(expr->get.kind == AST_TARGET_IDENTIFIER);
         sb_add_formatted(sb, ""LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(expr->get.target.identifier));
         for (struct ast_expr_get *get = &expr->get; get->rest != NULL; get = get->rest) {
-            assert(get->kind = AST_TARGET_IDENTIFIER);
+            assert(get->kind == AST_TARGET_IDENTIFIER);
             sb_add_formatted(sb, "."LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(get->target.identifier));
         }
         break;
