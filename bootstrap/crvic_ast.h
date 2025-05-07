@@ -46,7 +46,7 @@ enum ast_bin_op_kind {
     AST_BIN_MUL,  // Multiplication operator `*`.
 };
 
-enum target_kind {
+enum ast_target_kind {
     AST_TARGET_IDENTIFIER,  // Identifier (variable, field, etc.).
 };
 
@@ -84,12 +84,12 @@ struct ast_expr {
             TypeID target_type;
             enum type_conv_kind kind;
         } convert;
-        struct get_expr {
-            struct get_expr *rest;  // RHS of `.` operator, optional.
+        struct ast_expr_get {
+            struct ast_expr_get *rest;  // RHS of `.` operator, optional.
             union {
                 struct lxl_string_view identifier;
             } target;
-            enum target_kind kind;
+            enum ast_target_kind kind;
         } get;
         struct {
             int64_t value;

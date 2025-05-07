@@ -433,14 +433,14 @@ static struct ast_expr parse_primary(void) {
                     .rest = NULL,
                     .target.identifier = name,
                     .kind = AST_TARGET_IDENTIFIER}};
-            struct get_expr **get = &expr.get.rest;
+            struct ast_expr_get **get = &expr.get.rest;
             while (match(TOKEN_DOT)) {
                 *get = ALLOCATE(perm, sizeof **get);
                 assert(*get);
                 consume(TOKEN_IDENTIFIER, "Expect identifier after '.'");
                 // TODO: other target kinds.
                 name = lxl_token_value(parser.previous_token);
-                **get = (struct get_expr) {
+                **get = (struct ast_expr_get) {
                     .rest = NULL,
                     .target.identifier = name,
                     .kind = AST_TARGET_IDENTIFIER};
@@ -956,7 +956,7 @@ static TypeID resolve_type(struct ast_expr *expr) {
             break;
         }
         result_type = target_symbol->var.type;
-        for (struct get_expr *get = expr->get.rest; get; get = get->rest) {
+        for (struct ast_expr_get *get = expr->get.rest; get; get = get->rest) {
             TypeID lhs_type = result_type;
             struct type_info *info = get_type(lhs_type);
             assert(get->kind == AST_TARGET_IDENTIFIER);
