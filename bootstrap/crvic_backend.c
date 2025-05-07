@@ -123,7 +123,9 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         sb_add_string(sb, ")");
         break;
     case AST_EXPR_CONSTRUCTOR:
-        // TODO: do this.
+        sb_add_formatted(sb, "((%s) {", crvic_get_c_type(expr->type));
+        if ((error = crvic_generate_c_expr_sep_list(expr->constructor.init_list, ", ", sb))) return error;
+        sb_add_string(sb, "})");
         break;
     case AST_EXPR_CONVERT:
         if (expr->convert.kind == CONVERT_AS) {
