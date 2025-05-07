@@ -40,11 +40,13 @@ enum cgen_error crvic_generate_c_nodes(struct ast_list nodes, int indent, int in
 
 enum cgen_error crvic_generate_c_stmt(struct ast_stmt *stmt, int indent, int indent_step,
                                       struct string_buffer *sb) {
-    sb_add_formatted(sb, "%*s", indent, "");  // Prepend indentation.
+    if (stmt->kind != AST_STMT_DECL) {
+        sb_add_formatted(sb, "%*s", indent, "");  // Prepend indentation.
+    }
     enum cgen_error error = CGEN_OK;
     switch (stmt->kind) {
     case AST_STMT_DECL:
-        error = crvic_generate_c_decl(stmt->decl.decl, indent - indent_step, indent_step, sb);
+        error = crvic_generate_c_decl(stmt->decl.decl, indent, indent_step, sb);
         break;
     case AST_STMT_EXPR:
         error = crvic_generate_c_expr(stmt->expr.expr, sb);
@@ -69,6 +71,7 @@ enum cgen_error crvic_generate_c_stmt(struct ast_stmt *stmt, int indent, int ind
 
 enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int indent_step,
                                       struct string_buffer *sb) {
+    if (decl->kind == AST_DECL_TYPE_DEFN) return CGEN_OK;  // No codegen for type definitions.
     sb_add_formatted(sb, "%*s", indent, "");
     enum cgen_error error = CGEN_OK;
     switch (decl->kind) {
@@ -95,7 +98,7 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
         sb_add_string(sb, "}\n");
         break;
     case AST_DECL_TYPE_DEFN:
-        /* No code generation. (?) */
+        UNREACHABLE();
         break;
     }
     return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
