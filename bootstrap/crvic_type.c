@@ -241,9 +241,9 @@ struct iterator get_type_iterator(void) {
     return (struct iterator) {.ctx = &types[0], .next = type_iterator_next};
 }
 
-void *type_iterator_next(void *ctx) {
-    if ((struct type_info *)ctx >= &types[type_count]) return NULL;
-    struct type_info *info = ctx;
-    ctx = info + 1;
+void *type_iterator_next(struct iterator *it) {
+    if ((struct type_info *)it->ctx >= &types[type_count]) return NULL;
+    struct type_info *info = it->ctx;
+    it->ctx = info + 1;
     return info;
 }

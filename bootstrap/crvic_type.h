@@ -109,6 +109,6 @@ TypeID get_sized_int(TypeID type);
 TypeID max_type_rank(TypeID type1, TypeID type2);
 
 struct iterator get_type_iterator(void);
-/* struct type_info * */ void *type_iterator_next(void *ctx);
+/* struct type_info * */ void *type_iterator_next(struct iterator *it);
 
 #endif
