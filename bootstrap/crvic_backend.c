@@ -231,9 +231,6 @@ enum cgen_error crvic_generate_c_types(int indent_step, struct string_buffer *sb
         if (info->kind == KIND_RECORD) {
             if ((ret = crvic_generate_c_record_defn(*info, indent_step, sb)) != CGEN_OK) return ret;
         }
-        else if (info->kind == KIND_ENUM) {
-            if ((ret = crvic_generate_c_enum_defn(*info, indent_step, sb)) != CGEN_OK) return ret;
-        }
     }
     return CGEN_OK;
 }
@@ -247,20 +244,6 @@ enum cgen_error crvic_generate_c_record_defn(struct type_info info, int indent_s
         sb_add_formatted(sb, "%*s%s "LXL_SV_FMT_SPEC";\n", indent_step, "",
                          crvic_get_c_type(field.type),
                          LXL_SV_FMT_ARG(field.name));
-    }
-    sb_add_string(sb, "};\n");
-    return CGEN_OK;
-}
-
-enum cgen_error crvic_generate_c_enum_defn(struct type_info info, int indent_step,
-                                           struct string_buffer *sb) {
-    assert(info.kind == KIND_ENUM);
-    sb_add_formatted(sb, "%s {\n", crvic_get_c_type(info.id));
-    for (int i = 0; i < info.enum_type.fields.count; ++i) {
-        struct enum_field field = info.enum_type.fields.items[i];
-        sb_add_formatted(sb, "%*sVICENUM_%d__%d_"LXL_SV_FMT_SPEC"__ = %"PRId64",\n",
-                         indent_step, "", info.id, i,
-                         LXL_SV_FMT_ARG(field.name), field.value);
     }
     sb_add_string(sb, "};\n");
     return CGEN_OK;
@@ -299,11 +282,12 @@ const char *crvic_get_c_type(TypeID type) {
     }
     struct type_info *info = get_type(type);
     assert(info);
-    assert(info->kind == KIND_RECORD || info->kind == KIND_ENUM);
-    const char *tag = (info->kind == KIND_RECORD) ? "struct" : "enum";
-    int count = snprintf(NULL, 0, "%s VICTYPE_%d__", tag, info->id);
-    // +1 for null terminator.
-    char *name = ALLOCATE(perm, count + 1);
-    snprintf(name, count + 1, "%s VICTYPE_%d__", tag, info->id);
-    return name;
+    if (info->kind == KIND_RECORD) {
+        int count = snprintf(NULL, 0, "struct VICTYPE_%d__", info->id);
+        // +1 for null terminator.
+        char *name = ALLOCATE(perm, count + 1);
+        snprintf(name, count + 1, "struct VICTYPE_%d__", info->id);
+        return name;
+    }
+    return NULL;
 }
