@@ -236,3 +236,14 @@ TypeID max_type_rank(TypeID type1, TypeID type2) {
     };
     return ranks[type1][type2];
 }
+
+struct iterator get_type_iterator(void) {
+    return (struct iterator) {.ctx = &types[0], .next = type_iterator_next};
+}
+
+void *type_iterator_next(void *ctx) {
+    if ((struct type_info *)ctx >= &types[type_count]) return NULL;
+    struct type_info *info = ctx;
+    ctx = info + 1;
+    return info;
+}

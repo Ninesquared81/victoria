@@ -5,7 +5,7 @@
 
 #include "lexel.h"  // struct lxl_string_view.
 
-#include "ubiqs.h"  // Allocator interface.
+#include "ubiqs.h"  // Allocator & iterator interfaces.
 
 enum type_primitive {
     TYPE_NO_TYPE,      // Sentinel type denoting no type.
@@ -107,5 +107,8 @@ enum signedness sign_of_type(TypeID type);
 struct lxl_string_view get_type_sv(TypeID type);
 TypeID get_sized_int(TypeID type);
 TypeID max_type_rank(TypeID type1, TypeID type2);
+
+struct iterator get_type_iterator(void);
+/* struct type_info * */ void *type_iterator_next(void *ctx);
 
 #endif
