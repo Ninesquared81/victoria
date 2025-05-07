@@ -162,11 +162,11 @@ static inline uint32_t hash_sv(struct lxl_string_view sv) {
 
 struct iterator {
     void *ctx;
-    void *(*next)(void *ctx);
+    void *(*next)(struct iterator *it);
 };
 
 #define ITER_NEXT(it) \
-    ((it).next((it).ctx))
+    ((it)->next(it))
 
 #define FOR_ITER(T, var, it)                    \
     for (T *var; (var = ITER_NEXT(it)); )
