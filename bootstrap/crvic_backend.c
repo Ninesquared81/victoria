@@ -289,5 +289,8 @@ const char *crvic_get_c_type(TypeID type) {
         snprintf(name, count + 1, "struct VICTYPE_%d__", info->id);
         return name;
     }
+    else if (info->kind == KIND_ENUM) {
+        return "int64_t";
+    }
     return NULL;
 }
