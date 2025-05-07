@@ -160,4 +160,15 @@ static inline uint32_t hash_sv(struct lxl_string_view sv) {
     return hash;
 }
 
+struct iterator {
+    void *ctx;
+    void *(*next)(void *ctx);
+};
+
+#define ITER_NEXT(it) \
+    ((it).next((it).ctx))
+
+#define FOR_ITER(T, var, it)                    \
+    for (T *var; (var = ITER_NEXT(it)); )
+
 #endif  // UBIQS_H
