@@ -341,7 +341,19 @@ static TypeID parse_type(const char *fmt, ...) {
     if (match(TOKEN_KW_ENUM)) {
         begin_temp();
         ignore_line_ending();
-        consume(TOKEN_BKT_CURLY_LEFT, "Expect '{' after 'enum'");  // Note: NO underling type allowed yet.
+        TypeID underlying_type = TYPE_I64;
+        if (match(TOKEN_COLON)) {
+            // Underlying type.
+            ignore_line_ending();
+            underlying_type = parse_type("Expect underlying type for enum after '.'");
+            if (!is_integer_type(underlying_type)) {
+                struct lxl_string_view underlying_type_sv = get_type_sv(underlying_type);
+                type_error("Underlying type must be an integer, not '"LXL_SV_FMT_SPEC"'",
+                           LXL_SV_FMT_ARG(underlying_type_sv));
+            }
+            ignore_line_ending();
+        }
+        consume(TOKEN_BKT_CURLY_LEFT, "Expect '{' after 'enum'");
         struct enum_field_list fields = {.allocator = temp};
         ignore_line_ending();
         set_enum_counter(0);
@@ -372,7 +384,9 @@ static TypeID parse_type(const char *fmt, ...) {
                     .kind = KIND_ENUM,
                     .repr = make_enum_repr(fields),
                     .size = sizeof(VIC_INT),
-                    .enum_type = {.fields = fields}});
+                    .enum_type = {
+                        .underlying_type = underlying_type,
+                        .fields = fields}});
         }
         return enum_type;
     }

@@ -290,7 +290,7 @@ const char *crvic_get_c_type(TypeID type) {
         return name;
     }
     else if (info->kind == KIND_ENUM) {
-        return "int64_t";
+        return crvic_get_c_type(info->enum_type.underlying_type);
     }
     return NULL;
 }

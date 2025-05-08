@@ -4,7 +4,7 @@ type Vec2 := record {
      x: int, y: int
 }
 
-type Rank := enum {
+type Rank := enum: i8 {
      ACE := 1,
      _2, _3, _4,
      _5, _6, _7,
@@ -14,7 +14,7 @@ type Rank := enum {
      KING,
 }
 
-type Suit := enum {
+type Suit := enum: i8 {
      CLUBS,
      DIAMONDS,
      HEARTS,

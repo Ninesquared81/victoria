@@ -81,7 +81,7 @@ struct type_info {
     union {
         /* struct {} primitive_type; */
         struct {
-            // Note: NO underlying type (default is Victoria's `int` type).
+            TypeID underlying_type;
             struct enum_field_list fields;
         } enum_type;
         struct {
