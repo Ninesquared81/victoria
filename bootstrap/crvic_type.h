@@ -100,7 +100,8 @@ TypeID get_record_field_type(struct type_decl_list fields, struct lxl_string_vie
 
 TypeID find_enum_type(struct enum_field_list fields);
 struct lxl_string_view make_enum_repr(struct enum_field_list fields);
-
+bool get_enum_field_value(struct enum_field_list fields, struct lxl_string_view field_name,
+                          VIC_INT *OUT_value);
 
 bool is_integer_type(TypeID type);
 enum signedness sign_of_type(TypeID type);

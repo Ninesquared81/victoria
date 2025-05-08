@@ -149,6 +149,17 @@ struct lxl_string_view make_enum_repr(struct enum_field_list fields) {
     return lxl_sv_from_startend(repr, ptr);
 }
 
+bool get_enum_field_value(struct enum_field_list fields, struct lxl_string_view field_name,
+                          VIC_INT *OUT_value) {
+    for (int i = 0; i < fields.count; ++i) {
+        if (lxl_sv_equal(fields.items[i].name, field_name)) {
+            *OUT_value = fields.items[i].value;
+            return true;
+        }
+    }
+    return false;
+}
+
 bool is_integer_type(TypeID type) {
     static_assert(TYPE_I8 < TYPE_U8, "Signed types assumed before unsigned");
     return TYPE_I8 <= type && type <= TYPE_U64;

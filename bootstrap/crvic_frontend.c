@@ -951,11 +951,45 @@ static TypeID resolve_type(struct ast_expr *expr) {
             name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
             break;
         }
-        if (target_symbol->kind != SYMBOL_VAR) {
-            name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a variable", LXL_SV_FMT_ARG(name));
+        if (target_symbol->kind == SYMBOL_VAR) {
+            result_type = target_symbol->var.type;
+        }
+        else if (target_symbol->kind == SYMBOL_TYPE_ALIAS) {
+            result_type = target_symbol->type_alias.type;
+            struct type_info *info = get_type(result_type);
+            assert(info);
+            assert(info->id == result_type);
+            if (info->kind != KIND_ENUM) {
+                name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a variable or enum", LXL_SV_FMT_ARG(name));
+                break;
+            }
+            assert(expr->get.rest);
+            // Transform get expr to integer expr.
+            struct ast_expr_get *rest = expr->get.rest;
+            if (rest->kind != AST_TARGET_IDENTIFIER) {
+                type_error("Expect enum field name");
+                break;
+            }
+            VIC_INT value = 0;
+            if (!get_enum_field_value(info->enum_type.fields, rest->target.identifier, &value)) {
+                struct lxl_string_view enum_sv = get_type_sv(info->id);
+                type_error("'"LXL_SV_FMT_SPEC"' is not a field of '"LXL_SV_FMT_SPEC"'",
+                           LXL_SV_FMT_ARG(rest->target.identifier), LXL_SV_FMT_ARG(enum_sv));
+                break;
+            }
+            if (rest->rest != NULL) {
+                type_error("Inavlid use of '.' on enum field");
+                break;
+            }
+            *expr = (struct ast_expr) {
+                .kind = AST_EXPR_INTEGER,
+                .integer = { value }};
             break;
         }
-        result_type = target_symbol->var.type;
+        else {
+            name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a variable or enum", LXL_SV_FMT_ARG(name));
+            break;
+        }
         for (struct ast_expr_get *get = expr->get.rest; get; get = get->rest) {
             TypeID lhs_type = result_type;
             struct type_info *info = get_type(lhs_type);

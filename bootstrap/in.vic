@@ -16,6 +16,7 @@ func main() {
     var b := a + 5
     var v := Vec2 {a, b}
     v := Vec2 {2*v.x, v.y}
+    var card := Suite.SPADES
     type Z := i32
     putchar(72 to Z)
     putchar(101 to i32)
