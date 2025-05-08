@@ -4,7 +4,7 @@ type Vec2 := record {
      x: int, y: int
 }
 
-type Value := enum {
+type Rank := enum {
      ACE := 1,
      _2, _3, _4,
      _5, _6, _7,
@@ -22,7 +22,7 @@ type Suit := enum {
 }
 
 type Card := record {
-     value: Value,
+     rank: Rank,
      suit: Suit
 }
 
@@ -31,7 +31,7 @@ func main() {
     var b := a + 5
     var v := Vec2 {a, b}
     v := Vec2 {2*v.x, v.y}
-    var card := Card {Value.ACE, Suit.SPADES}
+    var card := Card {Rank.ACE, Suit.SPADES}
     type Z := i32
     putchar(72 to Z)
     putchar(101 to i32)
