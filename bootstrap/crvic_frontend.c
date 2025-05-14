@@ -144,25 +144,6 @@ static struct lxl_token advance(void) {
     return parser.previous_token;
 }
 
-static bool check(enum token_type type) {
-    return parser.current_token.token_type == (int)type;
-}
-
-static bool match(enum token_type type) {
-    if (parser.current_token.token_type != (int)type) return false;
-    advance();
-    return true;
-}
-
-static struct lxl_token consume(enum token_type type, const char *fmt, ...) {
-    if (match(type)) return parser.previous_token;
-    va_list vargs;
-    va_start(vargs, fmt);
-    parse_error_show_token_vargs(parser.current_token, fmt, vargs);
-    va_end(vargs);
-    return parser.current_token;
-}
-
 static bool check_line_ending(void) {
     return parser.current_token.token_type == LXL_TOKEN_LINE_ENDING;
 }
@@ -173,9 +154,31 @@ static void ignore_line_ending(void) {
     }
 }
 
+static bool check(enum token_type type, bool strict) {
+    if (!strict) {
+        ignore_line_ending();
+    }
+    return parser.current_token.token_type == (int)type;
+}
+
+static bool match(enum token_type type, bool strict) {
+    if (!check(type, strict)) return false;
+    advance();
+    return true;
+}
+
+static struct lxl_token consume(enum token_type type, bool strict, const char *fmt, ...) {
+    if (match(type, strict)) return parser.previous_token;
+    va_list vargs;
+    va_start(vargs, fmt);
+    parse_error_show_token_vargs(parser.current_token, fmt, vargs);
+    va_end(vargs);
+    return parser.current_token;
+}
+
 static void end_statement(void) {
     if (!check_line_ending()) {
-        consume(TOKEN_SEMICOLON, "Expect newline or ';' at end of statement");
+        consume(TOKEN_SEMICOLON, true, "Expect newline or ';' at end of statement");
     }
     ignore_line_ending();
 }
@@ -221,13 +224,13 @@ static struct ast_decl *new_decl(void) {
     return decl;
 }
 
-static bool check_comparison(void) {
-    return check(TOKEN_EQUALS_EQUALS)
-        || check(TOKEN_BANG_EQUALS)
-        || check(TOKEN_GREATER)
-        || check(TOKEN_GREATER_EQUALS)
-        || check(TOKEN_LESS)
-        || check(TOKEN_LESS_EQUALS)
+static bool check_comparison(bool strict) {
+    return check(TOKEN_EQUALS_EQUALS, strict)
+        || check(TOKEN_BANG_EQUALS, strict)
+        || check(TOKEN_GREATER, strict)
+        || check(TOKEN_GREATER_EQUALS, strict)
+        || check(TOKEN_LESS, strict)
+        || check(TOKEN_LESS_EQUALS, strict)
         ;
 }
 
@@ -306,7 +309,7 @@ static TypeID parse_type(const char *fmt, ...) {
         return type;
     }
     // Type aliases.
-    if (match(TOKEN_IDENTIFIER)) {
+    if (match(TOKEN_IDENTIFIER, false)) {
         struct lxl_string_view sv = lxl_token_value(parser.previous_token);
         struct symbol *symbol = lookup_symbol(&symbols, st_key_of(sv));
         if (!symbol) {
@@ -320,28 +323,21 @@ static TypeID parse_type(const char *fmt, ...) {
         return symbol->type_alias.type;
     }
     // Record types.
-    if (match(TOKEN_KW_RECORD)) {
+    if (match(TOKEN_KW_RECORD, false)) {
         begin_temp();
-        ignore_line_ending();
-        consume(TOKEN_BKT_CURLY_LEFT, "Expect '{' after 'record'");
-        ignore_line_ending();
+        consume(TOKEN_BKT_CURLY_LEFT, false, "Expect '{' after 'record'");
         struct type_decl_list fields = {.allocator = temp};
-        while (!check(TOKEN_BKT_CURLY_RIGHT)) {
-            ignore_line_ending();
-            struct lxl_token field_name_token = consume(TOKEN_IDENTIFIER, "Expect field name");
-            ignore_line_ending();
-            consume(TOKEN_COLON, "Expect ':' after field name");
+        while (!check(TOKEN_BKT_CURLY_RIGHT, false)) {
+            struct lxl_token field_name_token = consume(TOKEN_IDENTIFIER, false, "Expect field name");
+            consume(TOKEN_COLON, false, "Expect ':' after field name");
             ignore_line_ending();
             struct lxl_string_view field_name = lxl_token_value(field_name_token);
             TypeID field_type = parse_type("Expect field type after ':'");
-            ignore_line_ending();
             struct type_decl field = {.name = field_name, .type = field_type};
             DA_APPEND(&fields, field);
-            if (!match(TOKEN_COMMA)) break;
-            ignore_line_ending();
+            if (!match(TOKEN_COMMA, false)) break;
         }
-        ignore_line_ending();
-        consume(TOKEN_BKT_CURLY_RIGHT, "Expect '}' after record definition");
+        consume(TOKEN_BKT_CURLY_RIGHT, false, "Expect '}' after record definition");
         TypeID record_type = find_record_type(fields);
         if (!record_type) {
             // Record not found; add it to the type table.
@@ -355,11 +351,10 @@ static TypeID parse_type(const char *fmt, ...) {
         return record_type;
     }
     // Enum types.
-    if (match(TOKEN_KW_ENUM)) {
+    if (match(TOKEN_KW_ENUM, false)) {
         begin_temp();
-        ignore_line_ending();
         TypeID underlying_type = TYPE_I64;
-        if (match(TOKEN_COLON)) {
+        if (match(TOKEN_COLON, false)) {
             // Underlying type.
             ignore_line_ending();
             underlying_type = parse_type("Expect underlying type for enum after '.'");
@@ -368,31 +363,24 @@ static TypeID parse_type(const char *fmt, ...) {
                 type_error("Underlying type must be an integer, not '"LXL_SV_FMT_SPEC"'",
                            LXL_SV_FMT_ARG(underlying_type_sv));
             }
-            ignore_line_ending();
         }
-        consume(TOKEN_BKT_CURLY_LEFT, "Expect '{' after 'enum'");
+        consume(TOKEN_BKT_CURLY_LEFT, false, "Expect '{' after 'enum'");
         struct enum_field_list fields = {.allocator = temp};
-        ignore_line_ending();
         set_enum_counter(0);
-        while (!check(TOKEN_BKT_CURLY_RIGHT)) {
-            ignore_line_ending();
-            struct lxl_token field_name_token = consume(TOKEN_IDENTIFIER, "Expect field name");
+        while (!check(TOKEN_BKT_CURLY_RIGHT, false)) {
+            struct lxl_token field_name_token = consume(TOKEN_IDENTIFIER, false, "Expect field name");
             struct lxl_string_view field_name = lxl_token_value(field_name_token);
-            ignore_line_ending();
-            if (match(TOKEN_COLON_EQUALS)) {
+            if (match(TOKEN_COLON_EQUALS, false)) {
                 // Specified value.
-                consume(TOKEN_LIT_INTEGER, "Expect integer literal value");
+                consume(TOKEN_LIT_INTEGER, false, "Expect integer literal value");
                 set_enum_counter(parse_previous_integer());
             }
-            ignore_line_ending();
             VIC_INT field_value = next_enum_value();
             struct enum_field field = {.name = field_name, .value = field_value};
             DA_APPEND(&fields, field);
-            if (!match(TOKEN_COMMA)) break;
-            ignore_line_ending();
+            if (!match(TOKEN_COMMA, false)) break;
         }
-        ignore_line_ending();
-        consume(TOKEN_BKT_CURLY_RIGHT, "Expect '}' after enum field list");
+        consume(TOKEN_BKT_CURLY_RIGHT, false, "Expect '}' after enum field list");
         TypeID enum_type = find_enum_type(fields);
         if (!enum_type) {
             // Enum not found; add it to the type table.
@@ -423,12 +411,12 @@ static struct ast_expr parse_compare(void);
 
 static struct ast_list parse_comma_list_no_assign(enum token_type terminator, const char *message) {
     struct ast_list args = {0};
-    while (!match(terminator)) {
+    while (!match(terminator, false)) {
         struct ast_expr *arg = new_expr();
         *arg = parse_compare();  // Do not allow assign expressions.
         DA_APPEND(&args, EXPR_NODE(arg));
-        if (!match(TOKEN_COMMA)) {
-            consume(terminator, message);
+        if (!match(TOKEN_COMMA, true)) {
+            consume(terminator, false, message);
             break;
         }
     }
@@ -441,14 +429,14 @@ static struct ast_list parse_arg_list(void) {
 
 static struct ast_expr parse_primary(void) {
     struct ast_expr expr = {0};
-    if (match(TOKEN_LIT_INTEGER)) {
+    if (match(TOKEN_LIT_INTEGER, true)) {
         expr = (struct ast_expr) {
             .kind = AST_EXPR_INTEGER,
             .integer = {.value = parse_previous_integer()}};
     }
-    else if (match(TOKEN_IDENTIFIER)) {
+    else if (match(TOKEN_IDENTIFIER, true)) {
         struct lxl_string_view name = lxl_token_value(parser.previous_token);
-        if (match(TOKEN_BKT_CURLY_LEFT)) {
+        if (match(TOKEN_BKT_CURLY_LEFT, true)) {
             struct ast_list inits = parse_comma_list_no_assign(TOKEN_BKT_CURLY_RIGHT,
                                                      "Expect '}' after initialiser list");
             expr = (struct ast_expr) {
@@ -465,10 +453,10 @@ static struct ast_expr parse_primary(void) {
                     .target.identifier = name,
                     .kind = AST_TARGET_IDENTIFIER}};
             struct ast_expr_get **get = &expr.get.rest;
-            while (match(TOKEN_DOT)) {
+            while (match(TOKEN_DOT, true)) {
                 *get = ALLOCATE(perm, sizeof **get);
                 assert(*get);
-                consume(TOKEN_IDENTIFIER, "Expect identifier after '.'");
+                consume(TOKEN_IDENTIFIER, true, "Expect identifier after '.'");
                 // TODO: other target kinds.
                 name = lxl_token_value(parser.previous_token);
                 **get = (struct ast_expr_get) {
@@ -479,15 +467,18 @@ static struct ast_expr parse_primary(void) {
             }
         }
     }
-    else if (match(TOKEN_BKT_ROUND_LEFT)) {
+    else if (match(TOKEN_BKT_ROUND_LEFT, true)) {
+        ignore_line_ending();
         expr = parse_assign();
-        consume(TOKEN_BKT_ROUND_RIGHT, "Expect ')' after grouped expression");
+        consume(TOKEN_BKT_ROUND_RIGHT, false, "Expect ')' after grouped expression");
     }
-    else if (match(TOKEN_KW_WHEN)) {
+    else if (match(TOKEN_KW_WHEN, true)) {
+        ignore_line_ending();
         struct ast_expr *cond = parse_expr();
-        consume(TOKEN_KW_THEN, "Expect 'then' after condition in when expression");
+        consume(TOKEN_KW_THEN, false, "Expect 'then' after condition in when expression");
+        ignore_line_ending();
         struct ast_expr *then_expr = parse_expr();
-        consume(TOKEN_KW_ELSE, "Expect 'else' after then branch in when expression");
+        consume(TOKEN_KW_ELSE, false, "Expect 'else' after then branch in when expression");
         struct ast_expr *else_expr = parse_expr();
         expr = (struct ast_expr) {
             .kind = AST_EXPR_WHEN,
@@ -504,10 +495,10 @@ static struct ast_expr parse_primary(void) {
 
 static struct ast_expr parse_prefix(void) {
     struct ast_expr expr = {0};
-    if (match(TOKEN_MINUS)) {
+    if (match(TOKEN_MINUS, true)) {
         NOT_SUPPORTED_YET_PREVIOUS();
     }
-    else if (match(TOKEN_PLUS)) {
+    else if (match(TOKEN_PLUS, true)) {
         NOT_SUPPORTED_YET_PREVIOUS();
     }
     else {
@@ -518,13 +509,13 @@ static struct ast_expr parse_prefix(void) {
 
 static struct ast_expr parse_suffix(void) {
     struct ast_expr expr = parse_prefix();
-    if (match(TOKEN_CARET)) {
+    if (match(TOKEN_CARET, true)) {
         NOT_SUPPORTED_YET_PREVIOUS();
     }
-    else if (match(TOKEN_DOT)) {
+    else if (match(TOKEN_DOT, true)) {
         NOT_SUPPORTED_YET_PREVIOUS();
     }
-    else if (match(TOKEN_BKT_ROUND_LEFT)) {
+    else if (match(TOKEN_BKT_ROUND_LEFT, true)) {
         struct ast_expr *callee = new_expr();
         *callee = expr;
         if (callee->kind != AST_EXPR_GET) {
@@ -538,10 +529,10 @@ static struct ast_expr parse_suffix(void) {
                 .arity = args.count,
                 .args = args}};
     }
-    else if (match(TOKEN_BKT_SQUARE_LEFT)) {
+    else if (match(TOKEN_BKT_SQUARE_LEFT, true)) {
         NOT_SUPPORTED_YET_PREVIOUS();
     }
-    else if (match(TOKEN_KW_AS) || match(TOKEN_KW_TO)) {
+    else if (match(TOKEN_KW_AS, true) || match(TOKEN_KW_TO, true)) {
         struct lxl_token conversion = parser.previous_token;
         struct lxl_string_view conv_sv = lxl_token_value(conversion);
         TypeID target_type = parse_type("Expect target type for '"LXL_SV_FMT_SPEC"' conversion",
@@ -560,7 +551,7 @@ static struct ast_expr parse_suffix(void) {
 
 static struct ast_expr parse_factor(void) {
     struct ast_expr expr = parse_suffix();
-    while (match(TOKEN_STAR)) {
+    while (match(TOKEN_STAR, true)) {
         struct ast_expr *lhs = new_expr();
         struct ast_expr *rhs = new_expr();
         *lhs = expr;
@@ -577,7 +568,7 @@ static struct ast_expr parse_factor(void) {
 
 static struct ast_expr parse_term(void) {
     struct ast_expr expr = parse_factor();
-    while (match(TOKEN_PLUS)) {
+    while (match(TOKEN_PLUS, true)) {
         struct ast_expr *lhs = new_expr();
         struct ast_expr *rhs = new_expr();
         *lhs = expr;
@@ -594,7 +585,7 @@ static struct ast_expr parse_term(void) {
 
 static struct ast_expr parse_compare(void) {
     struct ast_expr expr = parse_term();
-    if (check_comparison()) {
+    if (check_comparison(true)) {
         struct lxl_token op = advance();
         // NOTE: I want to support multi-way comparisons.
         NOT_SUPPORTED_YET(op);
@@ -604,7 +595,7 @@ static struct ast_expr parse_compare(void) {
 
 static struct ast_expr parse_assign(void) {
     struct ast_expr expr = parse_compare();
-    if (check_assignment_target(expr) && match(TOKEN_COLON_EQUALS)) {
+    if (check_assignment_target(expr) && match(TOKEN_COLON_EQUALS, true)) {
         struct ast_expr *value = new_expr();
         *value = parse_compare();
         expr = (struct ast_expr) {
@@ -625,7 +616,7 @@ struct ast_expr *parse_expr(void) {
 struct ast_list parse_block(void) {
     ignore_line_ending();  // Ignore LF after '{'.
     struct ast_list stmts = {0};
-    while (!match(TOKEN_BKT_CURLY_RIGHT)) {
+    while (!match(TOKEN_BKT_CURLY_RIGHT, false)) {
         ensure_not_at_end("Unclosed block statement");
         struct ast_stmt *stmt = parse_stmt();
         DA_APPEND(&stmts, STMT_NODE(stmt));
@@ -637,31 +628,33 @@ struct ast_list parse_block(void) {
 static struct ast_decl *parse_func_decl(void) {
     struct ast_decl *decl = new_decl();
     *decl = (struct ast_decl) {0};
-    struct lxl_token name_token = consume(TOKEN_IDENTIFIER, "Expect function name");
+    struct lxl_token name_token = consume(TOKEN_IDENTIFIER, false, "Expect function name");
     struct func_sig *sig = ALLOCATE(perm, sizeof *sig);
     *sig = (struct func_sig) {
         .name = lxl_token_value(name_token),
         .params.allocator = STDLIB_ALLOCATOR_ARD,
     };
-    consume(TOKEN_BKT_ROUND_LEFT, "Expect '(' after function name");
-    while (!match(TOKEN_BKT_ROUND_RIGHT)) {
+    consume(TOKEN_BKT_ROUND_LEFT, false, "Expect '(' after function name");
+    while (!match(TOKEN_BKT_ROUND_RIGHT, false)) {
         ensure_not_at_end("Unclosed function parameter list");
-        struct lxl_token param_token = consume(TOKEN_IDENTIFIER, "Expect parameter name");
-        consume(TOKEN_COLON, "Expect ':' after parameter name");
+        struct lxl_token param_token = consume(TOKEN_IDENTIFIER, false, "Expect parameter name");
+        consume(TOKEN_COLON, false, "Expect ':' after parameter name");
         TypeID param_type = parse_type("Expect type after parameter name");
         struct lxl_string_view param_name = lxl_token_value(param_token);
         struct type_decl param = {
             .name = param_name,
             .type = param_type};
         DA_APPEND(&sig->params, param);
-        if (!match(TOKEN_COMMA)) {
+        if (!match(TOKEN_COMMA, true)) {
             // Allow no trailing comma.
-            consume(TOKEN_BKT_ROUND_RIGHT, "Expect ',' after parameter or ')' at end of parameter list");
+            consume(TOKEN_BKT_ROUND_RIGHT, false,
+                    "Expect ',' after parameter or ')' at end of parameter list");
             break;
         }
     }
     sig->arity = sig->params.count;
-    if (match(TOKEN_ARROW_RIGHT)) {
+    bool had_line_ending = check_line_ending();
+    if (match(TOKEN_ARROW_RIGHT, false)) {
         TypeID ret_type = parse_type("Expect return type after '->'");
         sig->ret_type = ret_type;
     }
@@ -706,8 +699,9 @@ struct ast_decl *parse_var_decl(void) {
         }
     }
     else {
-        consume(TOKEN_COLON_EQUALS, "Expect ':=' or ': T =' after variable name");
+        consume(TOKEN_COLON_EQUALS, false, "Expect ':=' or ': T =' after variable name");
     }
+    ignore_line_ending();
     struct ast_expr *value = parse_expr();
     end_statement();
     *decl = (struct ast_decl) {
@@ -720,9 +714,9 @@ struct ast_decl *parse_var_decl(void) {
 }
 
 struct ast_decl *parse_type_defn(void) {
-    struct lxl_token alias_token = consume(TOKEN_IDENTIFIER, "Expect alias after 'type'");
+    struct lxl_token alias_token = consume(TOKEN_IDENTIFIER, false, "Expect alias after 'type'");
     struct lxl_string_view alias = lxl_token_value(alias_token);
-    consume(TOKEN_COLON_EQUALS, "Expect ':=' after type alias");
+    consume(TOKEN_COLON_EQUALS, false, "Expect ':=' after type alias");
     struct ast_decl *decl = new_decl();
     TypeID type = parse_type("Expect type after ':=' in type alias definition");
     end_statement();
@@ -743,22 +737,22 @@ struct ast_decl *parse_type_defn(void) {
 }
 
 struct ast_decl *try_parse_decl(void) {
-    if (match(TOKEN_KW_EXTERNAL)) {
+    if (match(TOKEN_KW_EXTERNAL, true)) {
         enum func_link_kind prev_kind = parser.current_func_kind;
         parser.current_func_kind = FUNC_EXTERNAL;
         struct ast_decl *decl = NULL;
-        consume(TOKEN_KW_FUNC, "Expect 'func' after 'external'");
+        consume(TOKEN_KW_FUNC, false, "Expect 'func' after 'external'");
         decl = parse_func_decl();
         parser.current_func_kind = prev_kind;
         return decl;
     }
-    if (match(TOKEN_KW_FUNC)) {
+    if (match(TOKEN_KW_FUNC, true)) {
         return parse_func_decl();
     }
-    if (match(TOKEN_KW_TYPE)) {
+    if (match(TOKEN_KW_TYPE, true)) {
         return parse_type_defn();
     }
-    if (match(TOKEN_KW_VAR)) {
+    if (match(TOKEN_KW_VAR, true)) {
         return parse_var_decl();
     }
     return NULL;
@@ -767,18 +761,16 @@ struct ast_decl *try_parse_decl(void) {
 struct ast_stmt parse_if(void) {
     ignore_line_ending();
     struct ast_expr *cond = parse_expr();
-    ignore_line_ending();
-    consume(TOKEN_BKT_CURLY_LEFT, "Expect '{' after 'if' condition");
+    consume(TOKEN_BKT_CURLY_LEFT, false, "Expect '{' after 'if' condition");
     struct ast_list then_clause = parse_block();
     struct ast_list else_clause = {0};
-    if (match(TOKEN_KW_ELSE)) {
+    if (match(TOKEN_KW_ELSE, true)) {
         ignore_line_ending();
-        if (match(TOKEN_BKT_CURLY_LEFT)) {
+        if (match(TOKEN_BKT_CURLY_LEFT, false)) {
             else_clause = parse_block();
         }
         else {
-            // Should we allow LF here? For now, we won't.
-            consume(TOKEN_KW_IF, "Expect '{' or 'if' after 'else'");
+            consume(TOKEN_KW_IF, false, "Expect '{' or 'if' after 'else'");
             struct ast_stmt *elif_clause = new_stmt();
             *elif_clause = parse_if();
             DA_APPEND(&else_clause, STMT_NODE(elif_clause));
@@ -794,7 +786,7 @@ struct ast_stmt parse_if(void) {
 
 struct ast_stmt *parse_stmt(void) {
     struct ast_stmt *stmt = new_stmt();
-    if (match(TOKEN_KW_IF)) {
+    if (match(TOKEN_KW_IF, true)) {
         *stmt = parse_if();
     }
     else {
