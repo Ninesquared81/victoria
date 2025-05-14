@@ -38,6 +38,7 @@ enum ast_decl_kind {
     AST_DECL_VAR_DEFN,  // Variable definition.
     AST_DECL_FUNC_DECL, // (External) function declaration.
     AST_DECL_FUNC_DEFN, // Function definition.
+    AST_DECL_EXTERNAL_BLOCK,  // Block of external function declarations.
     AST_DECL_TYPE_DEFN, // Type (alias) definition.
 };
 
@@ -139,6 +140,9 @@ struct ast_decl {
             struct func_sig *sig;
             struct ast_list body;
         } func_defn;
+        struct {
+            struct ast_list decls;
+        } external_block;
         struct {
             struct lxl_string_view alias;
             TypeID type;

@@ -90,6 +90,13 @@ static void parse_error_show_token_vargs(struct lxl_token token, const char *res
     exit(1);
 }
 
+static void parse_error_show_token(struct lxl_token token, const char *restrict fmt, ...) {
+    va_list vargs;
+    va_start(vargs, fmt);
+    parse_error_show_token_vargs(token, fmt, vargs);
+    va_end(vargs);
+}
+
 static void parse_error_previous_show_token(const char *restrict fmt, ...) {
     va_list vargs;
     va_start(vargs, fmt);
@@ -729,8 +736,33 @@ struct ast_decl *try_parse_decl(void) {
         enum func_link_kind prev_kind = parser.current_func_kind;
         parser.current_func_kind = FUNC_EXTERNAL;
         struct ast_decl *decl = NULL;
-        consume(TOKEN_KW_FUNC, false, "Expect 'func' after 'external'");
-        decl = parse_func_decl();
+        if (match(TOKEN_KW_FUNC, false)) {
+            decl = parse_func_decl();
+        }
+        else {
+            consume(TOKEN_BKT_CURLY_LEFT, false, "Expect 'func' or '{' after 'external'");
+            decl = new_decl();
+            *decl = (struct ast_decl) {
+                .kind = AST_DECL_EXTERNAL_BLOCK,
+                .external_block = {
+                    .decls = {.allocator = perm}}};
+            while (!match(TOKEN_BKT_CURLY_RIGHT, false)) {
+                struct lxl_token func_token = consume(TOKEN_KW_FUNC, false, "Expect function declaration");
+                struct ast_decl *func = parse_func_decl();
+                assert(func);
+                if (func->kind != AST_DECL_FUNC_DECL) {
+                    assert(func->kind == AST_DECL_FUNC_DEFN);
+                    parse_error_show_token(func_token, "Expect function delcaration in 'external' block");
+                }
+                else {
+                    assert(func->func_decl.kind == FUNC_EXTERNAL &&
+                           "Function should be external inside 'external' block");
+                    DA_APPEND(&decl->external_block.decls, DECL_NODE(func));
+                }
+            }
+            ignore_line_ending();
+
+        }
         parser.current_func_kind = prev_kind;
         return decl;
     }
@@ -1152,6 +1184,9 @@ static void type_check_decl(struct ast_decl *decl) {
     } return;
     case AST_DECL_FUNC_DEFN:
         type_check_function(decl->func_defn.sig, &decl->func_defn.body);
+        return;
+    case AST_DECL_EXTERNAL_BLOCK:
+        TODO("Type check external block");
         return;
     case AST_DECL_TYPE_DEFN:
         /* No type checking. */

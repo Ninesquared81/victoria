@@ -19,6 +19,10 @@
 #define UNREACHABLE()                           \
     assert(0 && "Unreachable")
 
+// Mark a path of execution as "todo".
+#define TODO(msg)                               \
+    assert(0 && "TODO: " msg)
+
 // Custom allocator interface for an Allocate-Deallocate allocator (the simplest one).
 struct allocatorAD {
     void *ctx;
