@@ -1,4 +1,4 @@
-func putchar(c:i32)->i32:= external
+external func putchar(c:i32)->i32
 
 type Vec2 := record {
      x: int, y: int

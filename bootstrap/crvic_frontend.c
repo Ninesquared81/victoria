@@ -28,6 +28,7 @@ struct parser {
     struct lxl_lexer *lexer;
     bool panic_mode;
     VIC_INT enum_counter;
+    enum func_link_kind current_func_kind;
 };
 
 struct type_checker {
@@ -44,6 +45,7 @@ static struct type_checker type_checker = {0};
 
 void init_frontend(struct lxl_string_view source) {
     parser.lexer = init_lexer(source);
+    parser.current_func_kind = FUNC_INTERNAL;
     symbols = (struct symbol_table) {
         .capacity = SYMBOL_TABLE_CAPACITY,
         .slots = ALLOCATE(perm, sizeof(struct st_slot[SYMBOL_TABLE_CAPACITY]))};
@@ -176,6 +178,21 @@ static void end_statement(void) {
         consume(TOKEN_SEMICOLON, "Expect newline or ';' at end of statement");
     }
     ignore_line_ending();
+}
+
+static bool match_or_end_statement(enum token_type type, const char *fmt, ...) {
+    if (match(TOKEN_SEMICOLON)) {
+        ignore_line_ending();
+        return false;
+    }
+    bool had_line_ending = match(LXL_TOKEN_LINE_ENDING);
+    if (match(type)) return true;
+    if (had_line_ending) return false;
+    va_list vargs;
+    va_start(vargs, fmt);
+    parse_error_show_token_vargs(parser.current_token, fmt, vargs);
+    va_end(vargs);
+    return false;
 }
 
 static void set_enum_counter(VIC_INT value) {
@@ -652,23 +669,20 @@ static struct ast_decl *parse_func_decl(void) {
         // No return type (i.e. unit type).
         sig->ret_type = TYPE_UNIT;
     }
-    if (match(TOKEN_BKT_CURLY_LEFT)) {
+    if (match_or_end_statement(TOKEN_BKT_CURLY_LEFT,
+                               "Expect '{' or end of statement after function signature")) {
         *decl = (struct ast_decl) {
             .kind = AST_DECL_FUNC_DEFN,
             .func_defn = {
                 .sig = sig,
                 .body = parse_block()}};
     }
-    else if (match(TOKEN_COLON_EQUALS)) {
-        consume(TOKEN_KW_EXTERNAL, "Expect 'external' after ':=' for function");
+    else {
         *decl = (struct ast_decl) {
             .kind = AST_DECL_FUNC_DECL,
             .func_decl = {
                 .sig = sig,
-                .kind = FUNC_EXTERNAL}};
-    }
-    else {
-        parse_error_current_show_token("Expect '{' or ':=' after function signature");
+                .kind = parser.current_func_kind}};
     }
     return decl;
 }
@@ -729,14 +743,23 @@ struct ast_decl *parse_type_defn(void) {
 }
 
 struct ast_decl *try_parse_decl(void) {
+    if (match(TOKEN_KW_EXTERNAL)) {
+        enum func_link_kind prev_kind = parser.current_func_kind;
+        parser.current_func_kind = FUNC_EXTERNAL;
+        struct ast_decl *decl = NULL;
+        consume(TOKEN_KW_FUNC, "Expect 'func' after 'external'");
+        decl = parse_func_decl();
+        parser.current_func_kind = prev_kind;
+        return decl;
+    }
     if (match(TOKEN_KW_FUNC)) {
         return parse_func_decl();
     }
-    if (match(TOKEN_KW_VAR)) {
-        return parse_var_decl();
-    }
     if (match(TOKEN_KW_TYPE)) {
         return parse_type_defn();
+    }
+    if (match(TOKEN_KW_VAR)) {
+        return parse_var_decl();
     }
     return NULL;
 }
