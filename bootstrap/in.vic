@@ -1,5 +1,11 @@
 external func putchar(c:i32)->i32
 
+func
+hi
+(
+
+)
+
 type Vec2 := record {
      x: int, y: int
 }
