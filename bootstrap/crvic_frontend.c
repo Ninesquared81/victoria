@@ -647,20 +647,23 @@ static struct ast_decl *parse_func_decl(void) {
         // No return type (i.e. unit type).
         sig->ret_type = TYPE_UNIT;
     }
-    if (match_or_end_statement(TOKEN_BKT_CURLY_LEFT,
-                               "Expect '{' or end of statement after function signature")) {
+    had_line_ending += check_line_ending();
+    if (match(TOKEN_BKT_CURLY_LEFT, false)) {
         *decl = (struct ast_decl) {
             .kind = AST_DECL_FUNC_DEFN,
             .func_defn = {
                 .sig = sig,
                 .body = parse_block()}};
     }
-    else {
+    else if (had_line_ending || match(TOKEN_SEMICOLON, true)) {
         *decl = (struct ast_decl) {
             .kind = AST_DECL_FUNC_DECL,
             .func_decl = {
                 .sig = sig,
                 .kind = parser.current_func_kind}};
+    }
+    else {
+        parse_error_current_show_token("Expect '{' or end of statement after function signature");
     }
     return decl;
 }
@@ -668,12 +671,12 @@ static struct ast_decl *parse_func_decl(void) {
 struct ast_decl *parse_var_decl(void) {
     struct ast_decl *decl = new_decl();
     *decl = (struct ast_decl) {0};
-    struct lxl_token name_token = consume(TOKEN_IDENTIFIER, "Expect variable name after 'var'");
+    struct lxl_token name_token = consume(TOKEN_IDENTIFIER, false, "Expect variable name after 'var'");
     struct lxl_string_view name = lxl_token_value(name_token);
     TypeID type = TYPE_NO_TYPE;
-    if (match(TOKEN_COLON)) {
+    if (match(TOKEN_COLON, false)) {
         type = parse_type("Expect type after ':'");
-        if (!match(TOKEN_EQUALS)) {
+        if (!match(TOKEN_EQUALS, false)) {
             end_statement();
             *decl = (struct ast_decl) {
                 .kind = AST_DECL_VAR_DECL,
