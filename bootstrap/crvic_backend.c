@@ -102,7 +102,11 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
         sb_add_string(sb, "}\n");
         break;
     case AST_DECL_EXTERNAL_BLOCK:
-        TODO("Generate external block");
+        for (int i = 0; i < decl->external_block.decls.count; ++i) {
+            struct ast_node node = decl->external_block.decls.items[i];
+            assert(node.kind == AST_DECL);
+            if ((error = crvic_generate_c_decl(node.decl, indent, indent_step, sb))) return error;
+        }
         break;
     case AST_DECL_TYPE_DEFN:
         UNREACHABLE();
