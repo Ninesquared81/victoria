@@ -183,21 +183,6 @@ static void end_statement(void) {
     ignore_line_ending();
 }
 
-static bool match_or_end_statement(enum token_type type, const char *fmt, ...) {
-    if (match(TOKEN_SEMICOLON)) {
-        ignore_line_ending();
-        return false;
-    }
-    bool had_line_ending = match(LXL_TOKEN_LINE_ENDING);
-    if (match(type)) return true;
-    if (had_line_ending) return false;
-    va_list vargs;
-    va_start(vargs, fmt);
-    parse_error_show_token_vargs(parser.current_token, fmt, vargs);
-    va_end(vargs);
-    return false;
-}
-
 static void set_enum_counter(VIC_INT value) {
     parser.enum_counter = value;
 }
