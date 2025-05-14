@@ -1186,7 +1186,11 @@ static void type_check_decl(struct ast_decl *decl) {
         type_check_function(decl->func_defn.sig, &decl->func_defn.body);
         return;
     case AST_DECL_EXTERNAL_BLOCK:
-        TODO("Type check external block");
+        for (int i = 0; i < decl->external_block.decls.count; ++i) {
+            struct ast_node node = decl->external_block.decls.items[i];
+            assert(node.kind == AST_DECL);
+            type_check_decl(node.decl);
+        }
         return;
     case AST_DECL_TYPE_DEFN:
         /* No type checking. */
