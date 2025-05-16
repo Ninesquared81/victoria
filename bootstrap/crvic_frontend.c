@@ -675,7 +675,11 @@ static struct ast_decl *parse_func_decl(void) {
     return decl;
 }
 
-struct ast_decl *parse_var_decl(void) {
+struct ast_decl *parse_var_decl(enum ast_var_kind kind) {
+    struct lxl_token var_token = parser.previous_token;
+    // Sanity check:
+    assert((var_token.token_type == TOKEN_KW_VAR && kind == AST_VAR_VAR) ||
+           (var_token.token_type == TOKEN_KW_VAL && kind == AST_VAR_VAL));
     struct ast_decl *decl = new_decl();
     *decl = (struct ast_decl) {0};
     struct lxl_token name_token = consume(TOKEN_IDENTIFIER, false, "Expect variable name after 'var'");
@@ -685,11 +689,16 @@ struct ast_decl *parse_var_decl(void) {
         type = parse_type("Expect type after ':'");
         if (!match(TOKEN_EQUALS, false)) {
             end_statement();
+            if (kind == AST_VAR_VAL) {
+                parse_error_show_token(var_token, "Immutable value '"LXL_SV_FMT_SPEC"' must be initialised",
+                                       LXL_SV_FMT_ARG(name));
+            }
             *decl = (struct ast_decl) {
                 .kind = AST_DECL_VAR_DECL,
                 .var_decl = {
                     .name = name,
-                    .type = type}};
+                    .type = type,
+                    .kind = kind}};
             return decl;
         }
     }
@@ -704,6 +713,7 @@ struct ast_decl *parse_var_decl(void) {
         .var_defn = {
             .name = name,
             .type = type,
+            .kind = kind,
             .value = value}};
     return decl;
 }
@@ -773,7 +783,10 @@ struct ast_decl *try_parse_decl(void) {
         return parse_type_defn();
     }
     if (match(TOKEN_KW_VAR, true)) {
-        return parse_var_decl();
+        return parse_var_decl(AST_VAR_VAR);
+    }
+    if (match(TOKEN_KW_VAL, true)) {
+        return parse_var_decl(AST_VAR_VAL);
     }
     return NULL;
 }
@@ -1076,6 +1089,18 @@ static TypeID resolve_type(struct ast_expr *expr) {
 
 static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type);
 
+static bool compare_sigs(struct func_sig *sig1, struct func_sig *sig2) {
+    assert(sig1 && sig2);
+    assert(sig1->arity == sig1->params.count);
+    assert(sig2->arity == sig2->params.count);
+    if (sig1->arity != sig2->arity) return false;
+    for (int i = 0; i < sig1->arity; ++i) {
+        // NOTE: parameter names are allowed to differ.
+        if (sig1->params.items[i].type != sig2->params.items[i].type) return false;
+    }
+    return true;
+}
+
 static void type_check_function(struct func_sig *sig, struct ast_list *body) {
     struct st_key key = st_key_of(sig->name);
     struct symbol *symbol = lookup_symbol(&symbols, key);
@@ -1094,6 +1119,10 @@ static void type_check_function(struct func_sig *sig, struct ast_list *body) {
         if (symbol->func.body != NULL) {
             type_error("Redefinition of function '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(sig->name));
         }
+        if (!compare_sigs(symbol->func.sig, sig)) {
+            type_error("Redeclaration of function '"LXL_SV_FMT_SPEC"' with a different signature",
+                       LXL_SV_FMT_ARG(sig->name));
+        }
         if (symbol->func.kind == FUNC_EXTERNAL) {
             type_error("Cannot define function '"LXL_SV_FMT_SPEC"' previously defined as 'external'",
                        LXL_SV_FMT_ARG(sig->name));
@@ -1106,18 +1135,6 @@ static void type_check_function(struct func_sig *sig, struct ast_list *body) {
         struct ast_stmt *stmt = body->items[i].stmt;
         type_check_stmt(stmt, sig->ret_type);
     }
-}
-
-static bool compare_sigs(struct func_sig *sig1, struct func_sig *sig2) {
-    assert(sig1 && sig2);
-    assert(sig1->arity == sig1->params.count);
-    assert(sig2->arity == sig2->params.count);
-    if (sig1->arity != sig2->arity) return false;
-    for (int i = 0; i < sig1->arity; ++i) {
-        // NOTE: parameter names are allowed to differ.
-        if (sig1->params.items[i].type != sig2->params.items[i].type) return false;
-    }
-    return true;
 }
 
 static void type_check_decl(struct ast_decl *decl) {

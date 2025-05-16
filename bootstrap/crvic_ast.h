@@ -51,6 +51,11 @@ enum ast_target_kind {
     AST_TARGET_IDENTIFIER,  // Identifier (variable, field, etc.).
 };
 
+enum ast_var_kind {
+    AST_VAR_VAR,  // Mutable variable.
+    AST_VAR_VAL,  // Immutable value.
+};
+
 struct ast_list {
     struct allocatorARD allocator;
     int capacity;
@@ -126,10 +131,12 @@ struct ast_decl {
         struct {
             struct lxl_string_view name;
             TypeID type;
+            enum ast_var_kind kind;
         } var_decl;
         struct {
             struct lxl_string_view name;
             TypeID type;
+            enum ast_var_kind kind;
             struct ast_expr *value;
         } var_defn;
         struct {
