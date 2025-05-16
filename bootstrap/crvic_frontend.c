@@ -184,6 +184,8 @@ static struct lxl_token consume(enum token_type type, bool strict, const char *f
 }
 
 static void end_statement(void) {
+    // Allow the case where we've already consumed the line ending.
+    if (parser.previous_token.token_type == LXL_TOKEN_LINE_ENDING) return;
     if (!check_line_ending()) {
         consume(TOKEN_SEMICOLON, true, "Expect newline or ';' at end of statement");
     }
