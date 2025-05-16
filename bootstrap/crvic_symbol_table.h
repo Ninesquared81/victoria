@@ -7,6 +7,7 @@ enum symbol_kind {
     SYMBOL_FUNC,       // Function symbol.
     SYMBOL_TYPE_ALIAS, // Type alias symbol.
     SYMBOL_VAR,        // Variable symbol.
+    SYMBOL_VAL,        // Immutable value symbol.
 };
 
 struct symbol_func {
@@ -23,12 +24,17 @@ struct symbol_var {
     TypeID type;
 };
 
+struct symbol_val {
+    TypeID type;
+};
+
 struct symbol {
     enum symbol_kind kind;
     union {
         struct symbol_func func;
         struct symbol_type_alias type_alias;
         struct symbol_var var;
+        struct symbol_val val;
     };
 };
 
