@@ -889,7 +889,11 @@ static TypeID resolve_type(struct ast_expr *expr) {
             name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
             break;
         }
-        if (target_symbol->kind != SYMBOL_VAR) {
+        if (target_symbol->kind == SYMBOL_VAL) {
+            type_error("Cannot reassign immutable value '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
+            break;
+        }
+        else if (target_symbol->kind != SYMBOL_VAR) {
             name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a variable", LXL_SV_FMT_ARG(name));
             break;
         }
@@ -1018,6 +1022,9 @@ static TypeID resolve_type(struct ast_expr *expr) {
         if (target_symbol->kind == SYMBOL_VAR) {
             result_type = target_symbol->var.type;
         }
+        else if (target_symbol->kind == SYMBOL_VAL) {
+            result_type = target_symbol->val.type;
+        }
         else if (target_symbol->kind == SYMBOL_TYPE_ALIAS) {
             result_type = target_symbol->type_alias.type;
             struct type_info *info = get_type(result_type);
@@ -1142,6 +1149,7 @@ static void type_check_function(struct func_sig *sig, struct ast_list *body) {
 static void type_check_decl(struct ast_decl *decl) {
     switch (decl->kind) {
     case AST_DECL_VAR_DECL: {
+        assert(decl->var_decl.kind == AST_VAR_VAR);
         struct symbol symbol = {
             .kind = SYMBOL_VAR,
             .var = {.type = decl->var_decl.type}};
@@ -1156,9 +1164,13 @@ static void type_check_decl(struct ast_decl *decl) {
         if (value_type != decl->var_defn.type) {
             type_error("Mismatched types in variable definition");
         }
-        struct symbol symbol = {
-            .kind = SYMBOL_VAR,
-            .var = {.type = decl->var_defn.type}};
+        struct symbol symbol = (decl->var_defn.kind == AST_VAR_VAR)
+            ? (struct symbol) {
+                .kind = SYMBOL_VAR,
+                .var = {.type = decl->var_defn.type}}
+            : (struct symbol) {
+                .kind = SYMBOL_VAL,
+                .val = {.type = decl->var_defn.type}};
         if (!insert_symbol(&symbols, st_key_of(decl->var_decl.name), symbol)) {
             name_error("Redeclaration of symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(decl->var_decl.name));
         }
