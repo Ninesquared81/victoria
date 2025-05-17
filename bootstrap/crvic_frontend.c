@@ -819,10 +819,27 @@ struct ast_stmt parse_if(void) {
             .else_clause = else_clause}};
 }
 
+struct ast_stmt parse_return(void) {
+    struct ast_expr *expr = NULL;
+    if (check_line_ending() || check(TOKEN_SEMICOLON, true)) {
+        end_statement();
+    }
+    else {
+        // Return with expression.
+        expr = parse_expr();
+    }
+    return (struct ast_stmt) {
+        .kind = AST_STMT_RETURN,
+        .return_ = {.expr = expr}};
+}
+
 struct ast_stmt *parse_stmt(void) {
     struct ast_stmt *stmt = new_stmt();
     if (match(TOKEN_KW_IF, true)) {
         *stmt = parse_if();
+    }
+    else if (match(TOKEN_KW_RETURN, true)) {
+        *stmt = parse_return();
     }
     else {
         struct ast_decl *decl = try_parse_decl();
@@ -1259,6 +1276,25 @@ static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
         resolve_type(stmt->if_.cond);
         type_check_stmt_list(stmt->if_.then_clause, ret_type);
         type_check_stmt_list(stmt->if_.else_clause, ret_type);
+        return;
+    case AST_STMT_RETURN:
+        if (stmt->return_.expr) {
+            TypeID return_expr_type = resolve_type(stmt->return_.expr);
+            if (return_expr_type != ret_type) {
+                struct lxl_string_view expected_sv = get_type_sv(ret_type);
+                struct lxl_string_view actual_sv = get_type_sv(return_expr_type);
+                type_error("Expected return type '"LXL_SV_FMT_SPEC"' but got '"LXL_SV_FMT_SPEC"'",
+                           LXL_SV_FMT_ARG(expected_sv), LXL_SV_FMT_ARG(actual_sv));
+            }
+        }
+        else if (ret_type == TYPE_ABSURD) {
+            type_error("Cannot return from non-returning function");
+        }
+        else if (ret_type != TYPE_UNIT) {
+            struct lxl_string_view expected_sv = get_type_sv(ret_type);
+            type_error("Expression-less return from function with non-unit return type '"LXL_SV_FMT_SPEC"'",
+                       LXL_SV_FMT_ARG(expected_sv));
+        }
         return;
     }
     UNREACHABLE();

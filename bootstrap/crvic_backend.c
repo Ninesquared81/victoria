@@ -65,6 +65,14 @@ enum cgen_error crvic_generate_c_stmt(struct ast_stmt *stmt, int indent, int ind
                  stmt->if_.else_clause, indent + indent_step, indent_step, sb))) return error;
         sb_add_formatted(sb, "%*s}\n", indent, "");
         break;
+    case AST_STMT_RETURN:
+        sb_add_string(sb, "return");
+        if (stmt->return_.expr) {
+            sb_add_string(sb, " ");
+            if ((error = crvic_generate_c_expr(stmt->return_.expr, sb))) return error;
+        }
+        sb_add_string(sb, ";\n");
+        break;
     }
     return error;
 }

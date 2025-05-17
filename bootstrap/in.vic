@@ -30,16 +30,18 @@ type Card := record {
 
 func thing2(x: int)
 
-func thing1() {
+func thing1() -> int {
     thing2(5)
+    return 42
 }
 
-func thing2(x: int) {}
+func thing2(x: int) {return;}
 
 func main() {
     val a := 42
     var b := a + 5
-    var c: int
+    # val c: int
+    # a := a
     var v := Vec2 {a, b}
     v := Vec2 {2*v.x, v.y}
     var card := Card {Rank.ACE, Suit.SPADES}

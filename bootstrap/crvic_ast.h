@@ -31,6 +31,7 @@ enum ast_stmt_kind {
     AST_STMT_DECL,  // Declaration statement.
     AST_STMT_EXPR,  // Expression statement.
     AST_STMT_IF,    // If statement.
+    AST_STMT_RETURN, // Return statment.
 };
 
 enum ast_decl_kind {
@@ -122,6 +123,9 @@ struct ast_stmt {
             struct ast_list then_clause;
             struct ast_list else_clause;
         } if_;
+        struct {
+            struct ast_expr *expr;  // Note: can be NULL for expression-less return.
+        } return_;
     };
 };
 
