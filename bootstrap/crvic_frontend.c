@@ -896,7 +896,7 @@ static TypeID convert_binary(TypeID lhs_type, TypeID rhs_type) {
     return TYPE_NO_TYPE;
 }
 
-static TypeID resolve_type(struct ast_expr *expr) {
+static TypeID type_check_expr(struct ast_expr *expr) {
     TypeID result_type = TYPE_NO_TYPE;
     switch (expr->kind) {
     case AST_EXPR_ASSIGN: {
@@ -914,7 +914,7 @@ static TypeID resolve_type(struct ast_expr *expr) {
             name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a variable", LXL_SV_FMT_ARG(name));
             break;
         }
-        result_type = resolve_type(expr->assign.value);
+        result_type = type_check_expr(expr->assign.value);
         if (result_type != target_symbol->var.type) {
             struct lxl_string_view result_type_name = get_type_sv(result_type);
             struct lxl_string_view target_type_name = get_type_sv(target_symbol->var.type);
@@ -925,8 +925,8 @@ static TypeID resolve_type(struct ast_expr *expr) {
         }
     } break;
     case AST_EXPR_BINARY: {
-        TypeID lhs_type = resolve_type(expr->binary.lhs);
-        TypeID rhs_type = resolve_type(expr->binary.rhs);
+        TypeID lhs_type = type_check_expr(expr->binary.lhs);
+        TypeID rhs_type = type_check_expr(expr->binary.rhs);
         result_type = convert_binary(lhs_type, rhs_type);
     } break;
     case AST_EXPR_CALL: {
@@ -964,7 +964,7 @@ static TypeID resolve_type(struct ast_expr *expr) {
             struct type_decl param = callee->sig->params.items[i];
             struct ast_node arg = expr->call.args.items[i];
             assert(arg.kind == AST_EXPR);
-            TypeID arg_type = resolve_type(arg.expr);
+            TypeID arg_type = type_check_expr(arg.expr);
             if (arg_type == TYPE_NO_TYPE) continue;  // Skip unknown type.
             if (arg_type != param.type) {
                 struct lxl_string_view param_type_name = get_type_sv(param.type);
@@ -1001,7 +1001,7 @@ static TypeID resolve_type(struct ast_expr *expr) {
                 TypeID expected_type = info->record_type.fields.items[i].type;
                 struct ast_node node = expr->constructor.init_list.items[i];
                 assert(node.kind == AST_EXPR);
-                TypeID actual_type = resolve_type(node.expr);
+                TypeID actual_type = type_check_expr(node.expr);
                 if (expected_type != actual_type) {
                     struct lxl_string_view expected_sv = get_type_sv(expected_type);
                     struct lxl_string_view actual_sv = get_type_sv(actual_type);
@@ -1097,10 +1097,10 @@ static TypeID resolve_type(struct ast_expr *expr) {
         result_type = lookup_symbol(&symbols, st_key_of(LXL_SV_FROM_STRLIT("int")))->type_alias.type;
         break;
     case AST_EXPR_WHEN: {
-        // Propogate errors.
-        if (!resolve_type(expr->when.cond)) return TYPE_NO_TYPE;
-        TypeID then_type = resolve_type(expr->when.then_expr);
-        TypeID else_type = resolve_type(expr->when.else_expr);
+        // Propagate errors.
+        if (!type_check_expr(expr->when.cond)) return TYPE_NO_TYPE;
+        TypeID then_type = type_check_expr(expr->when.then_expr);
+        TypeID else_type = type_check_expr(expr->when.else_expr);
         if (then_type == else_type) {
             result_type = then_type;
         }
@@ -1175,7 +1175,7 @@ static void type_check_decl(struct ast_decl *decl) {
         }
     } return;
     case AST_DECL_VAR_DEFN: {
-        TypeID value_type = resolve_type(decl->var_defn.value);
+        TypeID value_type = type_check_expr(decl->var_defn.value);
         if (!value_type) return;
         if (!decl->var_defn.type) decl->var_defn.type = value_type;
         if (value_type != decl->var_defn.type) {
@@ -1270,16 +1270,16 @@ static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
         type_check_decl(stmt->decl.decl);
         return;
     case AST_STMT_EXPR:
-        resolve_type(stmt->expr.expr);
+        type_check_expr(stmt->expr.expr);
         return;
     case AST_STMT_IF:
-        resolve_type(stmt->if_.cond);
+        type_check_expr(stmt->if_.cond);
         type_check_stmt_list(stmt->if_.then_clause, ret_type);
         type_check_stmt_list(stmt->if_.else_clause, ret_type);
         return;
     case AST_STMT_RETURN:
         if (stmt->return_.expr) {
-            TypeID return_expr_type = resolve_type(stmt->return_.expr);
+            TypeID return_expr_type = type_check_expr(stmt->return_.expr);
             if (return_expr_type != ret_type) {
                 struct lxl_string_view expected_sv = get_type_sv(ret_type);
                 struct lxl_string_view actual_sv = get_type_sv(return_expr_type);
