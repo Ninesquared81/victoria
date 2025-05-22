@@ -85,26 +85,26 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
     switch (decl->kind) {
     case AST_DECL_VAR_DECL:
         sb_add_formatted(sb, "%s "LXL_SV_FMT_SPEC" = 0;\n",
-                         crvic_get_c_type(decl->var_decl.type),
+                         crvic_get_c_type(decl->var_decl.type->resolved_type),
                          LXL_SV_FMT_ARG(decl->var_decl.name));
         break;
     case AST_DECL_VAR_DEFN:
         sb_add_formatted(sb, "%s "LXL_SV_FMT_SPEC" = ",
-                         crvic_get_c_type(decl->var_defn.type),
+                         crvic_get_c_type(decl->var_defn.type->resolved_type),
                          LXL_SV_FMT_ARG(decl->var_defn.name));
         if ((error = crvic_generate_c_expr(decl->var_defn.value, sb))) return error;
         sb_add_string(sb, ";\n");
         break;
     case AST_DECL_FUNC_DECL:
-        if ((error = crvic_generate_c_func_header(decl->func_decl.sig, sb))) return error;
+        if ((error = crvic_generate_c_func_header(decl->func_decl.resolved_sig, sb))) return error;
         sb_add_string(sb, ";\n");
         break;
     case AST_DECL_FUNC_DEFN:
-        if ((error = crvic_generate_c_func_header(decl->func_defn.sig, sb))) return error;
+        if ((error = crvic_generate_c_func_header(decl->func_defn.resolved_sig, sb))) return error;
         sb_add_string(sb, " {\n");
         assert(indent == 0 && "Cannot have nested function in C!");
         if ((error = crvic_generate_c_func_body(decl->func_defn.body, indent_step, sb))) return error;
-        if (lxl_sv_equal(decl->func_defn.sig->name, LXL_SV_FROM_STRLIT("main"))) {
+        if (lxl_sv_equal(decl->func_defn.resolved_sig->name, LXL_SV_FROM_STRLIT("main"))) {
             sb_add_formatted(sb, "%*sreturn 0;\n", indent_step, "");
         }
         sb_add_string(sb, "}\n");
@@ -154,13 +154,13 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
             // 'as' conversion.
             sb_add_formatted(sb, "((union {%s value; %s as;}){.value = ",
                              crvic_get_c_type(expr->convert.operand->type),
-                             crvic_get_c_type(expr->convert.target_type));
+                             crvic_get_c_type(expr->convert.target_type->resolved_type));
             if ((error = crvic_generate_c_expr(expr->convert.operand, sb))) return error;
             sb_add_string(sb, "}.as)");
         }
         else {
             // 'to' conversion.
-            sb_add_formatted(sb, "((%s)", crvic_get_c_type(expr->convert.target_type));
+            sb_add_formatted(sb, "((%s)", crvic_get_c_type(expr->convert.target_type->resolved_type));
             if ((error = crvic_generate_c_expr(expr->convert.operand, sb))) return error;
             sb_add_string(sb, ")");
         }

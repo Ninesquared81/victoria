@@ -57,11 +57,66 @@ enum ast_var_kind {
     AST_VAR_VAL,  // Immutable value.
 };
 
+enum ast_type_kind {
+    AST_TYPE_PRIMITIVE,
+    AST_TYPE_ALIAS,
+    AST_TYPE_RECORD,
+    AST_TYPE_ENUM,
+};
+
 struct ast_list {
     struct allocatorARD allocator;
     int capacity;
     int count;
     struct ast_node *items;
+};
+
+struct ast_type_decl {
+    struct lxl_string_view name;
+    struct ast_type *type;
+};
+
+struct ast_type_decl_list {
+    struct allocatorARD allocator;
+    int capacity;
+    int count;
+    struct ast_type_decl *items;
+};
+
+struct ast_enum_field {
+    struct lxl_string_view name;
+    struct ast_expr *value;  // Specified value, can be NULL for default value.
+};
+
+struct ast_enum_field_list {
+    struct allocatorARD allocator;
+    int capacity;
+    int count;
+    struct ast_enum_field *items;
+};
+
+struct ast_sig {
+    struct lxl_string_view name;
+    struct ast_type_decl_list params;
+    struct ast_type *ret_type;
+};
+
+struct ast_type {
+    enum ast_type_kind kind;
+    TypeID resolved_type;
+    union {
+        /* struct {} primitive; */
+        struct {
+            struct lxl_string_view name;
+        } alias;
+        struct {
+            struct ast_type_decl_list fields;
+        } record_lit;
+        struct {
+            struct ast_type *underlying_type;
+            struct ast_enum_field_list fields;
+        } enum_lit;
+    };
 };
 
 struct ast_expr {
@@ -88,7 +143,7 @@ struct ast_expr {
         } constructor;
         struct {
             struct ast_expr *operand;
-            TypeID target_type;
+            struct ast_type *target_type;
             enum type_conv_kind kind;
         } convert;
         struct ast_expr_get {
@@ -134,21 +189,23 @@ struct ast_decl {
     union {
         struct {
             struct lxl_string_view name;
-            TypeID type;
+            struct ast_type *type;
             enum ast_var_kind kind;
         } var_decl;
         struct {
             struct lxl_string_view name;
-            TypeID type;
+            struct ast_type *type;
             enum ast_var_kind kind;
             struct ast_expr *value;
         } var_defn;
         struct {
-            struct func_sig *sig;
+            struct ast_sig *unresolved_sig;
+            struct func_sig *resolved_sig;
             enum func_link_kind kind;
         } func_decl;
-        struct {
-            struct func_sig *sig;
+        struct ast_decl_func_defn {
+            struct ast_sig *unresolved_sig;
+            struct func_sig *resolved_sig;
             struct ast_list body;
         } func_defn;
         struct {
@@ -156,7 +213,7 @@ struct ast_decl {
         } external_block;
         struct {
             struct lxl_string_view alias;
-            TypeID type;
+            struct ast_type *type;
         } type_defn;
     };
 };
@@ -167,6 +224,7 @@ struct ast_node {
         struct ast_expr *expr;
         struct ast_stmt *stmt;
         struct ast_decl *decl;
+        struct ast_type *type;
     };
 };
 
