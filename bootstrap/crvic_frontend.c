@@ -52,11 +52,11 @@ void init_frontend(struct lxl_string_view source) {
     insert_symbol(&symbols, st_key_of(LXL_SV_FROM_STRLIT("int")),
                   (struct symbol) {
                       .kind = SYMBOL_TYPE_ALIAS,
-                      .type_alias = {.type = TYPE_I64}});
+                      .type_alias = {.type = TYPE_INT}});
     insert_symbol(&symbols, st_key_of(LXL_SV_FROM_STRLIT("uint")),
                   (struct symbol) {
                       .kind = SYMBOL_TYPE_ALIAS,
-                      .type_alias = {.type = TYPE_U64}});
+                      .type_alias = {.type = TYPE_UINT}});
 }
 
 static void report_location(struct lxl_token token) {

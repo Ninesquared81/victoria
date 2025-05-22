@@ -25,6 +25,11 @@ enum type_primitive {
     TYPE_PRIMITIVE_COUNT  // Number of primitive types. Not an actual type.
 };
 
+// Aliases for 'int' and 'uint' (also added to symbol table).
+// TODO: allow different sizes of `int`.
+#define TYPE_INT  TYPE_I64
+#define TYPE_UINT TYPE_U64
+
 typedef int TypeID;             // Unique ID for a type (i.e., an index into the type table).
 
 typedef intptr_t  VIC_INT;      // C type for Victoria `int` type.
