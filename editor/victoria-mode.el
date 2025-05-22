@@ -10,12 +10,16 @@
     (syntax-table))
   "Syntax table for victoria-mode")
 
+;;;###autoload
 (define-derived-mode victoria-mode go-mode "vic"
   "Major mode for Victoria"
   (setq comment-start "#")
   (setq indent-tabs-mode nil)
   (setq tab-width 4)
   :syntax-table 'victoria-mode-syntax-table)
+
+;;;###autoload
+(add-to-list 'auto-mode-alist '("\\.vic\\'" . victoria-mode))
 
 (provide 'victoria-mode)
 
