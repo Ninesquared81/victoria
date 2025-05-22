@@ -96,15 +96,15 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
         sb_add_string(sb, ";\n");
         break;
     case AST_DECL_FUNC_DECL:
-        if ((error = crvic_generate_c_func_header(decl->func_decl.resolved_sig, sb))) return error;
+        if ((error = crvic_generate_c_func_header(&decl->func_decl.sig->resolved_sig, sb))) return error;
         sb_add_string(sb, ";\n");
         break;
     case AST_DECL_FUNC_DEFN:
-        if ((error = crvic_generate_c_func_header(decl->func_defn.resolved_sig, sb))) return error;
+        if ((error = crvic_generate_c_func_header(&decl->func_defn.sig->resolved_sig, sb))) return error;
         sb_add_string(sb, " {\n");
         assert(indent == 0 && "Cannot have nested function in C!");
         if ((error = crvic_generate_c_func_body(decl->func_defn.body, indent_step, sb))) return error;
-        if (lxl_sv_equal(decl->func_defn.resolved_sig->name, LXL_SV_FROM_STRLIT("main"))) {
+        if (lxl_sv_equal(decl->func_defn.sig->resolved_sig.name, LXL_SV_FROM_STRLIT("main"))) {
             sb_add_formatted(sb, "%*sreturn 0;\n", indent_step, "");
         }
         sb_add_string(sb, "}\n");

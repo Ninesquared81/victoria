@@ -96,7 +96,7 @@ struct ast_enum_field_list {
 };
 
 struct ast_sig {
-    struct lxl_string_view name;
+    struct func_sig resolved_sig;
     struct ast_type_decl_list params;
     struct ast_type *ret_type;
 };
@@ -199,13 +199,11 @@ struct ast_decl {
             struct ast_expr *value;
         } var_defn;
         struct {
-            struct ast_sig *unresolved_sig;
-            struct func_sig *resolved_sig;
+            struct ast_sig *sig;
             enum func_link_kind kind;
         } func_decl;
         struct ast_decl_func_defn {
-            struct ast_sig *unresolved_sig;
-            struct func_sig *resolved_sig;
+            struct ast_sig *sig;
             struct ast_list body;
         } func_defn;
         struct {

@@ -668,7 +668,7 @@ static struct ast_decl *parse_func_decl(void) {
     struct lxl_token name_token = consume(TOKEN_IDENTIFIER, false, "Expect function name");
     struct ast_sig *sig = ALLOCATE(perm, sizeof *sig);
     *sig = (struct ast_sig) {
-        .name = lxl_token_value(name_token),
+        .resolved_sig.name = lxl_token_value(name_token),
         .params = {.allocator = perm}};
     consume(TOKEN_BKT_ROUND_LEFT, false, "Expect '(' after function name");
     while (!match(TOKEN_BKT_ROUND_RIGHT, false)) {
@@ -705,14 +705,14 @@ static struct ast_decl *parse_func_decl(void) {
         *decl = (struct ast_decl) {
             .kind = AST_DECL_FUNC_DEFN,
             .func_defn = {
-                .unresolved_sig = sig,
+                .sig = sig,
                 .body = parse_block()}};
     }
     else if (had_line_ending || match(TOKEN_SEMICOLON, true)) {
         *decl = (struct ast_decl) {
             .kind = AST_DECL_FUNC_DECL,
             .func_decl = {
-                .unresolved_sig = sig,
+                .sig = sig,
                 .kind = parser.current_func_kind}};
     }
     else {
@@ -936,8 +936,8 @@ static TypeID resolve_type(struct ast_type *type) {
     return TYPE_NO_TYPE;
 }
 
-static struct func_sig *resolve_func_sig(struct ast_decl_func_defn *func) {
-    (void)func;
+static struct func_sig *resolve_func_sig(struct ast_sig *sig) {
+    (void)sig;
     TODO("resolve function sig");
     return NULL;
 }
@@ -1191,7 +1191,7 @@ static bool compare_sigs(struct func_sig *sig1, struct func_sig *sig2) {
 }
 
 static void type_check_function(struct ast_decl_func_defn *func) {
-    struct func_sig *sig = resolve_func_sig(func);
+    struct func_sig *sig = resolve_func_sig(func->sig);
     struct st_key key = st_key_of(sig->name);
     struct symbol *symbol = lookup_symbol(&symbols, key);
     if (symbol == NULL) {
@@ -1257,7 +1257,7 @@ static void type_check_decl(struct ast_decl *decl) {
         }
     } return;
     case AST_DECL_FUNC_DECL: {
-        struct func_sig *sig = decl->func_decl.resolved_sig;
+        struct func_sig *sig = resolve_func_sig(decl->func_decl.sig);
         struct st_key key = st_key_of(sig->name);
         struct symbol *symbol = lookup_symbol(&symbols, key);
         if (symbol == NULL) {
