@@ -80,6 +80,20 @@ struct allocatorARD {
 // Default initiial size for a dynamic array.
 #define DA_INIT_SIZE 8
 
+// Reserve at least `n` extra items in `da`. If `da` has enough existing capacity, this is a no-op.
+#define DA_RESERVE(da, n)                               \
+    do {                                                \
+        if ((da)->count + n >= (da)->capacity) {        \
+            void *new_items = REALLOCATE_ARRAY(         \
+                (da)->allocator, (da)->items,           \
+                (da)->count + n, (da)->capacity,        \
+                sizeof((da)->items[0]));                \
+            assert(new_items);                          \
+            (da)->items = new_items;                    \
+            (da)->capacity = (da)->count + n;           \
+        }                                               \
+    } while (0)
+
 // Grow a dynamic array by a factor of 3/2.
 #define DA_GROW_CAPACITY(cap) ((cap) > 1 ? (cap)/2 * 3 : DA_INIT_SIZE)
 
