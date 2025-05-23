@@ -932,9 +932,30 @@ struct ast_list parse(void) {
 }
 
 static TypeID resolve_type(struct ast_type *type) {
-    (void)type;
-    (void)next_enum_value;
-    TODO("resolve types");
+    assert(type);
+    if (type->resolved_type) return type->resolved_type;
+    switch (type->kind) {
+    case AST_TYPE_PRIMITIVE:
+        UNREACHABLE();  // Should have been caught above.
+        break;
+    case AST_TYPE_ALIAS: {
+        struct symbol *symbol = lookup_symbol(&symbols, st_key_of(type->alias.name));
+        if (!symbol) {
+            name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(type->alias.name));
+            break;
+        }
+        if (symbol->kind != SYMBOL_TYPE_ALIAS) {
+            name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a type alias", LXL_SV_FMT_ARG(type->alias.name));
+            break;
+        }
+        return resolve_type(&symbol->type_alias.type);
+    }
+    case AST_TYPE_RECORD:
+        TODO("Resolve record type"); break;
+    case AST_TYPE_ENUM:
+        (void)next_enum_value;
+        TODO("Resolve enum type"); break;
+    }
     return TYPE_NO_TYPE;
 }
 
