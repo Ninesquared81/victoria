@@ -231,4 +231,6 @@ struct ast_node {
 #define DECL_NODE(DECL) ((struct ast_node) {.kind = AST_DECL, .decl = DECL})
 #define TYPE_NODE(TYPE) ((struct ast_node) {.kind = AST_TYPE, .type = TYPE})
 
+#define RESOLVED_TYPE(type_id) ((struct ast_type) {.resolved_type = type_id})
+
 #endif
