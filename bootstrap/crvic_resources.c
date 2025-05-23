@@ -25,6 +25,10 @@ void *promote_allocation(void *temp_mem, size_t size) {
     return new;
 }
 
-void begin_temp(void) {
-    region_reset(temp_region);
+REGION_RESTORE begin_temp(void) {
+    return region_save(temp_region);
+}
+
+void end_temp(REGION_RESTORE restore_point) {
+    region_restore(temp_region, restore_point);
 }

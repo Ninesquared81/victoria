@@ -245,7 +245,7 @@ static bool is_digit(char c, int base) {
 }
 
 static uint64_t parse_integer(struct lxl_token token) {
-    begin_temp();
+    AUTO_BEGIN_TEMP();
     struct lxl_string_view orig = lxl_token_value(token);
     char *start = ALLOCATE(temp, orig.length + 1);
     size_t length = 0;
@@ -276,6 +276,7 @@ static uint64_t parse_integer(struct lxl_token token) {
     start[length] = 0;
     uint64_t value = strtoull(start, NULL, base);
     static_assert(sizeof value == sizeof 0ULL, "Unsupported integer size");
+    AUTO_END_TEMP();
     return value;
 }
 

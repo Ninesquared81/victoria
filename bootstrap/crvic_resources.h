@@ -21,6 +21,14 @@ void *promote_allocation(void *temp_mem, size_t size);
             .items = promote_allocation((temp_da)->items, (temp_da)->count * sizeof((temp_da)->items[0]))}
 
 // Begin a series of temporary allocations.
-void begin_temp(void);
+REGION_RESTORE begin_temp(void);
+// End a series of temporary allocations.
+// N.B., `restore_point` should be the unmodified return value of the corresponding call to `begin_temp()`.
+void end_temp(REGION_RESTORE restore_point);
+
+// Begin a series of temporary allocations with an automatically-named variable `AUTO_restore_point`.
+#define AUTO_BEGIN_TEMP() REGION_RESTORE AUTO_restore_point = begin_temp()
+// End a series of temporary allocations begun by `AUTO_BEGIN_TEMP()`.
+#define AUTO_END_TEMP() end_temp(AUTO_restore_point)
 
 #endif
