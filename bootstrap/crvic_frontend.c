@@ -668,7 +668,9 @@ static struct ast_decl *parse_func_decl(void) {
     struct lxl_token name_token = consume(TOKEN_IDENTIFIER, false, "Expect function name");
     struct ast_sig *sig = ALLOCATE(perm, sizeof *sig);
     *sig = (struct ast_sig) {
-        .resolved_sig.name = lxl_token_value(name_token),
+        .resolved_sig = {
+            .name = lxl_token_value(name_token),
+            .params = {.allocator = perm}},
         .params = {.allocator = perm}};
     consume(TOKEN_BKT_ROUND_LEFT, false, "Expect '(' after function name");
     while (!match(TOKEN_BKT_ROUND_RIGHT, false)) {
@@ -936,10 +938,21 @@ static TypeID resolve_type(struct ast_type *type) {
     return TYPE_NO_TYPE;
 }
 
+static struct type_decl resolve_type_decl(struct ast_type_decl *type_decl) {
+    return (struct type_decl) {
+        .name = type_decl->name,
+        .type = resolve_type(type_decl->type)};
+}
+
 static struct func_sig *resolve_func_sig(struct ast_sig *sig) {
-    (void)sig;
-    TODO("resolve function sig");
-    return NULL;
+    struct type_decl_list *resolved_params = &sig->resolved_sig.params;
+    DA_RESERVE(resolved_params, sig->params.count);
+    for (int i = 0; i < sig->params.count; ++i) {
+        resolved_params->items[resolved_params->count++] = resolve_type_decl(&sig->params.items[i]);
+    }
+    sig->resolved_sig.ret_type = resolve_type(sig->ret_type);
+    sig->resolved_sig.arity = sig->resolved_sig.params.count;
+    return &sig->resolved_sig;
 }
 
 static bool expect_integer_type(TypeID type) {
