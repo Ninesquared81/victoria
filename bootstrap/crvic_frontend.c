@@ -1172,7 +1172,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
     } break;
     case AST_EXPR_INTEGER:
         // TODO "untyped" literals... i.e. integer literals have an "INTEGER_LITERAL" type.
-        result_type = lookup_symbol(&symbols, st_key_of(LXL_SV_FROM_STRLIT("int")))->type_alias.type;
+        result_type = TYPE_INT;
         break;
     case AST_EXPR_WHEN: {
         // Propagate errors.
