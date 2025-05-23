@@ -91,3 +91,11 @@ void region_deallocate(void *orig, size_t size, void *region) {
         r->alloc_count -= size;
     }
 }
+
+REGION_RESTORE region_save(struct region *region) {
+    return region->alloc_count;
+}
+
+void region_restore(struct region *region, REGION_RESTORE restore_point) {
+    region->alloc_count = restore_point;
+}

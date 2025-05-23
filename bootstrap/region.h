@@ -2,6 +2,7 @@
 #define REGION_H
 
 #include <stddef.h>  // size_t.
+#include <stdint.h>  // intptr_t.
 
 #include "ubiqs.h"
 
@@ -12,6 +13,8 @@ struct region {
     size_t alloc_count;
     char *data;
 };
+
+typedef const size_t REGION_RESTORE;
 
 // Create a region that can hold `size` bytes using the given allocator.
 struct region *create_region(struct allocatorAD allocator, size_t size);
@@ -33,6 +36,13 @@ void region_reset(struct region *region);
 void *region_reallocate(void *orig, size_t new_size, size_t old_size, void *region);
 // Deallocate inside region. If `orig` was not the last allocation, do nothing.
 void region_deallocate(void *orig, size_t size, void *region);
+
+// Get a restore point for the region's current allocations.
+REGION_RESTORE region_save(struct region *region);
+// Restore the region to a previous restore point returned by `region_save()`.
+// N.B. the behaviour is undefined if `restore_point` was not previously
+// returned by `region_save()` or if the value was modified.
+void region_restore(struct region *region, REGION_RESTORE restore_point);
 
 // Create an allocator object for the given region (by pointer).
 #define region_allocatorARD(region) ((struct allocatorARD) {            \
