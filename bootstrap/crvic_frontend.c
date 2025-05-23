@@ -1341,7 +1341,6 @@ static void type_check_stmt_list(struct ast_list stmts, TypeID ret_type) {
 }
 
 static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
-    (void)ret_type;  // Needed for return statements.
     switch (stmt->kind) {
     case AST_STMT_DECL:
         type_check_decl(stmt->decl.decl);
