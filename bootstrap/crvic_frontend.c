@@ -285,6 +285,7 @@ static uint64_t parse_previous_integer(void) {
 
 static TypeID token_to_type(struct lxl_token token) {
     switch (token.token_type) {
+        /* Keyword type names */
     case TOKEN_KW_I8: return TYPE_I8;
     case TOKEN_KW_I16: return TYPE_I16;
     case TOKEN_KW_I32: return TYPE_I32;
@@ -293,10 +294,11 @@ static TypeID token_to_type(struct lxl_token token) {
     case TOKEN_KW_U16: return TYPE_U16;
     case TOKEN_KW_U32: return TYPE_U32;
     case TOKEN_KW_U64: return TYPE_U64;
-    case TOKEN_KW_INT:
-    case TOKEN_KW_UINT:
-        return lookup_symbol(&symbols, st_key_of(lxl_token_value(token)))->type_alias.type;
+        /* Keyword type aliases (predefined) */
+    case TOKEN_KW_INT: return TYPE_INT;
+    case TOKEN_KW_UINT: return TYPE_UINT;
     }
+    /* Unresolved type aliases */
     return TYPE_NO_TYPE;
 }
 
