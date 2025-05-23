@@ -65,6 +65,10 @@ void region_reset(struct region *r) {
 void *region_reallocate(void *orig, size_t new_size, size_t old_size, void *region) {
     assert(region);
     struct region *r = region;
+    if (old_size == 0) {
+        return region_allocate(new_size, region);
+    }
+    assert(orig != NULL);
     assert(old_size <= r->alloc_count);
     if (orig == &r->data[r->alloc_count - old_size]) {
         // Grow/shrink in-place.
