@@ -784,16 +784,14 @@ struct ast_decl *parse_type_defn(void) {
         .type_defn = {
             .alias = alias,
             .type = type}};
-    /*
     bool insert_result =
         insert_symbol(&symbols, st_key_of(alias),
                       (struct symbol) {
                           .kind = SYMBOL_TYPE_ALIAS,
-                          .type_alias = {.type = type}});
+                          .type_alias = {.type = *type}});
     if (!insert_result) {
         name_error("Cannot redefine symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(alias));
     }
-    //*/
     return decl;
 }
 
@@ -1065,7 +1063,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             name_error("Symbol '"LXL_SV_FMT_SPEC"' is not not a type", LXL_SV_FMT_ARG(name));
             break;
         }
-        TypeID type = symbol->type_alias.type;
+        TypeID type = resolve_type(&symbol->type_alias.type);
         struct type_info *info = get_type(type);
         if (info->kind == KIND_RECORD) {
             if (info->record_type.fields.count != expr->constructor.init_list.count) {
@@ -1121,7 +1119,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             result_type = target_symbol->val.type;
         }
         else if (target_symbol->kind == SYMBOL_TYPE_ALIAS) {
-            result_type = target_symbol->type_alias.type;
+            result_type = resolve_type(&target_symbol->type_alias.type);
             struct type_info *info = get_type(result_type);
             assert(info);
             assert(info->id == result_type);

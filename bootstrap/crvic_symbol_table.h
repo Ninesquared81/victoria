@@ -1,6 +1,7 @@
 #ifndef CRVIC_SYMBOL_TABLE_H
 #define CRVIC_SYMBOL_TABLE_H
 
+#include "crvic_ast.h"
 #include "crvic_function.h"
 
 enum symbol_kind {
@@ -17,15 +18,15 @@ struct symbol_func {
 };
 
 struct symbol_type_alias {
-    TypeID type;
+    struct ast_type type;  // Type not yet resolved for aliases.
 };
 
 struct symbol_var {
-    TypeID type;
+    TypeID type;  // Type already resolved for vars.
 };
 
 struct symbol_val {
-    TypeID type;
+    TypeID type;  // Type already resolved for vals.
 };
 
 struct symbol {
