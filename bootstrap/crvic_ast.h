@@ -229,5 +229,6 @@ struct ast_node {
 #define EXPR_NODE(EXPR) ((struct ast_node) {.kind = AST_EXPR, .expr = EXPR})
 #define STMT_NODE(STMT) ((struct ast_node) {.kind = AST_STMT, .stmt = STMT})
 #define DECL_NODE(DECL) ((struct ast_node) {.kind = AST_DECL, .decl = DECL})
+#define TYPE_NODE(TYPE) ((struct ast_node) {.kind = AST_TYPE, .type = TYPE})
 
 #endif
