@@ -1,0 +1,5 @@
+# NOTE: as of 23/05/25, the "little functions" feature
+# is a long way from being supported.
+# This example is just for an illustration of the idea.
+func print_the_ultimate_answer() => print_number(42)
+func add5(n: int) => n + 5
