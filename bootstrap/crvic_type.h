@@ -104,7 +104,8 @@ size_t calculate_record_size(struct type_decl_list fields);
 struct lxl_string_view make_record_repr(struct type_decl_list fields);
 TypeID get_record_field_type(struct type_decl_list fields, struct lxl_string_view field_name);
 
-TypeID find_enum_type(struct enum_field_list fields);
+TypeID find_enum_type(TypeID underlying_type, struct enum_field_list fields);
+struct type_info make_enum_type(TypeID underlying_type, struct enum_field_list fields);
 struct lxl_string_view make_enum_repr(struct enum_field_list fields);
 bool get_enum_field_value(struct enum_field_list fields, struct lxl_string_view field_name,
                           VIC_INT *OUT_value);

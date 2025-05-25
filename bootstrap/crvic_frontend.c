@@ -111,14 +111,18 @@ static void parse_error_current_show_token(const char *restrict fmt, ...) {
     va_end(vargs);
 }
 
-void type_error(const char *msg, ...) {
+void type_error_vargs(const char *fmt, va_list vargs) {
     fprintf(stderr, "Type error: ");
-    va_list vargs;
-    va_start(vargs, msg);
-    vfprintf(stderr, msg, vargs);
-    va_end(vargs);
+    vfprintf(stderr, fmt, vargs);
     fprintf(stderr, ".\n");
     type_checker.had_error = true;
+}
+
+void type_error(const char *fmt, ...) {
+    va_list vargs;
+    va_start(vargs, fmt);
+    type_error_vargs(fmt, vargs);
+    va_end(vargs);
 }
 
 void name_error(const char *msg, ...) {
@@ -932,6 +936,17 @@ struct ast_list parse(void) {
     return nodes;
 }
 
+VIC_INT fold_integer_constant(struct ast_expr expr, const char *fmt, ...) {
+    if (expr.kind == AST_EXPR_INTEGER) return expr.integer.value;
+    TODO("Other constant expressions");
+    // Not an integer constant.
+    va_list vargs;
+    va_start(vargs, fmt);
+    type_error_vargs(fmt, vargs);
+    va_end(vargs);
+    return 0;
+}
+
 static TypeID resolve_type(struct ast_type *type);
 
 static struct type_decl resolve_type_decl(struct ast_type_decl *type_decl) {
@@ -944,13 +959,41 @@ static TypeID resolve_record(struct ast_type *type) {
     assert(type->kind == AST_TYPE_RECORD);
     AUTO_BEGIN_TEMP();
     struct type_decl_list fields = {.allocator = temp};
-    DA_RESERVE(&fields, type->fields.count);
-    for (int i = 0; i < type->fields.count; ++i) {
-        fields.items[fields.count++] = resolve_type_decl(&type->fields[i]);
+    DA_RESERVE(&fields, type->record_lit.fields.count);
+    for (int i = 0; i < type->record_lit.fields.count; ++i) {
+        fields.items[fields.count++] = resolve_type_decl(&type->record_lit.fields.items[i]);
     }
     TypeID found = find_record_type(fields);
     if (!found) {
-        found = add_type(make_record_type(PROMOTE_DA(&fields)));
+        found = add_type(make_record_type((struct type_decl_list) PROMOTE_DA(&fields)));
+    }
+    AUTO_END_TEMP();
+    assert(found);
+    return found;
+}
+
+static struct enum_field resolve_enum_field(struct ast_enum_field *field) {
+    if (field->value) {
+        set_enum_counter(fold_integer_constant(*field->value, "Expect integer constant for enum field"));
+    }
+    return (struct enum_field) {
+        .name = field->name,
+        .value = next_enum_value()};
+}
+
+static TypeID resolve_enum(struct ast_type *type) {
+    assert(type->kind == AST_TYPE_ENUM);
+    AUTO_BEGIN_TEMP();
+    struct enum_field_list fields = {.allocator = temp};
+    set_enum_counter(0);
+    DA_RESERVE(&fields, type->enum_lit.fields.count);
+    for (int i = 0; i < type->enum_lit.fields.count; ++i) {
+        fields.items[fields.count++] = resolve_enum_field(&type->enum_lit.fields.items[i]);
+    }
+    TypeID underlying_type = resolve_type(type->enum_lit.underlying_type);
+    TypeID found = find_enum_type(underlying_type, fields);
+    if (!found) {
+        found = add_type(make_enum_type(underlying_type, (struct enum_field_list) PROMOTE_DA(&fields)));
     }
     AUTO_END_TEMP();
     assert(found);
@@ -979,8 +1022,7 @@ static TypeID resolve_type(struct ast_type *type) {
     case AST_TYPE_RECORD:
         return resolve_record(type);
     case AST_TYPE_ENUM:
-        (void)next_enum_value;
-        TODO("Resolve enum type"); break;
+        return resolve_enum(type);
     }
     UNREACHABLE();
     return TYPE_NO_TYPE;

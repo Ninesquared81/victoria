@@ -52,7 +52,7 @@ struct type_info make_record_type(struct type_decl_list fields) {
         .kind = KIND_RECORD,
         .repr = make_record_repr(fields),
         .size = calculate_record_size(fields),
-        .record_type = {.fields = fields}});
+        .record_type = {.fields = fields}};
 }
 
 size_t calculate_record_size(struct type_decl_list fields) {
@@ -112,12 +112,23 @@ TypeID get_record_field_type(struct type_decl_list fields, struct lxl_string_vie
 }
 
 
-TypeID find_enum_type(struct enum_field_list fields) {
+TypeID find_enum_type(TypeID underlying_type, struct enum_field_list fields) {
     for (int i = TYPE_PRIMITIVE_COUNT; i < type_count; ++i) {
         struct type_info *info = get_type(i);
-        if (info->kind == KIND_ENUM && DA_EQ(&info->enum_type.fields, &fields)) return i;
+        if (info->kind == KIND_ENUM
+            && info->enum_type.underlying_type == underlying_type
+            && DA_EQ(&info->enum_type.fields, &fields)
+            ) return i;
     }
     return TYPE_NO_TYPE;
+}
+
+struct type_info make_enum_type(TypeID underlying_type, struct enum_field_list fields) {
+    return (struct type_info) {
+        .kind = KIND_ENUM,
+        .enum_type = {
+            .underlying_type = underlying_type,
+            .fields = fields}};
 }
 
 struct lxl_string_view make_enum_repr(struct enum_field_list fields) {
