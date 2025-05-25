@@ -47,6 +47,14 @@ TypeID find_record_type(struct type_decl_list fields) {
     return TYPE_NO_TYPE;
 }
 
+struct type_info make_record_type(struct type_decl_list fields) {
+    return (struct type_info) {
+        .kind = KIND_RECORD,
+        .repr = make_record_repr(fields),
+        .size = calculate_record_size(fields),
+        .record_type = {.fields = fields}});
+}
+
 size_t calculate_record_size(struct type_decl_list fields) {
     size_t size = 0;
     for (int i = 0; i < fields.count; ++i) {

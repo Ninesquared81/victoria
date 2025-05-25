@@ -932,6 +932,31 @@ struct ast_list parse(void) {
     return nodes;
 }
 
+static TypeID resolve_type(struct ast_type *type);
+
+static struct type_decl resolve_type_decl(struct ast_type_decl *type_decl) {
+    return (struct type_decl) {
+        .name = type_decl->name,
+        .type = resolve_type(type_decl->type)};
+}
+
+static TypeID resolve_record(struct ast_type *type) {
+    assert(type->kind == AST_TYPE_RECORD);
+    AUTO_BEGIN_TEMP();
+    struct type_decl_list fields = {.allocator = temp};
+    DA_RESERVE(&fields, type->fields.count);
+    for (int i = 0; i < type->fields.count; ++i) {
+        fields.items[fields.count++] = resolve_type_decl(&type->fields[i]);
+    }
+    TypeID found = find_record_type(fields);
+    if (!found) {
+        found = add_type(make_record_type(PROMOTE_DA(&fields)));
+    }
+    AUTO_END_TEMP();
+    assert(found);
+    return found;
+}
+
 static TypeID resolve_type(struct ast_type *type) {
     assert(type);
     if (type->resolved_type) return type->resolved_type;
@@ -949,21 +974,16 @@ static TypeID resolve_type(struct ast_type *type) {
             name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a type alias", LXL_SV_FMT_ARG(type->alias.name));
             break;
         }
-        return resolve_type(&symbol->type_alias.type);
+        return (type->resolved_type = resolve_type(&symbol->type_alias.type));
     }
     case AST_TYPE_RECORD:
-        TODO("Resolve record type"); break;
+        return resolve_record(type);
     case AST_TYPE_ENUM:
         (void)next_enum_value;
         TODO("Resolve enum type"); break;
     }
+    UNREACHABLE();
     return TYPE_NO_TYPE;
-}
-
-static struct type_decl resolve_type_decl(struct ast_type_decl *type_decl) {
-    return (struct type_decl) {
-        .name = type_decl->name,
-        .type = resolve_type(type_decl->type)};
 }
 
 static struct func_sig *resolve_func_sig(struct ast_sig *sig) {
