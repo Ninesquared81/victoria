@@ -45,7 +45,18 @@ struct type_decl_list {
     int capacity;
     int count;
     struct type_decl *items;
+    int (*elem_cmp)(void *e1, void *e2);
 };
+
+static inline int type_decl_cmp(void *e1, void *e2) {
+    struct type_decl a = *(struct type_decl *)e1;
+    struct type_decl b = *(struct type_decl *)e2;
+    return a.type == b.type && ((memcmp(&a.name, &b.name, sizeof a.name) == 0
+                                 || lxl_sv_equal(a.name, b.name)));
+}
+
+#define TYPE_DECL_LIST(ALLOCATOR)                                       \
+    ((struct type_decl_list) {.allocator = ALLOCATOR, .elem_cmp = type_decl_cmp})
 
 enum signedness {
     SIGN_SIGNED = -1,     // Can be tested with x < 0.
@@ -76,7 +87,18 @@ struct enum_field_list {
     int capacity;
     int count;
     struct enum_field *items;
+    int (*elem_cmp)(void *e1, void *e2);
 };
+
+static inline int enum_field_cmp(void *e1, void *e2) {
+    struct enum_field a = *(struct enum_field *)e1;
+    struct enum_field b = *(struct enum_field *)e2;
+    return a.value == b.value && ((memcmp(&a.name, &b.name, sizeof a.name) == 0
+                                   || lxl_sv_equal(a.name, b.name)));
+}
+
+#define ENUM_FIELD_LIST(ALLOCATOR)              \
+    ((struct enum_field_list) {.allocator = ALLOCATOR, .elem_cmp = enum_field_cmp})
 
 struct type_info {
     TypeID id;                    // ID of type T.
