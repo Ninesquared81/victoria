@@ -71,6 +71,9 @@ struct ast_list {
     struct ast_node *items;
 };
 
+#define AST_LIST(ALLOCATOR)                     \
+    ((struct ast_list) {.allocator = ALLOCATOR})
+
 struct ast_type_decl {
     struct lxl_string_view name;
     struct ast_type *type;
@@ -83,6 +86,9 @@ struct ast_type_decl_list {
     struct ast_type_decl *items;
 };
 
+#define AST_TYPE_DECL_LIST(ALLOCATOR)           \
+    ((struct ast_type_decl_list) {.allocator = ALLOCATOR})
+
 struct ast_enum_field {
     struct lxl_string_view name;
     struct ast_expr *value;  // Specified value, can be NULL for default value.
@@ -94,6 +100,9 @@ struct ast_enum_field_list {
     int count;
     struct ast_enum_field *items;
 };
+
+#define AST_ENUM_FIELD_LIST(ALLOCATOR)          \
+    ((struct ast_enum_field_list) {.allocator = ALLOCATOR})
 
 struct ast_sig {
     struct func_sig resolved_sig;
