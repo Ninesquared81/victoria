@@ -75,6 +75,20 @@ struct allocatorARD {
 #define REALLOCATE_ARRAY(a, orig, new_count, old_count, elem_size)      \
     REALLOCATE(a, orig, (new_count)*(elem_size), (old_count)*(elem_size))
 
+
+// Arrays.
+
+// memcmp-like, element-wise comparison of array elements. Returns sign of first pair of differing elements.
+static inline int array_cmp(void *a, void *b, int count, size_t elem_size,
+                            int (*elem_cmp)(void *e1, void *e2)) {
+    for (int i = 0; i < count; ++i) {
+        size_t offset = i * elem_size;
+        int cmp = elem_cmp((char *)a + offset, (char *)b + offset);
+        if (cmp != 0) return cmp;
+    }
+    return 0;
+}
+
 // Dynamic Arrays.
 
 // Default initiial size for a dynamic array.
@@ -125,10 +139,12 @@ struct allocatorARD {
 #define DA_DEALLOCATE(da)                                               \
     DEALLOCATE_ARRAY((da)->allocator, (da)->items, (da)->capacity, sizeof((da)->items[0])))
 
+// Check if two dynamic arrays are equal.
+// NOTE: expects field `elem_cmp` of type `int (*)(void *, void *)` (see `array_cmp()`).
 #define DA_EQ(a, b)                                                     \
     (sizeof((a)->items[0]) == sizeof((b)->items[0]) &&                  \
      (a)->count == (b)->count &&                                        \
-     memcmp((a)->items, (b)->items, sizeof(a)->items[0]) == 0)
+     array_cmp((a)->items, (b)->items, (a)->count, sizeof(a)->items[0], (a)->elem_cmp) == 0)
 
 
 // Wrapper around stdlib malloc() to work with allocator interface.
