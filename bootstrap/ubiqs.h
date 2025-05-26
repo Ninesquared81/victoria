@@ -2,6 +2,7 @@
 #define UBIQS_H
 
 #include <assert.h>  // assert.
+#include <stdbool.h> // bool, true, false.
 #include <stdint.h>  // uint32_t.
 #include <stdlib.h>  // malloc, realloc, free.
 #include <string.h>  // memcmp.
@@ -78,15 +79,14 @@ struct allocatorARD {
 
 // Arrays.
 
-// memcmp-like, element-wise comparison of array elements. Returns sign of first pair of differing elements.
-static inline int array_cmp(void *a, void *b, int count, size_t elem_size,
-                            int (*elem_cmp)(void *e1, void *e2)) {
+// Element-wise equality check of array elements.
+static inline int array_eq(void *a, void *b, int count, size_t elem_size,
+                           bool (*elem_eq)(void *e1, void *e2)) {
     for (int i = 0; i < count; ++i) {
         size_t offset = i * elem_size;
-        int cmp = elem_cmp((char *)a + offset, (char *)b + offset);
-        if (cmp != 0) return cmp;
+        if (!elem_eq((char *)a + offset, (char *)b + offset)) return false;
     }
-    return 0;
+    return true;
 }
 
 // Dynamic Arrays.
@@ -140,11 +140,11 @@ static inline int array_cmp(void *a, void *b, int count, size_t elem_size,
     DEALLOCATE_ARRAY((da)->allocator, (da)->items, (da)->capacity, sizeof((da)->items[0])))
 
 // Check if two dynamic arrays are equal.
-// NOTE: expects field `elem_cmp` of type `int (*)(void *, void *)` (see `array_cmp()`).
+// NOTE: expects field `elem_eq` of type `bool (*)(void *, void *)` (see `array_eq()`).
 #define DA_EQ(a, b)                                                     \
     (sizeof((a)->items[0]) == sizeof((b)->items[0]) &&                  \
      (a)->count == (b)->count &&                                        \
-     array_cmp((a)->items, (b)->items, (a)->count, sizeof(a)->items[0], (a)->elem_cmp) == 0)
+     array_eq((a)->items, (b)->items, (a)->count, sizeof(a)->items[0], (a)->elem_eq))
 
 
 // Wrapper around stdlib malloc() to work with allocator interface.
