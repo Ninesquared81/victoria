@@ -344,7 +344,7 @@ static struct ast_type parse_type(const char *fmt, ...) {
     if (match(TOKEN_KW_RECORD, false)) {
         // begin_temp();
         consume(TOKEN_BKT_CURLY_LEFT, false, "Expect '{' after 'record'");
-        struct ast_type_decl_list fields = {.allocator = perm};
+        struct ast_type_decl_list fields = AST_TYPE_DECL_LIST(perm);
         while (!check(TOKEN_BKT_CURLY_RIGHT, false)) {
             struct lxl_token field_name_token = consume(TOKEN_IDENTIFIER, false, "Expect field name");
             consume(TOKEN_COLON, false, "Expect ':' after field name");
@@ -395,7 +395,7 @@ static struct ast_type parse_type(const char *fmt, ...) {
             //*/
         }
         consume(TOKEN_BKT_CURLY_LEFT, false, "Expect '{' after 'enum'");
-        struct ast_enum_field_list fields = {.allocator = temp};
+        struct ast_enum_field_list fields = AST_ENUM_FIELD_LIST(perm);
         set_enum_counter(0);
         while (!check(TOKEN_BKT_CURLY_RIGHT, false)) {
             struct lxl_token field_name_token = consume(TOKEN_IDENTIFIER, false, "Expect field name");
@@ -659,7 +659,7 @@ struct ast_expr *parse_expr(void) {
 
 struct ast_list parse_block(void) {
     ignore_line_ending();  // Ignore LF after '{'.
-    struct ast_list stmts = {.allocator = perm};
+    struct ast_list stmts = AST_LIST(perm);
     while (!match(TOKEN_BKT_CURLY_RIGHT, false)) {
         ensure_not_at_end("Unclosed block statement");
         struct ast_stmt *stmt = parse_stmt();
@@ -677,8 +677,8 @@ static struct ast_decl *parse_func_decl(void) {
     *sig = (struct ast_sig) {
         .resolved_sig = {
             .name = lxl_token_value(name_token),
-            .params = {.allocator = perm}},
-        .params = {.allocator = perm}};
+            .params = TYPE_DECL_LIST(perm)},
+        .params = AST_TYPE_DECL_LIST(perm)};
     consume(TOKEN_BKT_ROUND_LEFT, false, "Expect '(' after function name");
     while (!match(TOKEN_BKT_ROUND_RIGHT, false)) {
         ensure_not_at_end("Unclosed function parameter list");
@@ -814,7 +814,7 @@ struct ast_decl *try_parse_decl(void) {
             *decl = (struct ast_decl) {
                 .kind = AST_DECL_EXTERNAL_BLOCK,
                 .external_block = {
-                    .decls = {.allocator = perm}}};
+                    .decls = AST_LIST(perm)}};
             while (!match(TOKEN_BKT_CURLY_RIGHT, false)) {
                 struct lxl_token func_token = consume(TOKEN_KW_FUNC, false, "Expect function declaration");
                 struct ast_decl *func = parse_func_decl();
@@ -958,7 +958,7 @@ static struct type_decl resolve_type_decl(struct ast_type_decl *type_decl) {
 static TypeID resolve_record(struct ast_type *type) {
     assert(type->kind == AST_TYPE_RECORD);
     AUTO_BEGIN_TEMP();
-    struct type_decl_list fields = {.allocator = temp};
+    struct type_decl_list fields = TYPE_DECL_LIST(temp);
     DA_RESERVE(&fields, type->record_lit.fields.count);
     for (int i = 0; i < type->record_lit.fields.count; ++i) {
         fields.items[fields.count++] = resolve_type_decl(&type->record_lit.fields.items[i]);
@@ -984,7 +984,7 @@ static struct enum_field resolve_enum_field(struct ast_enum_field *field) {
 static TypeID resolve_enum(struct ast_type *type) {
     assert(type->kind == AST_TYPE_ENUM);
     AUTO_BEGIN_TEMP();
-    struct enum_field_list fields = {.allocator = temp};
+    struct enum_field_list fields = ENUM_FIELD_LIST(temp);
     set_enum_counter(0);
     DA_RESERVE(&fields, type->enum_lit.fields.count);
     for (int i = 0; i < type->enum_lit.fields.count; ++i) {
