@@ -18,7 +18,8 @@ void *promote_allocation(void *temp_mem, size_t size);
     {       .allocator = perm,                                          \
             .capacity = (temp_da)->count,                               \
             .count = (temp_da)->count,                                  \
-            .items = promote_allocation((temp_da)->items, (temp_da)->count * sizeof((temp_da)->items[0]))}
+            .items = promote_allocation((temp_da)->items, (temp_da)->count * sizeof((temp_da)->items[0])), \
+            .elem_cmp = (temp_da)->elem_cmp}
 
 // Begin a series of temporary allocations.
 REGION_RESTORE begin_temp(void);
