@@ -187,6 +187,11 @@ static inline int array_eq(void *a, void *b, int count, size_t elem_size,
         (prev_node)->next = new_node;                   \
     }
 
+// Allocate space for a node in `list`.
+// NB, an additional member, .allocator, is required for this.
+#define DLLIST_NEW_NODE(list)                   \
+    ALLOCATE((list)->allocator, sizeof (list)->head)
+
 // Wrapper around stdlib malloc() to work with allocator interface.
 static inline void *allocator_malloc(size_t size, void *ctx) {
     (void)ctx;
