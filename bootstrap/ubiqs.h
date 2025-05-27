@@ -91,6 +91,9 @@ static inline int array_eq(void *a, void *b, int count, size_t elem_size,
 
 // Dynamic Arrays.
 
+// Required members:
+//  - da: `.allocator` (A-R-D), `.capacity`, `.count`, `.items`
+
 // Default initiial size for a dynamic array.
 #define DA_INIT_SIZE 8
 
@@ -112,7 +115,6 @@ static inline int array_eq(void *a, void *b, int count, size_t elem_size,
 #define DA_GROW_CAPACITY(cap) ((cap) > 1 ? (cap)/2 * 3 : DA_INIT_SIZE)
 
 // Append an item to the end of a type-generic dynamic array.
-// NB, the dynamic array struct must have the members .capacity, .count, .items and .allocator.
 #define DA_APPEND(da, item)                                             \
     do {                                                                \
         if ((da)->count >= (da)->capacity) {                            \
@@ -140,12 +142,50 @@ static inline int array_eq(void *a, void *b, int count, size_t elem_size,
     DEALLOCATE_ARRAY((da)->allocator, (da)->items, (da)->capacity, sizeof((da)->items[0])))
 
 // Check if two dynamic arrays are equal.
-// NOTE: expects field `elem_eq` of type `bool (*)(void *, void *)` (see `array_eq()`).
+// NOTE: expects field `.elem_eq` of type `bool (*)(void *, void *)` (see `array_eq()`).
 #define DA_EQ(a, b)                                                     \
     (sizeof((a)->items[0]) == sizeof((b)->items[0]) &&                  \
      (a)->count == (b)->count &&                                        \
      array_eq((a)->items, (b)->items, (a)->count, sizeof(a)->items[0], (a)->elem_eq))
 
+// Doubly-linked lists.
+// Required members:
+//  - list: `.head`, `.tail`
+//  - node: `.next`, `.prev`
+
+// Insert a (pre-allocated) node at the head of a list.
+#define DLLIST_INSERT_HEAD(list, new_node)          \
+    do {                                            \
+        (new_node)->prev = NULL;                    \
+        (new_node)->next = (list)->head;            \
+        (list)->head->prev = new_node;              \
+        (list)->head = new_node;                    \
+    }
+
+// Insert a (pre-allocated) node at the tail of a list.
+#define DLLIST_INSERT_TAIL(list, new_node)          \
+    do {                                            \
+        (new_node)->prev = (list)->prev;            \
+        (new_node)->next = NULL;                    \
+        (list)->tail->next = new_node;              \
+        (list)->tail = new_node;                    \
+    }
+
+// Insert a (pre-allocated) node before an internal node.
+#define DLLIST_INSERT_BEFORE(next_node, new_node)       \
+    do {                                                \
+        (new_node)->next = next_node;                   \
+        (new_node)->prev = (next_node)->prev;           \
+        (next_node)->prev = new_node;                   \
+    }
+
+// Insert a (pre-allocated) node after an internal node.
+#define DLLIST_INSERT_AFTER(prev_node, new_node)        \
+    do {                                                \
+        (new_node)->next = (prev_node)->next;           \
+        (new_node)->prev = prev_node;                   \
+        (prev_node)->next = new_node;                   \
+    }
 
 // Wrapper around stdlib malloc() to work with allocator interface.
 static inline void *allocator_malloc(size_t size, void *ctx) {
