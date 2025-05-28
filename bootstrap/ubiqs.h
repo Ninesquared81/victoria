@@ -248,6 +248,6 @@ struct iterator {
     ((it)->next(it))
 
 #define FOR_ITER(T, var, it)                    \
-    for (T *var; (var = ITER_NEXT(it)); )
+    for (T var; (var = ITER_NEXT(it)); )
 
 #endif  // UBIQS_H
