@@ -21,16 +21,15 @@ enum cgen_error crvic_generate_c_nodes(struct ast_list nodes, int indent, int in
                                        struct string_buffer *sb) {
     assert(indent >= 0 && indent_step >= 0);
     enum cgen_error error = CGEN_OK;
-    for (int i = 0; i < nodes.count; ++i) {
-        struct ast_node node = nodes.items[i];
-        switch (node.kind) {
+    FOR_DLLIST (struct ast_node *, node, &nodes) {
+        switch (node->kind) {
         case AST_EXPR:
             return CGEN_UNEXPECTED_EXPR;
         case AST_STMT:
-            error = crvic_generate_c_stmt(node.stmt, indent, indent_step, sb);
+            error = crvic_generate_c_stmt(&node->stmt, indent, indent_step, sb);
             break;
         case AST_DECL:
-            error = crvic_generate_c_decl(node.decl, indent, indent_step, sb);
+            error = crvic_generate_c_decl(&node->decl, indent, indent_step, sb);
             break;
         }
         if (error) return error;
@@ -59,7 +58,7 @@ enum cgen_error crvic_generate_c_stmt(struct ast_stmt *stmt, int indent, int ind
         if ((error = crvic_generate_c_nodes(
                  stmt->if_.then_clause, indent + indent_step, indent_step, sb))) return error;
         sb_add_formatted(sb, "%*s}\n", indent, "");
-        if (stmt->if_.else_clause.count == 0) break;  // No else clause.
+        if (DLLIST_IS_EMPTY(&stmt->if_.else_clause)) break;  // No else clause.
         sb_add_formatted(sb, "%*selse {\n", indent, "");
         if ((error = crvic_generate_c_nodes(
                  stmt->if_.else_clause, indent + indent_step, indent_step, sb))) return error;
@@ -110,10 +109,9 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
         sb_add_string(sb, "}\n");
         break;
     case AST_DECL_EXTERNAL_BLOCK:
-        for (int i = 0; i < decl->external_block.decls.count; ++i) {
-            struct ast_node node = decl->external_block.decls.items[i];
-            assert(node.kind == AST_DECL);
-            if ((error = crvic_generate_c_decl(node.decl, indent, indent_step, sb))) return error;
+        FOR_DLLIST (struct ast_node *, node, &decl->external_block.decls) {
+            assert(node->kind == AST_DECL);
+            if ((error = crvic_generate_c_decl(&node->decl, indent, indent_step, sb))) return error;
         }
         break;
     case AST_DECL_TYPE_DEFN:
@@ -225,23 +223,22 @@ enum cgen_error crvic_generate_c_func_body(struct ast_list nodes, int indent_ste
 
 enum cgen_error crvic_generate_c_expr_sep_list(struct ast_list nodes, const char *sep,
                                                struct string_buffer *sb) {
-    if (nodes.count <= 0) return CGEN_OK;
+    if (DLLIST_IS_EMPTY(&nodes)) return CGEN_OK;
     enum cgen_error error = CGEN_OK;
-    struct ast_node node = nodes.items[0];
-    if (node.kind != AST_EXPR) return CGEN_UNEXPECTED_STMT;
-    if ((error = crvic_generate_c_expr(node.expr, sb))) return error;
-    for (int i = 1; i < nodes.count; ++i) {
-        node = nodes.items[i];
-        if (node.kind != AST_EXPR) return CGEN_UNEXPECTED_STMT;
+    struct ast_node *node = nodes.head;
+    if (node->kind != AST_EXPR) return CGEN_UNEXPECTED_STMT;
+    if ((error = crvic_generate_c_expr(&node->expr, sb))) return error;
+    while ((node = node->next) != NULL) {
+        if (node->kind != AST_EXPR) return CGEN_UNEXPECTED_STMT;
         sb_add_string(sb, sep);
-        if ((error = crvic_generate_c_expr(node.expr, sb))) return error;
+        if ((error = crvic_generate_c_expr(&node->expr, sb))) return error;
     }
     return CGEN_OK;
 }
 
 enum cgen_error crvic_generate_c_types(int indent_step, struct string_buffer *sb) {
     struct iterator it = get_type_iterator();
-    FOR_ITER(struct type_info, info, &it) {
+    FOR_ITER(struct type_info *, info, &it) {
         enum cgen_error ret = CGEN_OK;
         if (info->kind == KIND_RECORD) {
             if ((ret = crvic_generate_c_record_defn(*info, indent_step, sb)) != CGEN_OK) return ret;

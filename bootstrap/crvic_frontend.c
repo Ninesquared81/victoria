@@ -210,11 +210,13 @@ static struct ast_expr *new_expr(void) {
     return expr;
 }
 
+/*
 static struct ast_stmt *new_stmt(void) {
     struct ast_stmt *stmt = ALLOCATE(perm, sizeof *stmt);
     assert(stmt != NULL && "We're gonna need a bigger region!");
     return stmt;
 }
+//*/
 
 static struct ast_decl *new_decl(void) {
     struct ast_decl *decl = ALLOCATE(perm, sizeof *decl);
@@ -226,6 +228,44 @@ static struct ast_type *new_type(void) {
     struct ast_type *type = ALLOCATE(perm, sizeof *type);
     assert(type != NULL && "We're gonna need a bigger region!");
     return type;
+}
+
+static struct ast_node *new_node(void) {
+    struct ast_node *node = ALLOCATE(perm, sizeof *node);
+    assert(node != NULL && "We're gonna need a bugger region!");
+    return node;
+}
+
+static struct ast_expr *copy_expr(struct ast_expr expr) {
+    struct ast_expr *new = new_expr();
+    *new = expr;
+    return new;
+}
+
+/*
+static struct ast_stmt *copy_stmt(struct ast_stmt stmt) {
+    struct ast_stmt *new = new_stmt();
+    *new = stmt;
+    return new;
+}
+//*/
+
+static struct ast_decl *copy_decl(struct ast_decl decl) {
+    struct ast_decl *new = new_decl();
+    *new = decl;
+    return new;
+}
+
+static struct ast_type *copy_type(struct ast_type type) {
+    struct ast_type *new = new_type();
+    *new = type;
+    return new;
+}
+
+static struct ast_node *copy_node(struct ast_node node) {
+    struct ast_node *new = new_node();
+    *new = node;
+    return new;
 }
 
 static bool check_comparison(bool strict) {
@@ -307,8 +347,8 @@ static TypeID token_to_type(struct lxl_token token) {
     return TYPE_NO_TYPE;
 }
 
-static struct ast_expr *parse_expr(void);
-static struct ast_stmt *parse_stmt(void);
+static struct ast_expr parse_expr(void);
+static struct ast_stmt parse_stmt(void);
 
 static struct ast_type parse_type(const char *fmt, ...) {
     static_assert(TYPE_NO_TYPE == 0, "TYPE_NO_TYPE should be 'falsy'");
@@ -350,9 +390,8 @@ static struct ast_type parse_type(const char *fmt, ...) {
             consume(TOKEN_COLON, false, "Expect ':' after field name");
             ignore_line_ending();
             struct lxl_string_view field_name = lxl_token_value(field_name_token);
-            struct ast_type *field_type = new_type();
-            *field_type = parse_type("Expect field type after ':'");
-            struct ast_type_decl field = {.name = field_name, .type = field_type};
+            struct ast_type field_type = parse_type("Expect field type after ':'");
+            struct ast_type_decl field = {.name = field_name, .type = copy_type(field_type)};
             DA_APPEND(&fields, field);
             if (!match(TOKEN_COMMA, false)) break;
         }
@@ -378,14 +417,13 @@ static struct ast_type parse_type(const char *fmt, ...) {
     // Enum types.
     if (match(TOKEN_KW_ENUM, false)) {
         // begin_temp();
-        struct ast_type *underlying_type = new_type();
-        *underlying_type = (struct ast_type) {
+        struct ast_type underlying_type = {
             .kind = AST_TYPE_PRIMITIVE,
             .resolved_type = TYPE_INT};
         if (match(TOKEN_COLON, false)) {
             // Underlying type.
             ignore_line_ending();
-            *underlying_type = parse_type("Expect underlying type for enum after ':'");
+            underlying_type = parse_type("Expect underlying type for enum after ':'");
             /* // NOTE: check this at type checking stage.
             if (!is_integer_type(underlying_type.resolved_type)) {
                 struct lxl_string_view underlying_type_sv = get_type_sv(underlying_type);
@@ -400,10 +438,10 @@ static struct ast_type parse_type(const char *fmt, ...) {
         while (!check(TOKEN_BKT_CURLY_RIGHT, false)) {
             struct lxl_token field_name_token = consume(TOKEN_IDENTIFIER, false, "Expect field name");
             struct lxl_string_view field_name = lxl_token_value(field_name_token);
-            struct ast_expr *value = NULL;
+            struct ast_expr *value = new_expr();
             if (match(TOKEN_COLON_EQUALS, false)) {
                 // Specified value.
-                value = parse_expr();  // Parsing as expr allows for constant expressions like `1+2`.
+                *value = parse_expr();  // Parsing as expr allows for constant expressions like `1+2`.
                 /* // Do enum values at type resolution. Also verify integer there.
                 consume(TOKEN_LIT_INTEGER, false, "Expect integer literal value");
                 set_enum_counter(parse_previous_integer());
@@ -420,7 +458,7 @@ static struct ast_type parse_type(const char *fmt, ...) {
         return (struct ast_type) {
             .kind = AST_TYPE_ENUM,
             .enum_lit = {
-                .underlying_type = underlying_type,
+                .underlying_type = copy_type(underlying_type),
                 .fields = fields}};
         /*
         TypeID enum_type = find_enum_type(fields);
@@ -455,9 +493,8 @@ static struct ast_expr parse_compare(void);
 static struct ast_list parse_comma_list_no_assign(enum token_type terminator, const char *message) {
     struct ast_list args = {0};
     while (!match(terminator, false)) {
-        struct ast_expr *arg = new_expr();
-        *arg = parse_compare();  // Do not allow assign expressions.
-        DA_APPEND(&args, EXPR_NODE(arg));
+        struct ast_node *arg = copy_node(EXPR_NODE(parse_compare()));  // Do not allow assign expressions.
+        DLLIST_APPEND(&args, arg);
         if (!match(TOKEN_COMMA, true)) {
             consume(terminator, false, message);
             break;
@@ -517,12 +554,15 @@ static struct ast_expr parse_primary(void) {
     }
     else if (match(TOKEN_KW_WHEN, true)) {
         ignore_line_ending();
-        struct ast_expr *cond = parse_expr();
+        struct ast_expr *cond = new_expr();
+        struct ast_expr *then_expr = new_expr();
+        struct ast_expr *else_expr = new_expr();
+        *cond = parse_expr();
         consume(TOKEN_KW_THEN, false, "Expect 'then' after condition in when expression");
         ignore_line_ending();
-        struct ast_expr *then_expr = parse_expr();
+        *then_expr = parse_expr();
         consume(TOKEN_KW_ELSE, false, "Expect 'else' after then branch in when expression");
-        struct ast_expr *else_expr = parse_expr();
+        *else_expr = parse_expr();
         expr = (struct ast_expr) {
             .kind = AST_EXPR_WHEN,
             .when = {
@@ -651,27 +691,24 @@ static struct ast_expr parse_assign(void) {
     return expr;
 }
 
-struct ast_expr *parse_expr(void) {
-    struct ast_expr *expr = new_expr();
-    *expr = parse_assign();
-    return expr;
+static struct ast_expr parse_expr(void) {
+    return parse_assign();
 }
 
-struct ast_list parse_block(void) {
+static struct ast_list parse_block(void) {
     ignore_line_ending();  // Ignore LF after '{'.
-    struct ast_list stmts = AST_LIST(perm);
+    struct ast_list stmts = {0};
     while (!match(TOKEN_BKT_CURLY_RIGHT, false)) {
         ensure_not_at_end("Unclosed block statement");
-        struct ast_stmt *stmt = parse_stmt();
-        DA_APPEND(&stmts, STMT_NODE(stmt));
+        struct ast_node *node = new_node();
+        *node = STMT_NODE(parse_stmt());
     }
     ignore_line_ending();  // Ignore LF after '}'.
     return stmts;
 }
 
-static struct ast_decl *parse_func_decl(void) {
-    struct ast_decl *decl = new_decl();
-    *decl = (struct ast_decl) {0};
+static struct ast_decl parse_func_decl(void) {
+    struct ast_decl decl = {0};
     struct lxl_token name_token = consume(TOKEN_IDENTIFIER, false, "Expect function name");
     struct ast_sig *sig = ALLOCATE(perm, sizeof *sig);
     *sig = (struct ast_sig) {
@@ -711,14 +748,14 @@ static struct ast_decl *parse_func_decl(void) {
     }
     had_line_ending += check_line_ending();
     if (match(TOKEN_BKT_CURLY_LEFT, false)) {
-        *decl = (struct ast_decl) {
+        decl = (struct ast_decl) {
             .kind = AST_DECL_FUNC_DEFN,
             .func_defn = {
                 .sig = sig,
                 .body = parse_block()}};
     }
     else if (had_line_ending || match(TOKEN_SEMICOLON, true)) {
-        *decl = (struct ast_decl) {
+        decl = (struct ast_decl) {
             .kind = AST_DECL_FUNC_DECL,
             .func_decl = {
                 .sig = sig,
@@ -730,13 +767,12 @@ static struct ast_decl *parse_func_decl(void) {
     return decl;
 }
 
-struct ast_decl *parse_var_decl(enum ast_var_kind kind) {
+struct ast_decl parse_var_decl(enum ast_var_kind kind) {
     struct lxl_token var_token = parser.previous_token;
     // Sanity check:
     assert((var_token.token_type == TOKEN_KW_VAR && kind == AST_VAR_VAR) ||
            (var_token.token_type == TOKEN_KW_VAL && kind == AST_VAR_VAL));
-    struct ast_decl *decl = new_decl();
-    *decl = (struct ast_decl) {0};
+    struct ast_decl decl = {0};
     struct lxl_token name_token = consume(TOKEN_IDENTIFIER, false, "Expect variable name after 'var'");
     struct lxl_string_view name = lxl_token_value(name_token);
     struct ast_type *type = new_type();
@@ -751,7 +787,7 @@ struct ast_decl *parse_var_decl(enum ast_var_kind kind) {
                 parse_error_show_token(var_token, "Immutable value '"LXL_SV_FMT_SPEC"' must be initialised",
                                        LXL_SV_FMT_ARG(name));
             }
-            *decl = (struct ast_decl) {
+            decl = (struct ast_decl) {
                 .kind = AST_DECL_VAR_DECL,
                 .var_decl = {
                     .name = name,
@@ -764,9 +800,10 @@ struct ast_decl *parse_var_decl(enum ast_var_kind kind) {
         consume(TOKEN_COLON_EQUALS, false, "Expect ':=' or ': T =' after variable name");
     }
     ignore_line_ending();
-    struct ast_expr *value = parse_expr();
+    struct ast_expr *value = new_expr();
+    *value = parse_expr();
     end_statement();
-    *decl = (struct ast_decl) {
+    decl = (struct ast_decl) {
         .kind = AST_DECL_VAR_DEFN,
         .var_defn = {
             .name = name,
@@ -776,15 +813,15 @@ struct ast_decl *parse_var_decl(enum ast_var_kind kind) {
     return decl;
 }
 
-struct ast_decl *parse_type_defn(void) {
+struct ast_decl parse_type_defn(void) {
     struct lxl_token alias_token = consume(TOKEN_IDENTIFIER, false, "Expect alias after 'type'");
     struct lxl_string_view alias = lxl_token_value(alias_token);
     consume(TOKEN_COLON_EQUALS, false, "Expect ':=' after type alias");
-    struct ast_decl *decl = new_decl();
+    struct ast_decl decl = {0};
     struct ast_type *type = new_type();
     *type = parse_type("Expect type after ':=' in type alias definition");
     end_statement();
-    *decl = (struct ast_decl) {
+    decl = (struct ast_decl) {
         .kind = AST_DECL_TYPE_DEFN,
         .type_defn = {
             .alias = alias,
@@ -800,25 +837,24 @@ struct ast_decl *parse_type_defn(void) {
     return decl;
 }
 
-struct ast_decl *try_parse_decl(void) {
+bool try_parse_decl(struct ast_decl *OUT_decl) {
     if (match(TOKEN_KW_EXTERNAL, true)) {
         enum func_link_kind prev_kind = parser.current_func_kind;
         parser.current_func_kind = FUNC_EXTERNAL;
-        struct ast_decl *decl = NULL;
         if (match(TOKEN_KW_FUNC, false)) {
-            decl = parse_func_decl();
+            *OUT_decl = parse_func_decl();
         }
         else {
             consume(TOKEN_BKT_CURLY_LEFT, false, "Expect 'func' or '{' after 'external'");
-            decl = new_decl();
-            *decl = (struct ast_decl) {
+            *OUT_decl = (struct ast_decl) {
                 .kind = AST_DECL_EXTERNAL_BLOCK,
                 .external_block = {
-                    .decls = AST_LIST(perm)}};
+                    .decls = {0}}};
             while (!match(TOKEN_BKT_CURLY_RIGHT, false)) {
                 struct lxl_token func_token = consume(TOKEN_KW_FUNC, false, "Expect function declaration");
-                struct ast_decl *func = parse_func_decl();
-                assert(func);
+                struct ast_node *node = new_node();
+                *node = DECL_NODE(parse_func_decl());
+                struct ast_decl *func = &node->decl;
                 if (func->kind != AST_DECL_FUNC_DECL) {
                     assert(func->kind == AST_DECL_FUNC_DEFN);
                     parse_error_show_token(func_token, "Expect function delcaration in 'external' block");
@@ -826,33 +862,36 @@ struct ast_decl *try_parse_decl(void) {
                 else {
                     assert(func->func_decl.kind == FUNC_EXTERNAL &&
                            "Function should be external inside 'external' block");
-                    DA_APPEND(&decl->external_block.decls, DECL_NODE(func));
+                    DLLIST_APPEND(&OUT_decl->external_block.decls, node);
                 }
             }
             ignore_line_ending();
 
         }
         parser.current_func_kind = prev_kind;
-        return decl;
     }
-    if (match(TOKEN_KW_FUNC, true)) {
-        return parse_func_decl();
+    else if (match(TOKEN_KW_FUNC, true)) {
+        *OUT_decl = parse_func_decl();
     }
-    if (match(TOKEN_KW_TYPE, true)) {
-        return parse_type_defn();
+    else if (match(TOKEN_KW_TYPE, true)) {
+        *OUT_decl = parse_type_defn();
     }
-    if (match(TOKEN_KW_VAR, true)) {
-        return parse_var_decl(AST_VAR_VAR);
+    else if (match(TOKEN_KW_VAR, true)) {
+        *OUT_decl = parse_var_decl(AST_VAR_VAR);
     }
-    if (match(TOKEN_KW_VAL, true)) {
-        return parse_var_decl(AST_VAR_VAL);
+    else if (match(TOKEN_KW_VAL, true)) {
+        *OUT_decl = parse_var_decl(AST_VAR_VAL);
     }
-    return NULL;
+    else {
+        return false;
+    }
+    return true;
 }
 
 struct ast_stmt parse_if(void) {
     ignore_line_ending();
-    struct ast_expr *cond = parse_expr();
+    struct ast_expr *cond = new_expr();
+    *cond = parse_expr();
     consume(TOKEN_BKT_CURLY_LEFT, false, "Expect '{' after 'if' condition");
     struct ast_list then_clause = parse_block();
     struct ast_list else_clause = {0};
@@ -863,9 +902,9 @@ struct ast_stmt parse_if(void) {
         }
         else {
             consume(TOKEN_KW_IF, false, "Expect '{' or 'if' after 'else'");
-            struct ast_stmt *elif_clause = new_stmt();
-            *elif_clause = parse_if();
-            DA_APPEND(&else_clause, STMT_NODE(elif_clause));
+            struct ast_node *elif_clause = new_node();
+            *elif_clause = STMT_NODE(parse_if());
+            DLLIST_APPEND(&else_clause, elif_clause);
         }
     }
     return (struct ast_stmt) {
@@ -883,55 +922,48 @@ struct ast_stmt parse_return(void) {
     }
     else {
         // Return with expression.
-        expr = parse_expr();
+        expr = new_expr();
+        *expr = parse_expr();
     }
     return (struct ast_stmt) {
         .kind = AST_STMT_RETURN,
         .return_ = {.expr = expr}};
 }
 
-struct ast_stmt *parse_stmt(void) {
-    struct ast_stmt *stmt = new_stmt();
+struct ast_stmt parse_stmt(void) {
     if (match(TOKEN_KW_IF, true)) {
-        *stmt = parse_if();
+        return parse_if();
     }
-    else if (match(TOKEN_KW_RETURN, true)) {
-        *stmt = parse_return();
+    if (match(TOKEN_KW_RETURN, true)) {
+        return parse_return();
     }
-    else {
-        struct ast_decl *decl = try_parse_decl();
-        if (decl != NULL) {
-            // Declaration statement.
-            *stmt = (struct ast_stmt) {
-                .kind = AST_STMT_DECL,
-                .decl = {.decl = decl}};
-        }
-        else {
-            // Expression statement.
-            *stmt = (struct ast_stmt) {
-                .kind = AST_STMT_EXPR,
-                .expr = {.expr = parse_expr()}};
-            end_statement();
-        }
+    struct ast_decl decl = {0};
+    if (try_parse_decl(&decl)) {
+        // Declaration statement.
+        return (struct ast_stmt) {
+            .kind = AST_STMT_DECL,
+            .decl = {.decl = copy_decl(decl)}};
     }
-    return stmt;
+    // Expression statement.
+    struct ast_expr expr = parse_expr();
+    end_statement();
+    return (struct ast_stmt) {
+        .kind = AST_STMT_EXPR,
+        .expr = {.expr = copy_expr(expr)}};
 }
 
 struct ast_list parse(void) {
     struct ast_list nodes = {0};
     advance();  // Prime parser with first token;
     for (; ignore_line_ending(), !parser_is_finished();) {
-        struct ast_node current_node = {0};
-        struct ast_decl *decl = try_parse_decl();
-        if (decl != NULL) {
-            current_node = (struct ast_node) {
-                .kind = AST_DECL,
-                .decl = decl};
+        struct ast_decl decl = {0};
+        if (try_parse_decl(&decl)) {
+            struct ast_node *node = copy_node(DECL_NODE(decl));
+            DLLIST_APPEND(&nodes, node);
         }
         else {
             parse_error_current_show_token("Unexpected token at module top level");
         }
-        DA_APPEND(&nodes, current_node);
     }
     return nodes;
 }
@@ -1119,19 +1151,20 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         assert(actual_arity == expected_arity);
         assert(actual_arity == expr->call.args.count);
         assert(expected_arity == callee->sig->params.count);
-        for (int i = 0; i < actual_arity; ++i) {
+        struct ast_node *arg = expr->call.args.head;
+        for (int i = 0; i < expected_arity; ++i, arg = arg->next) {
             // Parameter: expected, argument: actual.
-            struct type_decl param = callee->sig->params.items[i];
-            struct ast_node arg = expr->call.args.items[i];
-            assert(arg.kind == AST_EXPR);
-            TypeID arg_type = type_check_expr(arg.expr);
+            assert(arg != NULL);
+            struct type_decl *param = &callee->sig->params.items[i];
+            assert(arg->kind == AST_EXPR);
+            TypeID arg_type = type_check_expr(&arg->expr);
             if (arg_type == TYPE_NO_TYPE) continue;  // Skip unknown type.
-            if (arg_type != param.type) {
-                struct lxl_string_view param_type_name = get_type_sv(param.type);
+            if (arg_type != param->type) {
+                struct lxl_string_view param_type_name = get_type_sv(param->type);
                 struct lxl_string_view arg_type_name = get_type_sv(arg_type);
                 type_error("Expected type '"LXL_SV_FMT_SPEC"' for parameter '"LXL_SV_FMT_SPEC"' "
                            "of function '"LXL_SV_FMT_SPEC"', but got type '"LXL_SV_FMT_SPEC"'",
-                           LXL_SV_FMT_ARG(param_type_name), LXL_SV_FMT_ARG(param.name),
+                           LXL_SV_FMT_ARG(param_type_name), LXL_SV_FMT_ARG(param->name),
                            LXL_SV_FMT_ARG(callee_name), LXL_SV_FMT_ARG(arg_type_name));
             }
         }
@@ -1157,11 +1190,12 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                            expr->constructor.init_list.count);
                 break;
             }
-            for (int i = 0; i < info->record_type.fields.count; ++i) {
+            struct ast_node *node = expr->constructor.init_list.head;
+            for (int i = 0; i < info->record_type.fields.count; ++i, node = node->next) {
+                assert(node != NULL);
                 TypeID expected_type = info->record_type.fields.items[i].type;
-                struct ast_node node = expr->constructor.init_list.items[i];
-                assert(node.kind == AST_EXPR);
-                TypeID actual_type = type_check_expr(node.expr);
+                assert(node->kind == AST_EXPR);
+                TypeID actual_type = type_check_expr(&node->expr);
                 if (expected_type != actual_type) {
                     struct lxl_string_view expected_sv = get_type_sv(expected_type);
                     struct lxl_string_view actual_sv = get_type_sv(actual_type);
@@ -1317,9 +1351,9 @@ static void type_check_function(struct ast_decl_func_defn *func) {
     }
     // TODO: set up arguments as local variables.
     // TODO: local variables.
-    for (int i = 0; i < func->body.count; ++i) {
-        assert(func->body.items[i].kind == AST_STMT);
-        struct ast_stmt *stmt = func->body.items[i].stmt;
+    FOR_DLLIST (struct ast_node *, node, &func->body) {
+        assert(node->kind == AST_STMT);
+        struct ast_stmt *stmt = &node->stmt;
         type_check_stmt(stmt, sig->ret_type);
     }
 }
@@ -1395,10 +1429,9 @@ static void type_check_decl(struct ast_decl *decl) {
         type_check_function(&decl->func_defn);
         return;
     case AST_DECL_EXTERNAL_BLOCK:
-        for (int i = 0; i < decl->external_block.decls.count; ++i) {
-            struct ast_node node = decl->external_block.decls.items[i];
-            assert(node.kind == AST_DECL);
-            type_check_decl(node.decl);
+        FOR_DLLIST (struct ast_node *, node, &decl->external_block.decls) {
+            assert(node->kind == AST_DECL);
+            type_check_decl(&node->decl);
         }
         return;
     case AST_DECL_TYPE_DEFN:
@@ -1409,17 +1442,11 @@ static void type_check_decl(struct ast_decl *decl) {
 }
 
 static void type_check_stmt_list(struct ast_list stmts, TypeID ret_type) {
-    for (int i = 0; i < stmts.count; ++i) {
-        struct ast_node node = stmts.items[i];
-        assert(node.kind != AST_EXPR);
-        if (node.kind == AST_STMT) {
-            type_check_stmt(node.stmt, ret_type);
-        }
-        else if (node.kind == AST_DECL) {
-            type_check_decl(node.decl);
-        }
-        else {
-            UNREACHABLE();
+    FOR_DLLIST (struct ast_node *, node, &stmts) {
+        switch (node->kind) {
+        case AST_EXPR: UNREACHABLE(); break;
+        case AST_STMT: type_check_stmt(&node->stmt, ret_type); break;
+        case AST_DECL: type_check_decl(&node->decl); break;
         }
     }
 }
@@ -1461,9 +1488,8 @@ static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
 }
 
 bool type_check(struct ast_list *nodes) {
-    for (int i = 0; i < nodes->count; ++i) {
-        struct ast_node node = nodes->items[i];
-        switch (node.kind) {
+    FOR_DLLIST (struct ast_node *, node, nodes) {
+        switch (node->kind) {
         case AST_EXPR:
             // Cannot have an expression here.
             UNREACHABLE();
@@ -1472,7 +1498,7 @@ bool type_check(struct ast_list *nodes) {
             type_error("Only declarations and definitons are allowed at module scope");
             break;
         case AST_DECL:
-            type_check_decl(node.decl);
+            type_check_decl(&node->decl);
             break;
         }
     }
