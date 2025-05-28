@@ -186,7 +186,13 @@ static inline int array_eq(void *a, void *b, int count, size_t elem_size,
         (new_node)->prev = prev_node;                   \
         (prev_node)->next = new_node;                   \
     }
+// Check whether the list is empty.
+#define DLLIST_IS_EMPTY(list)                   \
+    (list)->count == 0
 
+// Loop over list elements in forward direction.
+#define FOR_DLLIST(T, var, list)                                \
+    for (T var = (list)->head; var != NULL; var = var->next)
 
 // Wrapper around stdlib malloc() to work with allocator interface.
 static inline void *allocator_malloc(size_t size, void *ctx) {
