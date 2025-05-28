@@ -154,38 +154,47 @@ static inline int array_eq(void *a, void *b, int count, size_t elem_size,
 //  - node: `.next`, `.prev`
 
 // Insert a (pre-allocated) node at the head of a list.
-    do {                                            \
-        (new_node)->prev = NULL;                    \
-        (new_node)->next = (list)->head;            \
-        (list)->head->prev = new_node;              \
-        (list)->head = new_node;                    \
-    }
 #define DLLIST_PREPEND(list, new_node)                  \
+    do {                                                \
+        (new_node)->prev = NULL;                        \
+        (new_node)->next = (list)->head;                \
+        if ((list)->head != NULL) {                     \
+            (list)->head->prev = new_node;              \
+        }                                               \
+        (list)->head = new_node;                        \
+        ++(list)->count;                                \
+    } while (0)
 
 // Insert a (pre-allocated) node at the tail of a list.
-    do {                                            \
-        (new_node)->prev = (list)->prev;            \
-        (new_node)->next = NULL;                    \
-        (list)->tail->next = new_node;              \
-        (list)->tail = new_node;                    \
-    }
 #define DLLIST_APPEND(list, new_node)                   \
+    do {                                                \
+        (new_node)->prev = (list)->tail;                \
+        (new_node)->next = NULL;                        \
+        if ((list)->tail != NULL) {                     \
+            (list)->tail->next = new_node;              \
+        }                                               \
+        (list)->tail = new_node;                        \
+        ++(list)->count;                                \
+    } while (0)
 
 // Insert a (pre-allocated) node before an internal node.
-#define DLLIST_INSERT_BEFORE(next_node, new_node)       \
+#define DLLIST_INSERT_BEFORE(list, next_node, new_node) \
     do {                                                \
         (new_node)->next = next_node;                   \
         (new_node)->prev = (next_node)->prev;           \
         (next_node)->prev = new_node;                   \
-    }
+        ++(list)->count;                                \
+    } while (0)
 
 // Insert a (pre-allocated) node after an internal node.
-#define DLLIST_INSERT_AFTER(prev_node, new_node)        \
+#define DLLIST_INSERT_AFTER(list, prev_node, new_node)  \
     do {                                                \
         (new_node)->next = (prev_node)->next;           \
         (new_node)->prev = prev_node;                   \
         (prev_node)->next = new_node;                   \
-    }
+        ++(list)->count;                                \
+    } while (0)
+
 // Check whether the list is empty.
 #define DLLIST_IS_EMPTY(list)                   \
     (list)->count == 0
