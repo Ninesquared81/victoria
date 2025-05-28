@@ -226,10 +226,10 @@ struct ast_node {
 
     enum ast_node_kind kind;
     union {
-        struct ast_expr *expr;
-        struct ast_stmt *stmt;
-        struct ast_decl *decl;
-        struct ast_type *type;
+        struct ast_expr expr;
+        struct ast_stmt stmt;
+        struct ast_decl decl;
+        struct ast_type type;
     };
 };
 
