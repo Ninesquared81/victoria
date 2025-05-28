@@ -65,14 +65,10 @@ enum ast_type_kind {
 };
 
 struct ast_list {
-    struct allocatorARD allocator;
-    int capacity;
+    struct ast_node *head;
+    struct ast_node *tail;
     int count;
-    struct ast_node *items;
 };
-
-#define AST_LIST(ALLOCATOR)                     \
-    ((struct ast_list) {.allocator = ALLOCATOR})
 
 struct ast_type_decl {
     struct lxl_string_view name;
@@ -226,6 +222,8 @@ struct ast_decl {
 };
 
 struct ast_node {
+    struct ast_node *next, *prev;
+
     enum ast_node_kind kind;
     union {
         struct ast_expr *expr;
