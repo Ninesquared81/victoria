@@ -154,22 +154,22 @@ static inline int array_eq(void *a, void *b, int count, size_t elem_size,
 //  - node: `.next`, `.prev`
 
 // Insert a (pre-allocated) node at the head of a list.
-#define DLLIST_INSERT_HEAD(list, new_node)          \
     do {                                            \
         (new_node)->prev = NULL;                    \
         (new_node)->next = (list)->head;            \
         (list)->head->prev = new_node;              \
         (list)->head = new_node;                    \
     }
+#define DLLIST_PREPEND(list, new_node)                  \
 
 // Insert a (pre-allocated) node at the tail of a list.
-#define DLLIST_INSERT_TAIL(list, new_node)          \
     do {                                            \
         (new_node)->prev = (list)->prev;            \
         (new_node)->next = NULL;                    \
         (list)->tail->next = new_node;              \
         (list)->tail = new_node;                    \
     }
+#define DLLIST_APPEND(list, new_node)                   \
 
 // Insert a (pre-allocated) node before an internal node.
 #define DLLIST_INSERT_BEFORE(next_node, new_node)       \
