@@ -438,10 +438,11 @@ static struct ast_type parse_type(const char *fmt, ...) {
         while (!check(TOKEN_BKT_CURLY_RIGHT, false)) {
             struct lxl_token field_name_token = consume(TOKEN_IDENTIFIER, false, "Expect field name");
             struct lxl_string_view field_name = lxl_token_value(field_name_token);
-            struct ast_expr *value = new_expr();
+            struct ast_expr *value = NULL;
             if (match(TOKEN_COLON_EQUALS, false)) {
                 // Specified value.
-                *value = parse_expr();  // Parsing as expr allows for constant expressions like `1+2`.
+                // Parsing as expr allows for constant expressions like `1+2`.
+                value = copy_expr(parse_expr());
                 /* // Do enum values at type resolution. Also verify integer there.
                 consume(TOKEN_LIT_INTEGER, false, "Expect integer literal value");
                 set_enum_counter(parse_previous_integer());
