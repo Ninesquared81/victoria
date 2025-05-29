@@ -434,7 +434,6 @@ static struct ast_type parse_type(const char *fmt, ...) {
         }
         consume(TOKEN_BKT_CURLY_LEFT, false, "Expect '{' after 'enum'");
         struct ast_enum_field_list fields = AST_ENUM_FIELD_LIST(perm);
-        set_enum_counter(0);
         while (!check(TOKEN_BKT_CURLY_RIGHT, false)) {
             struct lxl_token field_name_token = consume(TOKEN_IDENTIFIER, false, "Expect field name");
             struct lxl_string_view field_name = lxl_token_value(field_name_token);
