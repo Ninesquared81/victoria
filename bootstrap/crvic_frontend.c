@@ -700,8 +700,9 @@ static struct ast_list parse_block(void) {
     struct ast_list stmts = {0};
     while (!match(TOKEN_BKT_CURLY_RIGHT, false)) {
         ensure_not_at_end("Unclosed block statement");
-        struct ast_node *node = new_node();
-        *node = STMT_NODE(parse_stmt());
+        struct ast_stmt stmt = parse_stmt();
+        struct ast_node *node = copy_node(STMT_NODE(stmt));
+        DLLIST_APPEND(&stmts, node);
     }
     ignore_line_ending();  // Ignore LF after '}'.
     return stmts;
