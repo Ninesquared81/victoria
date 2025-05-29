@@ -161,6 +161,9 @@ static inline int array_eq(void *a, void *b, int count, size_t elem_size,
         if ((list)->head != NULL) {                     \
             (list)->head->prev = new_node;              \
         }                                               \
+        else {                                          \
+            (list)->tail = new_node;                    \
+        }                                               \
         (list)->head = new_node;                        \
         ++(list)->count;                                \
     } while (0)
@@ -172,6 +175,9 @@ static inline int array_eq(void *a, void *b, int count, size_t elem_size,
         (new_node)->next = NULL;                        \
         if ((list)->tail != NULL) {                     \
             (list)->tail->next = new_node;              \
+        }                                               \
+        else {                                          \
+            (list)->head = new_node;                    \
         }                                               \
         (list)->tail = new_node;                        \
         ++(list)->count;                                \
