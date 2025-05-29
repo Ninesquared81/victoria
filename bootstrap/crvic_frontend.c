@@ -366,19 +366,6 @@ static struct ast_type parse_type(const char *fmt, ...) {
             .kind = AST_TYPE_ALIAS,
             .alias = {
                 .name = lxl_token_value(parser.previous_token)}};
-        /*
-        struct lxl_string_view sv = lxl_token_value(parser.previous_token);
-        struct symbol *symbol = lookup_symbol(&symbols, st_key_of(sv));
-        if (!symbol) {
-            name_error("Unknown type '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(sv));
-            return TYPE_NO_TYPE;
-        }
-        if (symbol->kind != SYMBOL_TYPE_ALIAS) {
-            parse_error_previous_show_token("Symbol '"LXL_SV_FMT_SPEC"' is not a type", LXL_SV_FMT_ARG(sv));
-            return TYPE_NO_TYPE;
-        }
-        return symbol->type_alias.type;
-        //*/
     }
     // Record types.
     if (match(TOKEN_KW_RECORD, false)) {
@@ -400,19 +387,6 @@ static struct ast_type parse_type(const char *fmt, ...) {
             .kind = AST_TYPE_RECORD,
             .record_lit = {
                 .fields = fields}};
-        /*
-        TypeID record_type = find_record_type(fields);
-        if (!record_type) {
-            // Record not found; add it to the type table.
-            fields = (struct type_decl_list) PROMOTE_DA(&fields);
-            record_type = add_type((struct type_info) {
-                    .kind = KIND_RECORD,
-                    .repr = make_record_repr(fields),
-                    .size = calculate_record_size(fields),
-                    .record_type = {.fields = fields}});
-        }
-        return record_type;
-        //*/
     }
     // Enum types.
     if (match(TOKEN_KW_ENUM, false)) {
@@ -424,13 +398,6 @@ static struct ast_type parse_type(const char *fmt, ...) {
             // Underlying type.
             ignore_line_ending();
             underlying_type = parse_type("Expect underlying type for enum after ':'");
-            /* // NOTE: check this at type checking stage.
-            if (!is_integer_type(underlying_type.resolved_type)) {
-                struct lxl_string_view underlying_type_sv = get_type_sv(underlying_type);
-                type_error("Underlying type must be an integer, not '"LXL_SV_FMT_SPEC"'",
-                           LXL_SV_FMT_ARG(underlying_type_sv));
-            }
-            //*/
         }
         consume(TOKEN_BKT_CURLY_LEFT, false, "Expect '{' after 'enum'");
         struct ast_enum_field_list fields = AST_ENUM_FIELD_LIST(perm);
@@ -442,14 +409,7 @@ static struct ast_type parse_type(const char *fmt, ...) {
                 // Specified value.
                 // Parsing as expr allows for constant expressions like `1+2`.
                 value = copy_expr(parse_expr());
-                /* // Do enum values at type resolution. Also verify integer there.
-                consume(TOKEN_LIT_INTEGER, false, "Expect integer literal value");
-                set_enum_counter(parse_previous_integer());
-                //*/
             }
-            /*
-            VIC_INT field_value = next_enum_value();
-            //*/
             struct ast_enum_field field = {.name = field_name, .value = value};
             DA_APPEND(&fields, field);
             if (!match(TOKEN_COMMA, false)) break;
@@ -460,21 +420,6 @@ static struct ast_type parse_type(const char *fmt, ...) {
             .enum_lit = {
                 .underlying_type = copy_type(underlying_type),
                 .fields = fields}};
-        /*
-        TypeID enum_type = find_enum_type(fields);
-        if (!enum_type) {
-            // Enum not found; add it to the type table.
-            fields = (struct enum_field_list) PROMOTE_DA(&fields);
-            enum_type = add_type((struct type_info) {
-                    .kind = KIND_ENUM,
-                    .repr = make_enum_repr(fields),
-                    .size = sizeof(VIC_INT),
-                    .enum_type = {
-                        .underlying_type = underlying_type,
-                        .fields = fields}});
-        }
-        return enum_type;
-        //*/
     }
     // Not a type.
     va_list vargs;
