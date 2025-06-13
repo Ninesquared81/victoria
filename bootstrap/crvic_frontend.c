@@ -707,6 +707,12 @@ static struct ast_decl parse_func_decl(void) {
     }
     had_line_ending += check_line_ending();
     if (match(TOKEN_BKT_CURLY_LEFT, false)) {
+        if (parser.current_func_kind == FUNC_EXTERNAL) {
+            parse_error_previous_show_token("External functions can only be declared, not defined");
+        }
+        else {
+            assert(parser.current_func_kind == FUNC_INTERNAL);
+        }
         decl = (struct ast_decl) {
             .kind = AST_DECL_FUNC_DEFN,
             .func_defn = {
