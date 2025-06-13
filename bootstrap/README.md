@@ -34,4 +34,4 @@ bootstrap compiler).
 
 - [ ] Array types.
 
-- [ ] Record types.
+- [x] Record types.
