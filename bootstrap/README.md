@@ -37,3 +37,5 @@ bootstrap compiler).
 - [ ] Array types.
 
 - [x] Record types.
+
+- [x] Enum types.
