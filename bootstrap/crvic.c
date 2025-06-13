@@ -39,7 +39,7 @@ int main(void) {
     const char *in_filename = "in.vic";
     const char *out_filename = "out.c";
     struct lxl_string_view source = read_source(in_filename);
-    init_frontend(source);  // This also initialises the lexer.
+    init_frontend(source, in_filename);  // This also initialises the lexer.
     struct ast_list nodes = parse();
     if (!type_check(&nodes)) {
         // Error messages already printed.

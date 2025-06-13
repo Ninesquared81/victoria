@@ -104,7 +104,7 @@ enum token_type {
 };
 
 // General.
-void init_frontend(struct lxl_string_view source);
+void init_frontend(struct lxl_string_view source, const char *in_filename);
 
 // Lexer.
 struct lxl_lexer *init_lexer(struct lxl_string_view source);

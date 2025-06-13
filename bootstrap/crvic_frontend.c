@@ -41,9 +41,12 @@ static struct symbol_table symbols = {0};
 
 static struct type_checker type_checker = {0};
 
+static const char *filename = NULL;
+
 #define SYMBOL_TABLE_CAPACITY 128
 
-void init_frontend(struct lxl_string_view source) {
+void init_frontend(struct lxl_string_view source, const char *in_filename) {
+    filename = in_filename;
     parser.lexer = init_lexer(source);
     parser.current_func_kind = FUNC_INTERNAL;
     symbols = (struct symbol_table) {
@@ -60,7 +63,7 @@ void init_frontend(struct lxl_string_view source) {
 }
 
 static void report_location(struct lxl_token token) {
-    fprintf(stderr, "%d:%d: ", token.loc.line, token.loc.column);
+    fprintf(stderr, "%s:%d:%d: ", filename, token.loc.line, token.loc.column);
 }
 
 static void print_line_with_token(struct lxl_token token) {
@@ -708,7 +711,7 @@ static struct ast_decl parse_func_decl(void) {
     had_line_ending += check_line_ending();
     if (match(TOKEN_BKT_CURLY_LEFT, false)) {
         if (parser.current_func_kind == FUNC_EXTERNAL) {
-            parse_error_previous_show_token("External functions can only be declared, not defined");
+            parse_error_previous_show_token("External functions  can only be declared, not defined");
         }
         else {
             assert(parser.current_func_kind == FUNC_INTERNAL);
