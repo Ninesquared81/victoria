@@ -30,7 +30,9 @@ bootstrap compiler).
 
 - [x] Integer types (`i8`&ndash;`i64`, `u8`&ndash;`u16`, `int`, `uint`).
 
-- [ ] Pointer types (`^T`, `^mut T`).
+- [ ] Object pointer types (`^T`, `^mut T`).
+
+- [ ] Function pointer types.
 
 - [ ] Array types.
 
