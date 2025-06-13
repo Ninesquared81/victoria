@@ -1099,12 +1099,12 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                        LXL_SV_FMT_ARG(callee_name), expected_arity, actual_arity);
             break;
         }
-        if (actual_arity > expected_arity) {
+        if (actual_arity > expected_arity && !callee->sig->c_variadic) {
             type_error("Too many arguments passed to '"LXL_SV_FMT_SPEC"': expected %d, but got %d",
                        LXL_SV_FMT_ARG(callee_name), expected_arity, actual_arity);
             break;
         }
-        assert(actual_arity == expected_arity);
+        assert(actual_arity == expected_arity || (actual_arity > expected_arity && callee->sig->c_variadic));
         assert(actual_arity == expr->call.args.count);
         assert(expected_arity == callee->sig->params.count);
         struct ast_node *arg = expr->call.args.head;
@@ -1124,6 +1124,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                            LXL_SV_FMT_ARG(callee_name), LXL_SV_FMT_ARG(arg_type_name));
             }
         }
+        assert(arg == NULL || callee->sig->c_variadic);
     } break;
     case AST_EXPR_CONSTRUCTOR: {
         struct lxl_string_view name = expr->constructor.name;
