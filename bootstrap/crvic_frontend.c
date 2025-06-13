@@ -668,6 +668,10 @@ static struct ast_decl parse_func_decl(void) {
         if (match(TOKEN_DOT_DOT_BANG, false)) {
             // Variadic (C-style) parameter(s).
             sig->c_variadic = true;
+            if (parser.current_func_kind != FUNC_EXTERNAL) {
+                parse_error_previous_show_token(
+                    "Only external functions can have C-style variadic parameters");
+            }
             // NOTE: '..!' must be the final parameter, although a trailing comma is still allowed.
             (void)match(TOKEN_COMMA, true);
             consume(TOKEN_BKT_ROUND_RIGHT, false,
