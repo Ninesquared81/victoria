@@ -665,6 +665,15 @@ static struct ast_decl parse_func_decl(void) {
     consume(TOKEN_BKT_ROUND_LEFT, false, "Expect '(' after function name");
     while (!match(TOKEN_BKT_ROUND_RIGHT, false)) {
         ensure_not_at_end("Unclosed function parameter list");
+        if (match(TOKEN_DOT_DOT_BANG, false)) {
+            // Variadic (C-style) parameter(s).
+            sig->c_variadic = true;
+            // NOTE: '..!' must be the final parameter, although a trailing comma is still allowed.
+            (void)match(TOKEN_COMMA, true);
+            consume(TOKEN_BKT_ROUND_RIGHT, false,
+                    "Expect end of parameter list after C-style variadic parameter declaration '..!'");
+            break;
+        }
         struct lxl_token param_token = consume(TOKEN_IDENTIFIER, false, "Expect parameter name");
         consume(TOKEN_COLON, false, "Expect ':' after parameter name");
         struct ast_type *param_type = new_type();
@@ -1014,6 +1023,7 @@ static struct func_sig *resolve_func_sig(struct ast_sig *sig) {
     }
     sig->resolved_sig.ret_type = resolve_type(sig->ret_type);
     sig->resolved_sig.arity = sig->resolved_sig.params.count;
+    sig->resolved_sig.c_variadic = sig->c_variadic;
     return &sig->resolved_sig;
 }
 

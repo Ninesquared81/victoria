@@ -212,6 +212,9 @@ enum cgen_error crvic_generate_c_func_header(struct func_sig *sig, struct string
         sb_add_formatted(sb, ", %s "LXL_SV_FMT_SPEC"",
                          crvic_get_c_type(param.type), LXL_SV_FMT_ARG(param.name));
     }
+    if (sig->c_variadic) {
+        sb_add_string(sb, ", ...");
+    }
     sb_add_string(sb, ")");
     return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
 }

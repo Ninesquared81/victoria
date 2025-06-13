@@ -15,6 +15,7 @@ struct func_sig {
     TypeID ret_type;
     int arity;
     struct type_decl_list params;
+    bool c_variadic;
 };
 
 #endif

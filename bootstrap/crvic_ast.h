@@ -104,6 +104,7 @@ struct ast_sig {
     struct func_sig resolved_sig;
     struct ast_type_decl_list params;
     struct ast_type *ret_type;
+    bool c_variadic;
 };
 
 struct ast_type {
