@@ -1095,8 +1095,10 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         int expected_arity = callee->sig->arity;
         int actual_arity = expr->call.arity;
         if (actual_arity < expected_arity) {
-            type_error("Not enough arguments passed to '"LXL_SV_FMT_SPEC"': expected %d, but got %d",
-                       LXL_SV_FMT_ARG(callee_name), expected_arity, actual_arity);
+            type_error("Not enough arguments passed to '"LXL_SV_FMT_SPEC"': expected %s%d, but got %d",
+                       LXL_SV_FMT_ARG(callee_name),
+                       ((callee->sig->c_variadic) ? "at least " : ""),
+                       expected_arity, actual_arity);
             break;
         }
         if (actual_arity > expected_arity && !callee->sig->c_variadic) {
