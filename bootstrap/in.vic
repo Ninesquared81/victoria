@@ -74,4 +74,7 @@ func main() {
     }
     putchar((when cond then 33 else 46) to i32)
     putchar(10 to i32)
+    variadic(5, 1, 2, 3)
+    variadic(42)
+    variadic()
 }
