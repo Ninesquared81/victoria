@@ -269,6 +269,8 @@ const char *token_type_string(struct lxl_token token) {
     case TOKEN_COMMA:                  return "TOKEN_COMMA";
     case TOKEN_DOLLAR:                 return "TOKEN_DOLLAR";
     case TOKEN_DOT:                    return "TOKEN_DOT";
+    case TOKEN_DOT_DOT:                return "TOKEN_DOT_DOT";
+    case TOKEN_DOT_DOT_BANG:           return "TOKEN_DOT_DOT_BANG";
     case TOKEN_EQUALS:                 return "TOKEN_EQUALS";
     case TOKEN_EQUALS_EQUALS:          return "TOKEN_EQUALS_EQUALS";
     case TOKEN_GREATER:                return "TOKEN_GREATER";
