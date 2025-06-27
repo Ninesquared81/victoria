@@ -659,10 +659,11 @@ static struct ast_list parse_block(void) {
 static struct ast_decl parse_func_decl(void) {
     struct ast_decl decl = {0};
     struct lxl_token name_token = consume(TOKEN_IDENTIFIER, false, "Expect function name");
+    struct lxl_string_view name = lxl_token_value(name_token);
     struct ast_sig *sig = ALLOCATE(perm, sizeof *sig);
     *sig = (struct ast_sig) {
         .resolved_sig = {
-            .name = lxl_token_value(name_token),
+            .name = name,
             .params = TYPE_DECL_LIST(perm)},
         .params = AST_TYPE_DECL_LIST(perm)};
     consume(TOKEN_BKT_ROUND_LEFT, false, "Expect '(' after function name");
@@ -699,19 +700,15 @@ static struct ast_decl parse_func_decl(void) {
     }
     bool had_line_ending = check_line_ending();
     sig->ret_type = new_type();
-    if (match(TOKEN_ARROW_RIGHT, false)) {
-        *sig->ret_type = parse_type("Expect return type after '->'");
-    }
-    else {
-        // No return type (i.e. unit type).
-        *sig->ret_type = (struct ast_type) {
+    *sig->ret_type = (match(TOKEN_ARROW_RIGHT, false))
+        ? parse_type("Expect return type after '->'")
+        : (struct ast_type) {
             .kind = AST_TYPE_PRIMITIVE,
             .resolved_type = TYPE_UNIT};
-    }
     had_line_ending += check_line_ending();
     if (match(TOKEN_BKT_CURLY_LEFT, false)) {
         if (parser.current_func_kind == FUNC_EXTERNAL) {
-            parse_error_previous_show_token("External functions  can only be declared, not defined");
+            parse_error_previous_show_token("External functions can only be declared, not defined");
         }
         else {
             assert(parser.current_func_kind == FUNC_INTERNAL);
@@ -731,6 +728,29 @@ static struct ast_decl parse_func_decl(void) {
     }
     else {
         parse_error_current_show_token("Expect '{' or end of statement after function signature");
+    }
+    struct st_key key = st_key_of(name);
+    struct symbol *symbol = lookup_symbol(&symbols, key);
+    if (!symbol) {
+        // New function.
+        insert_symbol(&symbols, key, (struct symbol) {
+                .kind = SYMBOL_FUNC,
+                .func = {
+                    .func_decl = decl,
+                    .sig = &((decl.kind == AST_DECL_FUNC_DECL) ? decl.func_decl.sig : decl.func_defn.sig
+                        )->resolved_sig}});
+    }
+    else if (symbol->kind == SYMBOL_FUNC) {
+        // Function previously declared/defined.
+        struct ast_decl **prev_decl_ptr = (decl.kind == AST_DECL_FUNC_DECL)
+            ? &decl.func_decl.prev_decl
+            : &decl.func_defn.prev_decl;
+        // TODO: use address of decl node for `.func_decl`
+        *prev_decl_ptr = copy_decl(symbol->func.func_decl);
+        symbol->func.func_decl = decl;
+    }
+    else {
+        name_error("Previously defined symbol '"LXL_SV_FMT_SPEC"' redeclared as function", name);
     }
     return decl;
 }
@@ -1297,29 +1317,29 @@ static void type_check_function(struct ast_decl_func_defn *func) {
     struct func_sig *sig = resolve_func_sig(func->sig);
     struct st_key key = st_key_of(sig->name);
     struct symbol *symbol = lookup_symbol(&symbols, key);
-    if (symbol == NULL) {
-        // New definition.
-        bool result = insert_symbol(&symbols, key, (struct symbol) {
-                .kind = SYMBOL_FUNC,
-                .func = {
-                    .sig = sig,
-                    .kind = FUNC_INTERNAL,
-                    .body = &func->body}});
-        assert(result);
-    }
-    else {
-        // Definition of exisiting function.
-        if (symbol->func.body != NULL) {
-            type_error("Redefinition of function '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(sig->name));
+    // We insert the function symbol during parsing.
+    assert(symbol != NULL);
+    assert(symbol->kind == SYMBOL_FUNC);
+    if (!symbol->resolved) {
+        for (struct ast_decl *decl = &symbol->func.func_decl; decl != NULL;
+             decl = (decl->kind == AST_DECL_FUNC_DECL)
+                 ? decl->func_decl.prev_decl
+                 : decl->func_defn.prev_decl) {
+            if (!compare_sigs(
+                    resolve_func_sig(((decl->kind == AST_DECL_FUNC_DECL)
+                                      ? decl->func_decl.sig
+                                      : decl->func_defn.sig)),
+                    sig)) {
+                type_error("Redeclaration of function '"LXL_SV_FMT_SPEC"' with a different signature",
+                           LXL_SV_FMT_ARG(sig->name));
+            }
         }
-        if (!compare_sigs(symbol->func.sig, sig)) {
-            type_error("Redeclaration of function '"LXL_SV_FMT_SPEC"' with a different signature",
+        if (symbol->func.func_decl.kind == AST_DECL_FUNC_DECL
+            && symbol->func.func_decl.func_decl.kind == FUNC_EXTERNAL) {
+            type_error("Cannot define function '"LXL_SV_FMT_SPEC"' elsewhere defined as 'external'",
                        LXL_SV_FMT_ARG(sig->name));
         }
-        if (symbol->func.kind == FUNC_EXTERNAL) {
-            type_error("Cannot define function '"LXL_SV_FMT_SPEC"' previously defined as 'external'",
-                       LXL_SV_FMT_ARG(sig->name));
-        }
+        symbol->resolved = true;
     }
     // TODO: set up arguments as local variables.
     // TODO: local variables.
@@ -1363,38 +1383,31 @@ static void type_check_decl(struct ast_decl *decl) {
         struct func_sig *sig = resolve_func_sig(decl->func_decl.sig);
         struct st_key key = st_key_of(sig->name);
         struct symbol *symbol = lookup_symbol(&symbols, key);
-        if (symbol == NULL) {
-            // Unseen function; add it to the symbol table.
-            bool result = insert_symbol(&symbols, key, (struct symbol) {
-                    .kind = SYMBOL_FUNC,
-                    .func = {
-                        .sig = sig,
-                        .kind = decl->func_decl.kind,
-                        .body = NULL}});
-            assert(result);  // This should be a new symbol in the table.
+        assert(symbol != NULL);
+        assert(symbol->kind == SYMBOL_FUNC);
+        if (symbol->resolved) return;
+        // Re-declaration.
+        // TODO: merge func_decl and func_defn into one!!!!!!!
+        // PLEEAAAAASE....!!!!!11!1!1!!!!1!!!!!
+        if (symbol->func.kind != decl->func_decl.kind) {
+            // Cannot redeclare with different linkage.
+            const char *prev_linkage = "external";
+            const char *new_linkage = "internal";
+            if (symbol->func.kind == FUNC_EXTERNAL) {
+                assert(decl->func_decl.kind == FUNC_INTERNAL);
+            }
+            else {
+                assert(decl->func_decl.kind == FUNC_EXTERNAL);
+                prev_linkage = "internal";
+                new_linkage = "external";
+            }
+            type_error("Cannot redeclare function '"LXL_SV_FMT_SPEC"' as '%s'"
+                       " following previous declaration as '%s'",
+                       LXL_SV_FMT_ARG(sig->name), prev_linkage, new_linkage);
         }
-        else {
-            // Re-declaration.
-            if (symbol->func.kind != decl->func_decl.kind) {
-                // Cannot redeclare with different linkage.
-                const char *prev_linkage = "external";
-                const char *new_linkage = "internal";
-                if (symbol->func.kind == FUNC_EXTERNAL) {
-                    assert(decl->func_decl.kind == FUNC_INTERNAL);
-                }
-                else {
-                    assert(decl->func_decl.kind == FUNC_EXTERNAL);
-                    prev_linkage = "internal";
-                    new_linkage = "external";
-                }
-                type_error("Cannot redeclare function '"LXL_SV_FMT_SPEC"' as '%s'"
-                           " following previous declaration as '%s'",
-                           LXL_SV_FMT_ARG(sig->name), prev_linkage, new_linkage);
-            }
-            if (!compare_sigs(sig, symbol->func.sig)) {
-                type_error("Function '"LXL_SV_FMT_SPEC"' redeclared with different signature",
-                           LXL_SV_FMT_ARG(sig->name));
-            }
+        if (!compare_sigs(sig, symbol->func.sig)) {
+            type_error("Function '"LXL_SV_FMT_SPEC"' redeclared with different signature",
+                       LXL_SV_FMT_ARG(sig->name));
         }
     } return;
     case AST_DECL_FUNC_DEFN:

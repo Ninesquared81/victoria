@@ -2,7 +2,7 @@ external func putchar(c:i32)->i32
 # TODO: external blocks
 external {func aa(); func bb(x: int, y: int) -> int; func cc() -> int;}
 
-external func variadic(x: int, ..!) -> int {}
+external func variadic(x: int, ..!) -> int
 
 type Vec2 := record {
      x: int, y: int
@@ -30,7 +30,7 @@ type Card := record {
      suit: Suit
 }
 
-func thing2(x: int)
+# func thing2(x: int)
 
 func thing1() -> int {
     thing2(5)

@@ -206,10 +206,12 @@ struct ast_decl {
         } var_defn;
         struct {
             struct ast_sig *sig;
+            struct ast_decl *prev_decl;
             enum func_link_kind kind;
         } func_decl;
         struct ast_decl_func_defn {
             struct ast_sig *sig;
+            struct ast_decl *prev_decl;
             struct ast_list body;
         } func_defn;
         struct {

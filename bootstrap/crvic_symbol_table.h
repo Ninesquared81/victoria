@@ -12,9 +12,8 @@ enum symbol_kind {
 };
 
 struct symbol_func {
-    struct func_sig *sig;
-    enum func_link_kind kind;
-    struct ast_list *body;
+    struct ast_decl func_decl;
+    struct func_sig *sig;  // NOTE: points to `.func_decl.sig.resolved_sig`.
 };
 
 struct symbol_type_alias {
@@ -31,6 +30,7 @@ struct symbol_val {
 
 struct symbol {
     enum symbol_kind kind;
+    bool resolved;
     union {
         struct symbol_func func;
         struct symbol_type_alias type_alias;
