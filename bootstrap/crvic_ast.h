@@ -37,8 +37,7 @@ enum ast_stmt_kind {
 enum ast_decl_kind {
     AST_DECL_VAR_DECL,  // Variable declaration.
     AST_DECL_VAR_DEFN,  // Variable definition.
-    AST_DECL_FUNC_DECL, // (External) function declaration.
-    AST_DECL_FUNC_DEFN, // Function definition.
+    AST_DECL_FUNC,      // Function definition/declaration.
     AST_DECL_EXTERNAL_BLOCK,  // Block of external function declarations.
     AST_DECL_TYPE_DEFN, // Type (alias) definition.
 };
@@ -55,6 +54,11 @@ enum ast_target_kind {
 enum ast_var_kind {
     AST_VAR_VAR,  // Mutable variable.
     AST_VAR_VAL,  // Immutable value.
+};
+
+enum ast_func_decl_kind {
+    AST_FUNC_DECL,
+    AST_FUNC_DEFN,
 };
 
 enum ast_type_kind {
@@ -193,6 +197,7 @@ struct ast_stmt {
 struct ast_decl {
     enum ast_decl_kind kind;
     union {
+        // TODO: merge `.var_decl` and `.var_defn`.
         struct {
             struct lxl_string_view name;
             struct ast_type *type;
@@ -204,16 +209,14 @@ struct ast_decl {
             enum ast_var_kind kind;
             struct ast_expr *value;
         } var_defn;
-        struct {
-            struct ast_sig *sig;
-            struct ast_decl *prev_decl;
-            enum func_link_kind kind;
-        } func_decl;
+        // TODO: remove _defn from this name.
         struct ast_decl_func_defn {
             struct ast_sig *sig;
             struct ast_decl *prev_decl;
+            enum func_link_kind link_kind;
+            enum ast_func_decl_kind decl_kind;
             struct ast_list body;
-        } func_defn;
+        } func;
         struct {
             struct ast_list decls;
         } external_block;

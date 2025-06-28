@@ -714,17 +714,20 @@ static struct ast_decl parse_func_decl(void) {
             assert(parser.current_func_kind == FUNC_INTERNAL);
         }
         decl = (struct ast_decl) {
-            .kind = AST_DECL_FUNC_DEFN,
-            .func_defn = {
+            .kind = AST_DECL_FUNC,
+            .func = {
                 .sig = sig,
+                .link_kind = parser.current_func_kind,
+                .decl_kind = AST_FUNC_DEFN,
                 .body = parse_block()}};
     }
     else if (had_line_ending || match(TOKEN_SEMICOLON, true)) {
         decl = (struct ast_decl) {
-            .kind = AST_DECL_FUNC_DECL,
-            .func_decl = {
+            .kind = AST_DECL_FUNC,
+            .func = {
                 .sig = sig,
-                .kind = parser.current_func_kind}};
+                .link_kind = parser.current_func_kind,
+                .decl_kind = AST_FUNC_DECL}};
     }
     else {
         parse_error_current_show_token("Expect '{' or end of statement after function signature");
@@ -737,14 +740,11 @@ static struct ast_decl parse_func_decl(void) {
                 .kind = SYMBOL_FUNC,
                 .func = {
                     .func_decl = decl,
-                    .sig = &((decl.kind == AST_DECL_FUNC_DECL) ? decl.func_decl.sig : decl.func_defn.sig
-                        )->resolved_sig}});
+                    .sig = &decl.func.sig->resolved_sig}});
     }
     else if (symbol->kind == SYMBOL_FUNC) {
         // Function previously declared/defined.
-        struct ast_decl **prev_decl_ptr = (decl.kind == AST_DECL_FUNC_DECL)
-            ? &decl.func_decl.prev_decl
-            : &decl.func_defn.prev_decl;
+        struct ast_decl **prev_decl_ptr = &decl.func.prev_decl;
         // TODO: use address of decl node for `.func_decl`
         *prev_decl_ptr = copy_decl(symbol->func.func_decl);
         symbol->func.func_decl = decl;
@@ -843,12 +843,12 @@ bool try_parse_decl(struct ast_decl *OUT_decl) {
                 struct ast_node *node = new_node();
                 *node = DECL_NODE(parse_func_decl());
                 struct ast_decl *func = &node->decl;
-                if (func->kind != AST_DECL_FUNC_DECL) {
-                    assert(func->kind == AST_DECL_FUNC_DEFN);
+                assert(func->kind == AST_DECL_FUNC);
+                if (func->func.decl_kind != AST_FUNC_DECL) {
                     parse_error_show_token(func_token, "Expect function delcaration in 'external' block");
                 }
                 else {
-                    assert(func->func_decl.kind == FUNC_EXTERNAL &&
+                    assert(func->func.link_kind == FUNC_EXTERNAL &&
                            "Function should be external inside 'external' block");
                     DLLIST_APPEND(&OUT_decl->external_block.decls, node);
                 }
@@ -1321,26 +1321,31 @@ static void type_check_function(struct ast_decl_func_defn *func) {
     assert(symbol != NULL);
     assert(symbol->kind == SYMBOL_FUNC);
     if (!symbol->resolved) {
-        for (struct ast_decl *decl = &symbol->func.func_decl; decl != NULL;
-             decl = (decl->kind == AST_DECL_FUNC_DECL)
-                 ? decl->func_decl.prev_decl
-                 : decl->func_defn.prev_decl) {
-            if (!compare_sigs(
-                    resolve_func_sig(((decl->kind == AST_DECL_FUNC_DECL)
-                                      ? decl->func_decl.sig
-                                      : decl->func_defn.sig)),
-                    sig)) {
+        for (struct ast_decl *decl = &symbol->func.func_decl; decl != NULL; decl = decl->func.prev_decl) {
+            if (!compare_sigs(resolve_func_sig(decl->func.sig), sig)) {
                 type_error("Redeclaration of function '"LXL_SV_FMT_SPEC"' with a different signature",
                            LXL_SV_FMT_ARG(sig->name));
             }
         }
-        if (symbol->func.func_decl.kind == AST_DECL_FUNC_DECL
-            && symbol->func.func_decl.func_decl.kind == FUNC_EXTERNAL) {
-            type_error("Cannot define function '"LXL_SV_FMT_SPEC"' elsewhere defined as 'external'",
-                       LXL_SV_FMT_ARG(sig->name));
+        if (symbol->func.func_decl.func.link_kind != func->link_kind) {
+            // Cannot redeclare with different linkage.
+            const char *prev_linkage = "external";
+            const char *new_linkage = "internal";
+            if (symbol->func.func_decl.func.link_kind == FUNC_EXTERNAL) {
+                assert(func->link_kind == FUNC_INTERNAL);
+            }
+            else {
+                assert(func->link_kind == FUNC_EXTERNAL);
+                prev_linkage = "internal";
+                new_linkage = "external";
+            }
+            type_error("Cannot redeclare function '"LXL_SV_FMT_SPEC"' as '%s'"
+                       " following previous declaration as '%s'",
+                       LXL_SV_FMT_ARG(sig->name), prev_linkage, new_linkage);
         }
         symbol->resolved = true;
     }
+    if (func->decl_kind == AST_FUNC_DECL) return;
     // TODO: set up arguments as local variables.
     // TODO: local variables.
     FOR_DLLIST (struct ast_node *, node, &func->body) {
@@ -1379,39 +1384,8 @@ static void type_check_decl(struct ast_decl *decl) {
             name_error("Redeclaration of symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(decl->var_decl.name));
         }
     } return;
-    case AST_DECL_FUNC_DECL: {
-        struct func_sig *sig = resolve_func_sig(decl->func_decl.sig);
-        struct st_key key = st_key_of(sig->name);
-        struct symbol *symbol = lookup_symbol(&symbols, key);
-        assert(symbol != NULL);
-        assert(symbol->kind == SYMBOL_FUNC);
-        if (symbol->resolved) return;
-        // Re-declaration.
-        // TODO: merge func_decl and func_defn into one!!!!!!!
-        // PLEEAAAAASE....!!!!!11!1!1!!!!1!!!!!
-        if (symbol->func.kind != decl->func_decl.kind) {
-            // Cannot redeclare with different linkage.
-            const char *prev_linkage = "external";
-            const char *new_linkage = "internal";
-            if (symbol->func.kind == FUNC_EXTERNAL) {
-                assert(decl->func_decl.kind == FUNC_INTERNAL);
-            }
-            else {
-                assert(decl->func_decl.kind == FUNC_EXTERNAL);
-                prev_linkage = "internal";
-                new_linkage = "external";
-            }
-            type_error("Cannot redeclare function '"LXL_SV_FMT_SPEC"' as '%s'"
-                       " following previous declaration as '%s'",
-                       LXL_SV_FMT_ARG(sig->name), prev_linkage, new_linkage);
-        }
-        if (!compare_sigs(sig, symbol->func.sig)) {
-            type_error("Function '"LXL_SV_FMT_SPEC"' redeclared with different signature",
-                       LXL_SV_FMT_ARG(sig->name));
-        }
-    } return;
-    case AST_DECL_FUNC_DEFN:
-        type_check_function(&decl->func_defn);
+    case AST_DECL_FUNC:
+        type_check_function(&decl->func);
         return;
     case AST_DECL_EXTERNAL_BLOCK:
         FOR_DLLIST (struct ast_node *, node, &decl->external_block.decls) {
