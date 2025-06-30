@@ -59,7 +59,7 @@ struct symbol_table {
 struct st_key st_key_of(struct lxl_string_view sv);
 
 struct st_slot **find_slot(struct symbol_table *symbols, struct st_key key);
-bool insert_symbol(struct symbol_table *symbols, struct st_key key, struct symbol symbol);
+struct symbol *insert_symbol(struct symbol_table *symbols, struct st_key key, struct symbol symbol);
 struct symbol *lookup_symbol(struct symbol_table *symbols, struct st_key key);
 
 #endif

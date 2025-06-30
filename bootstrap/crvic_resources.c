@@ -10,6 +10,9 @@ struct allocatorARD temp = {0};  // Allocator for temporary allocations.
 static struct region *perm_region = NULL;
 static struct region *temp_region = NULL;
 
+struct symbol_func *functions[FUNCTION_CAPACITY] = {0};
+int function_count = 0;
+
 void init_crvic(void) {
     perm_region = create_region(STDLIB_ALLOCATOR_AD, REGION_SIZE);
     temp_region = create_region(STDLIB_ALLOCATOR_AD, REGION_SIZE);
@@ -31,4 +34,11 @@ REGION_RESTORE begin_temp(void) {
 
 void end_temp(REGION_RESTORE restore_point) {
     region_restore(temp_region, restore_point);
+}
+
+int add_function(struct symbol_func *func) {
+    assert(function_count + 1 <= FUNCTION_CAPACITY && "Too many functions");
+    int index = function_count;
+    functions[function_count++] = func;
+    return index;
 }

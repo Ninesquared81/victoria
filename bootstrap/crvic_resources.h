@@ -3,10 +3,16 @@
 
 #include "region.h"
 
+#include "crvic_symbol_table.h"  // symbol_func.
+
 #define REGION_SIZE 0x400000
+#define FUNCTION_CAPACITY 128
 
 extern struct allocatorARD perm;  // Allocator for permanent allocations.
 extern struct allocatorARD temp;  // Allocator for temporary allocations.
+
+extern struct symbol_func *functions[/* FUNCTION_CAPACITY */];  // Global function table.
+extern int function_count;  // Number of functions in function table.
 
 void init_crvic(void);  // Initialise crvic resources. Must be called at start of program.
 
@@ -31,5 +37,7 @@ void end_temp(REGION_RESTORE restore_point);
 #define AUTO_BEGIN_TEMP() REGION_RESTORE AUTO_restore_point = begin_temp()
 // End a series of temporary allocations begun by `AUTO_BEGIN_TEMP()`.
 #define AUTO_END_TEMP() end_temp(AUTO_restore_point)
+
+int add_function(struct symbol_func *func);
 
 #endif

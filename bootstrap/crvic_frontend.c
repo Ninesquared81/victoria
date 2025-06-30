@@ -736,11 +736,14 @@ static struct ast_decl parse_func_decl(void) {
     struct symbol *symbol = lookup_symbol(&symbols, key);
     if (!symbol) {
         // New function.
-        insert_symbol(&symbols, key, (struct symbol) {
+        symbol = insert_symbol(&symbols, key, (struct symbol) {
                 .kind = SYMBOL_FUNC,
                 .func = {
                     .func_decl = decl,
                     .sig = &decl.func.sig->resolved_sig}});
+        assert(symbol);
+        assert(symbol->kind == SYMBOL_FUNC);
+        add_function(&symbol->func);
     }
     else if (symbol->kind == SYMBOL_FUNC) {
         // Function previously declared/defined.

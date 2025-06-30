@@ -24,7 +24,7 @@ struct st_slot **find_slot(struct symbol_table *symbols, struct st_key key) {
     return slot;
 }
 
-bool insert_symbol(struct symbol_table *symbols, struct st_key key, struct symbol symbol) {
+struct symbol *insert_symbol(struct symbol_table *symbols, struct st_key key, struct symbol symbol) {
     struct st_slot **slot = find_slot(symbols, key);
     assert(slot != NULL);
     bool is_new_slot = *slot == NULL;
@@ -34,7 +34,7 @@ bool insert_symbol(struct symbol_table *symbols, struct st_key key, struct symbo
         **slot = (struct st_slot) {.key = key};
     }
     (*slot)->symbol = symbol;
-    return is_new_slot;
+    return (is_new_slot) ? &(*slot)->symbol : NULL;
 }
 
 struct symbol *lookup_symbol(struct symbol_table *symbols, struct st_key key) {
