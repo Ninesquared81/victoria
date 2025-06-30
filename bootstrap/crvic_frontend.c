@@ -1125,6 +1125,14 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         }
         assert(symbol && symbol->kind == SYMBOL_FUNC);
         struct symbol_func *callee = &symbol->func;
+        if (!symbol->resolved) {
+            assert(!callee->func_decl.func.sig->resolved);
+            struct func_sig *sig = resolve_func_sig(callee->func_decl.func.sig);
+            assert(sig == callee->sig);
+            symbol->resolved = true;
+        }
+        assert(callee->func_decl.func.sig->resolved);
+        assert(symbol->resolved);
         // Set the result type here to avoid a cascade of type errors, even if the arguments are incorrect.
         result_type = callee->sig->ret_type;
         int expected_arity = callee->sig->arity;
