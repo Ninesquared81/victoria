@@ -12,6 +12,11 @@ enum cgen_error crvic_generate_c_file(struct ast_list nodes, struct string_buffe
     int indent = 0;  // Current indenation level.
     sb_add_string(sb, "#include <stdint.h>  // Fixed-width types.\n");
     enum cgen_error ret = CGEN_OK;
+    for (int i = 0; i < function_count; ++i) {
+        // Forward-declare all functions.
+        if ((ret = crvic_generate_c_func_header(functions[i]->sig, sb))) return ret;
+        sb_add_string(sb, ";\n");
+    }
     if ((ret = crvic_generate_c_types(indent_step, sb)) != CGEN_OK) return ret;
     if ((ret = crvic_generate_c_nodes(nodes, indent, indent_step, sb)) != CGEN_OK) return ret;
     return CGEN_OK;
@@ -95,24 +100,17 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
         sb_add_string(sb, ";\n");
         break;
     case AST_DECL_FUNC:
+        if (decl->func.decl_kind == AST_FUNC_DECL) break;  // Declaration; function already forward-declared.
+        // Definition.
+        assert(decl->func.decl_kind == AST_FUNC_DEFN);
         if ((error = crvic_generate_c_func_header(&decl->func.sig->resolved_sig, sb))) return error;
-        if (decl->func.decl_kind == AST_FUNC_DECL) {
-            // Declaration.
-            sb_add_string(sb, ";\n");
+        sb_add_string(sb, " {\n");
+        assert(indent == 0 && "Cannot have nested function in C!");
+        if ((error = crvic_generate_c_func_body(decl->func.body, indent_step, sb))) return error;
+        if (lxl_sv_equal(decl->func.sig->resolved_sig.name, LXL_SV_FROM_STRLIT("main"))) {
+            sb_add_formatted(sb, "%*sreturn 0;\n", indent_step, "");
         }
-        else if (decl->func.decl_kind == AST_FUNC_DEFN) {
-            // Definition.
-            sb_add_string(sb, " {\n");
-            assert(indent == 0 && "Cannot have nested function in C!");
-            if ((error = crvic_generate_c_func_body(decl->func.body, indent_step, sb))) return error;
-            if (lxl_sv_equal(decl->func.sig->resolved_sig.name, LXL_SV_FROM_STRLIT("main"))) {
-                sb_add_formatted(sb, "%*sreturn 0;\n", indent_step, "");
-            }
-            sb_add_string(sb, "}\n");
-        }
-        else {
-            UNREACHABLE();
-        }
+        sb_add_string(sb, "}\n");
         break;
     case AST_DECL_EXTERNAL_BLOCK:
         FOR_DLLIST (struct ast_node *, node, &decl->external_block.decls) {
