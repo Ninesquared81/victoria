@@ -109,6 +109,7 @@ struct ast_sig {
     struct ast_type_decl_list params;
     struct ast_type *ret_type;
     bool c_variadic;
+    bool resolved;
 };
 
 struct ast_type {

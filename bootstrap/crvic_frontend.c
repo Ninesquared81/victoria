@@ -1049,6 +1049,7 @@ static TypeID resolve_type(struct ast_type *type) {
 }
 
 static struct func_sig *resolve_func_sig(struct ast_sig *sig) {
+    if (sig->resolved) return &sig->resolved_sig;;
     struct type_decl_list *resolved_params = &sig->resolved_sig.params;
     DA_RESERVE(resolved_params, sig->params.count);
     for (int i = 0; i < sig->params.count; ++i) {
@@ -1057,6 +1058,7 @@ static struct func_sig *resolve_func_sig(struct ast_sig *sig) {
     sig->resolved_sig.ret_type = resolve_type(sig->ret_type);
     sig->resolved_sig.arity = sig->resolved_sig.params.count;
     sig->resolved_sig.c_variadic = sig->c_variadic;
+    sig->resolved = true;
     return &sig->resolved_sig;
 }
 

@@ -1,6 +1,6 @@
 external func putchar(c:i32)->i32
 # TODO: external blocks
-external {func aa(); func bb(x: int, y: int) -> int; func cc() -> int;}
+external {func aa(); func bb(x: int, y: int) -> int; func cc() -> int; func dd(a: int, b: int, c: int);}
 
 external func variadic(x: int, ..!) -> int
 
@@ -34,6 +34,7 @@ type Card := record {
 
 func thing1() -> int {
     thing2(5)
+    aa(); bb(5, 7); cc(); dd(1, 2, 3);
     return 42
 }
 
