@@ -22,6 +22,7 @@ enum ast_expr_kind {
     AST_EXPR_CALL,     // Function call.
     AST_EXPR_CONSTRUCTOR, // Type constructor expression.
     AST_EXPR_CONVERT,  // Explicit type conversion.
+    AST_EXPR_DEREF,    // Pointer dereference ptr^.
     AST_EXPR_GET,      // Get (the value of a variable, etc.) expression.
     AST_EXPR_INTEGER,  // Integer literal expression.
     AST_EXPR_NULL,     // Literal `null`.
@@ -162,6 +163,9 @@ struct ast_expr {
             struct ast_type *target_type;
             enum type_conv_kind kind;
         } convert;
+        struct ast_expr_deref {
+            struct ast_expr *pointer;
+        } deref;
         struct ast_expr_get {
             struct ast_expr_get *rest;  // RHS of `.` operator, optional.
             union {

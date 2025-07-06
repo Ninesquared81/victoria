@@ -471,6 +471,7 @@ static struct ast_expr parse_primary(void) {
             .integer = {.value = parse_previous_integer()}};
     }
     else if (match(TOKEN_IDENTIFIER, true)) {
+        // Why is this handled here? Surely we can handle `.` as a suffix operator.
         struct lxl_string_view name = lxl_token_value(parser.previous_token);
         if (match(TOKEN_BKT_CURLY_LEFT, true)) {
             struct ast_list inits = parse_comma_list_no_assign(TOKEN_BKT_CURLY_RIGHT,
@@ -539,7 +540,9 @@ static struct ast_expr parse_primary(void) {
 static struct ast_expr parse_suffix(void) {
     struct ast_expr expr = parse_primary();
     if (match(TOKEN_CARET, true)) {
-        NOT_SUPPORTED_YET_PREVIOUS();
+        expr = (struct ast_expr) {
+            .kind = AST_EXPR_DEREF,
+            .deref = {.pointer = copy_expr(expr)}};
     }
     else if (match(TOKEN_DOT, true)) {
         NOT_SUPPORTED_YET_PREVIOUS();
@@ -1264,6 +1267,18 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             // TODO: ensure 'to' conversion is compatible.
         }
         result_type = resolve_type(expr->convert.target_type);
+    } break;
+    case AST_EXPR_DEREF: {
+        TypeID pointer = type_check_expr(expr->deref.pointer);
+        struct type_info *info = get_type(pointer);
+        assert(info);
+        if (info->kind != KIND_POINTER) {
+            struct lxl_string_view type_name = get_type_sv(pointer);
+            type_error("Cannot dereference type '"LXL_SV_FMT_SPEC"'; expect pointer.",
+                       LXL_SV_FMT_ARG(type_name));
+            break;
+        }
+        result_type = info->pointer_type.dest_type;
     } break;
     case AST_EXPR_GET: {
         struct lxl_string_view name = expr->get.target.identifier;

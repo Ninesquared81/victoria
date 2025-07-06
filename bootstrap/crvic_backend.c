@@ -169,6 +169,11 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
             sb_add_string(sb, ")");
         }
         break;
+    case AST_EXPR_DEREF:
+        sb_add_string(sb, "*(");
+        if ((error = crvic_generate_c_expr(expr->deref.pointer, sb))) return error;
+        sb_add_string(sb, ")");
+        break;
     case AST_EXPR_GET:
         assert(expr->get.kind == AST_TARGET_IDENTIFIER);
         sb_add_formatted(sb, ""LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(expr->get.target.identifier));
