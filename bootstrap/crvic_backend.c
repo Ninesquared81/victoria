@@ -10,7 +10,9 @@
 enum cgen_error crvic_generate_c_file(struct ast_list nodes, struct string_buffer *sb) {
     int indent_step = 4;  // Number of spaces to indent by for each indent/dedent.
     int indent = 0;  // Current indenation level.
-    sb_add_string(sb, "#include <stdint.h>  // Fixed-width types.\n");
+    sb_add_string(sb,
+                  "#include <stdint.h>  // Fixed-width types.\n"
+                  "#include <stddef.h>  // NULL.\n");
     enum cgen_error ret = CGEN_OK;
     for (int i = 0; i < function_count; ++i) {
         // Forward-declare all functions.
@@ -178,6 +180,9 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
     case AST_EXPR_INTEGER:
         sb_add_formatted(sb, "%"PRId64, expr->integer.value);
         break;
+    case AST_EXPR_NULL:
+        sb_add_string(sb, "NULL");
+        break;
     case AST_EXPR_WHEN:
         sb_add_string(sb, "((");  // Outer '(', Conditon '('.
         if ((error = crvic_generate_c_expr(expr->when.cond, sb))) return error;
@@ -286,6 +291,8 @@ const char *crvic_get_c_type(TypeID type) {
         case TYPE_ABSURD:
         case TYPE_UNIT:
             return "void";
+        case TYPE_NULLPTR_TYPE:
+            return "void*";
         case TYPE_I8: return "int8_t";
         case TYPE_I16: return "int16_t";
         case TYPE_I32: return "int32_t";

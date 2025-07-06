@@ -508,6 +508,10 @@ static struct ast_expr parse_primary(void) {
         expr = parse_assign();
         consume(TOKEN_BKT_ROUND_RIGHT, false, "Expect ')' after grouped expression");
     }
+    else if (match(TOKEN_KW_NULL, true)) {
+        expr = (struct ast_expr) {
+            .kind = AST_EXPR_NULL};
+    }
     else if (match(TOKEN_KW_WHEN, true)) {
         ignore_line_ending();
         struct ast_expr *cond = new_expr();
@@ -774,18 +778,16 @@ struct ast_decl parse_var_decl(enum ast_var_kind kind) {
     struct ast_decl decl = {0};
     struct lxl_token name_token = consume(TOKEN_IDENTIFIER, false, "Expect variable name after 'var'");
     struct lxl_string_view name = lxl_token_value(name_token);
-    struct ast_type *type = new_type();
-    *type = (struct ast_type) {
-        .kind = AST_TYPE_PRIMITIVE,
-        .resolved_type = TYPE_NO_TYPE};
+    struct ast_type *type = NULL;
     if (match(TOKEN_COLON, false)) {
-        *type = parse_type("Expect type after ':'");
+        type = copy_type(parse_type("Expect type after ':'"));
         if (!match(TOKEN_EQUALS, false)) {
             end_statement();
             if (kind == AST_VAR_VAL) {
                 parse_error_show_token(var_token, "Immutable value '"LXL_SV_FMT_SPEC"' must be initialised",
                                        LXL_SV_FMT_ARG(name));
             }
+            assert(type != NULL);
             decl = (struct ast_decl) {
                 .kind = AST_DECL_VAR_DECL,
                 .var_decl = {
@@ -1107,6 +1109,16 @@ static TypeID convert_binary(TypeID lhs_type, TypeID rhs_type) {
     return TYPE_NO_TYPE;
 }
 
+static bool check_assignable(TypeID ltype, TypeID rtype) {
+    if (ltype == rtype) return true;
+    struct type_info *linfo = get_type(ltype);
+    // struct type_into *rinfo = get_type(rtype);
+    assert(linfo /* && rinfo */);
+    // Pointers can be assigned `null`.
+    if (linfo->kind == KIND_POINTER && rtype == TYPE_NULLPTR_TYPE) return true;
+    return false;
+}
+
 static TypeID type_check_expr(struct ast_expr *expr) {
     TypeID result_type = TYPE_NO_TYPE;
     switch (expr->kind) {
@@ -1126,7 +1138,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             break;
         }
         result_type = type_check_expr(expr->assign.value);
-        if (result_type != target_symbol->var.type) {
+        if (!check_assignable(result_type, target_symbol->var.type)) {
             struct lxl_string_view result_type_name = get_type_sv(result_type);
             struct lxl_string_view target_type_name = get_type_sv(target_symbol->var.type);
             type_error("Cannot assign value of type '"LXL_SV_FMT_SPEC"' to variable '"
@@ -1320,6 +1332,9 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         // TODO "untyped" literals... i.e. integer literals have an "INTEGER_LITERAL" type.
         result_type = TYPE_INT;
         break;
+    case AST_EXPR_NULL:
+        result_type = TYPE_NULLPTR_TYPE;
+        break;
     case AST_EXPR_WHEN: {
         // Propagate errors.
         if (!type_check_expr(expr->when.cond)) return TYPE_NO_TYPE;
@@ -1407,17 +1422,18 @@ static void type_check_decl(struct ast_decl *decl) {
     case AST_DECL_VAR_DEFN: {
         TypeID value_type = type_check_expr(decl->var_defn.value);
         if (!value_type) return;
-        if (!decl->var_defn.type->resolved_type) decl->var_defn.type->resolved_type = value_type;
-        if (value_type != decl->var_defn.type->resolved_type) {
+        if (!decl->var_defn.type) decl->var_defn.type = copy_type(RESOLVED_TYPE(value_type));
+        TypeID var_type = resolve_type(decl->var_defn.type);
+        if (!check_assignable(var_type, value_type)) {
             type_error("Mismatched types in variable definition");
         }
         struct symbol symbol = (decl->var_defn.kind == AST_VAR_VAR)
             ? (struct symbol) {
                 .kind = SYMBOL_VAR,
-                .var = {.type = decl->var_defn.type->resolved_type}}
+                .var = {.type = var_type}}
             : (struct symbol) {
                 .kind = SYMBOL_VAL,
-                .val = {.type = decl->var_defn.type->resolved_type}};
+                .val = {.type = var_type}};
         if (!insert_symbol(&symbols, st_key_of(decl->var_decl.name), symbol)) {
             name_error("Redeclaration of symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(decl->var_decl.name));
         }

@@ -65,7 +65,7 @@ END = "\n" | ";" ;
 Operator precedence:
 High
 
-primary  "123", "abc", "when...then...else..."
+primary  "123", "abc", "when...then...else...", "null"
 suffix   "^", "()", "as T", "to T"
 prefix
 factor   "*"

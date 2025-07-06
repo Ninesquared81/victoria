@@ -11,6 +11,7 @@ enum type_primitive {
     TYPE_NO_TYPE,      // Sentinel type denoting no type.
     TYPE_ABSURD,       // Absurd type `!`. Used to denote expressions that do not return.
     TYPE_UNIT,         // Unit type `()`. Used to denote an expression with no meaningful value.
+    TYPE_NULLPTR_TYPE, // `type_of(null)`.
     TYPE_I8,           // Signed 8-bit integer.
     TYPE_I16,          // Signed 16-bit integer.
     TYPE_I32,          // Signed 32-bit integer.

@@ -43,7 +43,7 @@ func thing2(x: int) {return;}
 func main() {
     val a := 42
     var b := a + 5
-    var p: ^int
+    var p: ^int = null
     var x: record {x: int, y: int}
     # val c: int
     # a := a

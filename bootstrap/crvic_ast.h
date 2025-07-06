@@ -24,6 +24,7 @@ enum ast_expr_kind {
     AST_EXPR_CONVERT,  // Explicit type conversion.
     AST_EXPR_GET,      // Get (the value of a variable, etc.) expression.
     AST_EXPR_INTEGER,  // Integer literal expression.
+    AST_EXPR_NULL,     // Literal `null`.
     AST_EXPR_WHEN,     // When (conditional) expression.
 };
 
@@ -205,12 +206,12 @@ struct ast_decl {
         // TODO: merge `.var_decl` and `.var_defn`.
         struct {
             struct lxl_string_view name;
-            struct ast_type *type;
+            struct ast_type *type;  // Impossible to be NULL.
             enum ast_var_kind kind;
         } var_decl;
         struct {
             struct lxl_string_view name;
-            struct ast_type *type;
+            struct ast_type *type;  // NULL when missing.
             enum ast_var_kind kind;
             struct ast_expr *value;
         } var_defn;
