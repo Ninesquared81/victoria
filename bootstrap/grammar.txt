@@ -66,8 +66,8 @@ Operator precedence:
 High
 
 primary  "123", "abc", "when...then...else..."
+suffix   "^", "()", "as T", "to T"
 prefix
-suffix   "()", "as T", "to T"
 factor   "*"
 term     "+"
 equality "=="

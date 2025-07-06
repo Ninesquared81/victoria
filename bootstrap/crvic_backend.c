@@ -301,15 +301,31 @@ const char *crvic_get_c_type(TypeID type) {
     }
     struct type_info *info = get_type(type);
     assert(info);
-    if (info->kind == KIND_RECORD) {
+    switch (info->kind) {
+    case KIND_RECORD: {
         int count = snprintf(NULL, 0, "struct VICTYPE_%d__", info->id);
         // +1 for null terminator.
         char *name = ALLOCATE(perm, count + 1);
         snprintf(name, count + 1, "struct VICTYPE_%d__", info->id);
         return name;
     }
-    else if (info->kind == KIND_ENUM) {
+    case KIND_ENUM:
         return crvic_get_c_type(info->enum_type.underlying_type);
+    case KIND_POINTER:
+        return crvic_get_c_pointer(info->pointer_type.dest_type);
+
+    case KIND_NO_KIND:
+    case KIND_PRIMITIVE:
+        UNREACHABLE();
     }
     return NULL;
+}
+
+const char *crvic_get_c_pointer(TypeID dest_type) {
+    assert(dest_type < TYPE_PRIMITIVE_COUNT && "Only pointers to primitive types are supported");
+    const char *dest_type_string = crvic_get_c_type(dest_type);
+    size_t count = strlen(dest_type_string) + 1;
+    char *name = ALLOCATE(perm, count + 1);
+    snprintf(name, count + 1, "%s*", dest_type_string);
+    return name;
 }

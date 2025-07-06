@@ -75,6 +75,7 @@ enum kind {
     KIND_PRIMITIVE,             // Primitive type (see above).
     KIND_ENUM,                  // Enumeration type.
     KIND_RECORD,                // Record type (named product type).
+    KIND_POINTER,               // Pointer type, ^T.
 };
 
 struct enum_field {
@@ -114,6 +115,9 @@ struct type_info {
         struct {
             struct type_decl_list fields;
         } record_type;
+        struct {
+            TypeID dest_type;
+        } pointer_type;
     };
 };
 
@@ -131,6 +135,10 @@ struct type_info make_enum_type(TypeID underlying_type, struct enum_field_list f
 struct lxl_string_view make_enum_repr(struct enum_field_list fields);
 bool get_enum_field_value(struct enum_field_list fields, struct lxl_string_view field_name,
                           VIC_INT *OUT_value);
+
+TypeID find_pointer_type(TypeID dest_type);
+struct type_info make_pointer_type(TypeID dest_type);
+struct lxl_string_view make_pointer_repr(TypeID dest_type);
 
 bool is_integer_type(TypeID type);
 enum signedness sign_of_type(TypeID type);

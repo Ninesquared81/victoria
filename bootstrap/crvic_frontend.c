@@ -424,6 +424,14 @@ static struct ast_type parse_type(const char *fmt, ...) {
                 .underlying_type = copy_type(underlying_type),
                 .fields = fields}};
     }
+    // Pointer types.
+    if (match(TOKEN_CARET, false)) {
+        struct ast_type dest_type = parse_type("Expect type after '^'");
+        return (struct ast_type) {
+            .kind = AST_TYPE_POINTER,
+            .pointer = {
+                .dest_type = copy_type(dest_type)}};
+    }
     // Not a type.
     va_list vargs;
     va_start(vargs, fmt);
@@ -524,22 +532,8 @@ static struct ast_expr parse_primary(void) {
     return expr;
 }
 
-static struct ast_expr parse_prefix(void) {
-    struct ast_expr expr = {0};
-    if (match(TOKEN_MINUS, true)) {
-        NOT_SUPPORTED_YET_PREVIOUS();
-    }
-    else if (match(TOKEN_PLUS, true)) {
-        NOT_SUPPORTED_YET_PREVIOUS();
-    }
-    else {
-        expr = parse_primary();
-    }
-    return expr;
-}
-
 static struct ast_expr parse_suffix(void) {
-    struct ast_expr expr = parse_prefix();
+    struct ast_expr expr = parse_primary();
     if (match(TOKEN_CARET, true)) {
         NOT_SUPPORTED_YET_PREVIOUS();
     }
@@ -581,8 +575,22 @@ static struct ast_expr parse_suffix(void) {
     return expr;
 }
 
+static struct ast_expr parse_prefix(void) {
+    struct ast_expr expr = {0};
+    if (match(TOKEN_MINUS, true)) {
+        NOT_SUPPORTED_YET_PREVIOUS();
+    }
+    else if (match(TOKEN_PLUS, true)) {
+        NOT_SUPPORTED_YET_PREVIOUS();
+    }
+    else {
+        expr = parse_suffix();
+    }
+    return expr;
+}
+
 static struct ast_expr parse_factor(void) {
-    struct ast_expr expr = parse_suffix();
+    struct ast_expr expr = parse_prefix();
     while (match(TOKEN_STAR, true)) {
         struct ast_expr *lhs = new_expr();
         struct ast_expr *rhs = new_expr();
@@ -992,6 +1000,7 @@ static TypeID resolve_record(struct ast_type *type) {
     }
     AUTO_END_TEMP();
     assert(found);
+    type->resolved_type = found;
     return found;
 }
 
@@ -1020,6 +1029,20 @@ static TypeID resolve_enum(struct ast_type *type) {
     }
     AUTO_END_TEMP();
     assert(found);
+    type->resolved_type = found;
+    return found;
+}
+
+static TypeID resolve_pointer(struct ast_type *type) {
+    assert(type->kind == AST_TYPE_POINTER);
+    TypeID dest_type = resolve_type(type->pointer.dest_type);
+    assert(dest_type != TYPE_NO_TYPE);
+    TypeID found = find_pointer_type(dest_type);
+    if (!found) {
+        found = add_type(make_pointer_type(dest_type));
+    }
+    assert(found);
+    type->resolved_type = found;
     return found;
 }
 
@@ -1046,6 +1069,8 @@ static TypeID resolve_type(struct ast_type *type) {
         return resolve_record(type);
     case AST_TYPE_ENUM:
         return resolve_enum(type);
+    case AST_TYPE_POINTER:
+        return resolve_pointer(type);
     }
     UNREACHABLE();
     return TYPE_NO_TYPE;
