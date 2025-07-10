@@ -67,7 +67,7 @@ High
 
 primary  "123", "abc", "when...then...else...", "null"
 suffix   "^", "()", "as T", "to T"
-prefix
+prefix   "&"
 factor   "*"
 term     "+"
 equality "=="

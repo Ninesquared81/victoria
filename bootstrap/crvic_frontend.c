@@ -584,7 +584,13 @@ static struct ast_expr parse_suffix(void) {
 
 static struct ast_expr parse_prefix(void) {
     struct ast_expr expr = {0};
-    if (match(TOKEN_MINUS, true)) {
+    if (match(TOKEN_AMPERSAND, true)) {
+        struct ast_expr target = parse_suffix();
+        expr = (struct ast_expr) {
+            .kind = AST_EXPR_ADDRESS_OF,
+            .address_of = {.target = copy_expr(target)}};
+    }
+    else if (match(TOKEN_MINUS, true)) {
         NOT_SUPPORTED_YET_PREVIOUS();
     }
     else if (match(TOKEN_PLUS, true)) {
@@ -1125,6 +1131,17 @@ static bool check_assignable(TypeID ltype, TypeID rtype) {
 static TypeID type_check_expr(struct ast_expr *expr) {
     TypeID result_type = TYPE_NO_TYPE;
     switch (expr->kind) {
+    case AST_EXPR_ADDRESS_OF: {
+        TypeID target_type = type_check_expr(expr->address_of.target);
+        // TODO: check if `target_type` is addressable.
+        TypeID found = find_pointer_type(target_type);
+        if (!found) {
+            struct type_info info = make_pointer_type(target_type);
+            found = add_type(info);
+        }
+        assert(found);
+        result_type = found;
+    } break;
     case AST_EXPR_ASSIGN: {
         struct lxl_string_view name = expr->assign.target;
         struct symbol *target_symbol = lookup_symbol(&symbols, st_key_of(name));

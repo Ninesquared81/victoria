@@ -44,6 +44,7 @@ func main() {
     val a := 42
     var b := a + 5
     var p: ^int = null
+    p := &a
     var deref := p^
     var x: record {x: int, y: int}
     # val c: int

@@ -17,6 +17,7 @@ enum ast_node_kind {
 };
 
 enum ast_expr_kind {
+    AST_EXPR_ADDRESS_OF, // Address-of &target.
     AST_EXPR_ASSIGN,   // Assignment expression.
     AST_EXPR_BINARY,   // Binary operation.
     AST_EXPR_CALL,     // Function call.
@@ -140,6 +141,9 @@ struct ast_expr {
     enum ast_expr_kind kind;
     TypeID type;
     union {
+        struct {
+            struct ast_expr *target;
+        } address_of;
         struct {
             struct lxl_string_view target;
             struct ast_expr *value;

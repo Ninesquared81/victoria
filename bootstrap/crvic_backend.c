@@ -130,10 +130,15 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
 enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffer *sb) {
     enum cgen_error error = CGEN_OK;
     switch (expr->kind) {
+    case AST_EXPR_ADDRESS_OF:
+        sb_add_string(sb, "&(");
+        if ((error = crvic_generate_c_expr(expr->address_of.target, sb))) return error;
+        sb_add_string(sb, ")");
+        break;
     case AST_EXPR_ASSIGN:
         sb_add_string(sb, "(");
         sb_add_formatted(sb, ""LXL_SV_FMT_SPEC" = ", LXL_SV_FMT_ARG(expr->assign.target));
-        if ((error - crvic_generate_c_expr(expr->assign.value, sb))) return error;
+        if ((error = crvic_generate_c_expr(expr->assign.value, sb))) return error;
         sb_add_string(sb, ")");
         break;
     case AST_EXPR_BINARY:
