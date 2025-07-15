@@ -38,6 +38,8 @@ enum cgen_error crvic_generate_c_nodes(struct ast_list nodes, int indent, int in
         case AST_DECL:
             error = crvic_generate_c_decl(&node->decl, indent, indent_step, sb);
             break;
+        case AST_TYPE:
+            return CGEN_UNEXPECTED_TYPE;
         }
         if (error) return error;
     }
@@ -192,6 +194,8 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
     case AST_EXPR_NULL:
         sb_add_string(sb, "NULL");
         break;
+    case AST_EXPR_TYPE_EXPR:
+        return CGEN_UNEXPECTED_TYPE;
     case AST_EXPR_WHEN:
         sb_add_string(sb, "((");  // Outer '(', Conditon '('.
         if ((error = crvic_generate_c_expr(expr->when.cond, sb))) return error;
@@ -297,6 +301,7 @@ const char *crvic_get_c_type(TypeID type) {
     if (type < TYPE_PRIMITIVE_COUNT) {
         switch ((enum type_primitive)type) {
         case TYPE_NO_TYPE:
+        case TYPE_TYPE_EXPR:
         case TYPE_ABSURD:
         case TYPE_UNIT:
             return "void";

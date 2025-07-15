@@ -471,7 +471,7 @@ static struct ast_expr parse_primary(void) {
             .integer = {.value = parse_previous_integer()}};
     }
     else if (match(TOKEN_IDENTIFIER, true)) {
-        // Why is this handled here? Surely we can handle `.` as a suffix operator.
+        // Why is this handled here? Surely we can handle constructors as a suffix operator.
         struct lxl_string_view name = lxl_token_value(parser.previous_token);
         if (match(TOKEN_BKT_CURLY_LEFT, true)) {
             struct ast_list inits = parse_comma_list_no_assign(TOKEN_BKT_CURLY_RIGHT,
@@ -1326,37 +1326,13 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             result_type = symbol->val.type;
         }
         else if (symbol->kind == SYMBOL_TYPE_ALIAS) {
-            TODO("Type alias identifier expressions");
-            /* result_type = resolve_type(&target_symbol->type_alias.type); */
-            /* struct type_info *info = get_type(result_type); */
-            /* assert(info); */
-            /* assert(info->id == result_type); */
-            /* if (info->kind != KIND_ENUM) { */
-            /*     name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a variable or enum", LXL_SV_FMT_ARG(name)); */
-            /*     break; */
-            /* } */
-            /* assert(expr->field.rest); */
-            /* // Transform get expr to integer expr. */
-            /* struct ast_expr_get *rest = expr->field.rest; */
-            /* if (rest->kind != AST_TARGET_IDENTIFIER) { */
-            /*     type_error("Expect enum field name"); */
-            /*     break; */
-            /* } */
-            /* VIC_INT value = 0; */
-            /* if (!get_enum_field_value(info->enum_type.fields, rest->target.identifier, &value)) { */
-            /*     struct lxl_string_view enum_sv = get_type_sv(info->id); */
-            /*     type_error("'"LXL_SV_FMT_SPEC"' is not a field of '"LXL_SV_FMT_SPEC"'", */
-            /*                LXL_SV_FMT_ARG(rest->target.identifier), LXL_SV_FMT_ARG(enum_sv)); */
-            /*     break; */
-            /* } */
-            /* if (rest->rest != NULL) { */
-            /*     type_error("Inavlid use of '.' on enum field"); */
-            /*     break; */
-            /* } */
-            /* *expr = (struct ast_expr) { */
-            /*     .kind = AST_EXPR_INTEGER, */
-            /*     .integer = { value }}; */
-            /* break; */
+            struct ast_type *aliased_type = &symbol->type_alias.type;
+            *expr = (struct ast_expr) {
+                .kind = AST_EXPR_TYPE_EXPR,
+                .type = resolve_type(aliased_type),
+                .type_expr = {
+                    .type = aliased_type}};
+            result_type = TYPE_TYPE_EXPR;
         }
         else {
             name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a variable or type", LXL_SV_FMT_ARG(name));
@@ -1368,6 +1344,9 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         break;
     case AST_EXPR_NULL:
         result_type = TYPE_NULLPTR_TYPE;
+        break;
+    case AST_EXPR_TYPE_EXPR:
+        TODO("type check type expressions");
         break;
     case AST_EXPR_WHEN: {
         // Propagate errors.
@@ -1491,7 +1470,7 @@ static void type_check_decl(struct ast_decl *decl) {
 static void type_check_stmt_list(struct ast_list stmts, TypeID ret_type) {
     FOR_DLLIST (struct ast_node *, node, &stmts) {
         switch (node->kind) {
-        case AST_EXPR: UNREACHABLE(); break;
+        case AST_EXPR: case AST_TYPE: UNREACHABLE(); break;
         case AST_STMT: type_check_stmt(&node->stmt, ret_type); break;
         case AST_DECL: type_check_decl(&node->decl); break;
         }
@@ -1538,6 +1517,7 @@ bool type_check(struct ast_list *nodes) {
     FOR_DLLIST (struct ast_node *, node, nodes) {
         switch (node->kind) {
         case AST_EXPR:
+        case AST_TYPE:
             // Cannot have an expression here.
             UNREACHABLE();
             break;

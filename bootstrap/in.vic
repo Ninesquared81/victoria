@@ -51,7 +51,7 @@ func main() {
     # a := a
     var v := Vec2 {a, b}
     v := Vec2 {2*v.x, v.y}
-    var card := Card {Rank.ACE, Suit.SPADES}
+    # var card := Card {Rank.ACE, Suit.SPADES}
     type Z := i32
     putchar(72 to Z)
     putchar(101 to i32)

@@ -29,7 +29,7 @@ enum ast_expr_kind {
     AST_EXPR_IDENTIFIER, // Identifer (variable, function, etc.) lookup expression.
     AST_EXPR_INTEGER,  // Integer literal expression.
     AST_EXPR_NULL,     // Literal `null`.
-    AST_EXPR_TYPE,     // Type expression, e.g., `int`.
+    AST_EXPR_TYPE_EXPR, // Type expression, e.g., `int`.
     AST_EXPR_WHEN,     // When (conditional) expression.
 };
 
@@ -185,7 +185,7 @@ struct ast_expr {
         } integer;
         struct {
             struct ast_type *type;
-        } type;
+        } type_expr;
         struct {
             struct ast_expr *cond;
             struct ast_expr *then_expr;
