@@ -6,8 +6,8 @@ Decl = VarDecl
      | FuncDefn
      | TypeAliasDefn
      ;
-VarDecl = "var" TypeDecl END ;
-VarDefn = "var" IDENT (":=" | ":" Type "=") Expr END ;
+VarDecl = ("var" | "val") TypeDecl END ;
+VarDefn = ("var" | "val") IDENT (":=" | ":" Type "=") Expr END ;
 FuncDecl = "func" "(" [(TypeDecl ",")* TypeDecl [","]] ")" ["->" Type] ":=" "external" END ;
 FuncDefn = "func" "(" [(TypeDecl ",")* TypeDecl [","]] ")" ["->" Type] BlockStmt ;
 TypeAliasDefn = "type" IDENT ":=" Type END ;
@@ -29,22 +29,22 @@ Expr = Assign ;
 Assign = AssignExpr | Equality ;
 Equality = Term ;
 Term = Factor (("+") Factor)* ;
-Factor = Suffix (("*") Suffix)* ;
-Suffix = Prefix "(" ArgList ")"
-       | Prefix ("as" | "to") Type
-       | Prefix
+Factor = Prefix (("*") Prefix)* ;
+Prefix = Suffix ;
+Suffix = FieldExpr
+       | Primary "(" ArgList ")"
+       | Primary ("as" | "to") Type
+       | Primary
        ;
-Prefix = Primary ;
-Primay = GetExpr
-       | IntegerExpr
+Primay = IntegerExpr
        | WhenExpr
        | ConstructorExpr
+       | VariableExpr
        ;
 
-AssignExpr = SetExpr ":=" Expr ;
-GetExpr = IDENT ;
+AssignExpr = Equality ":=" Expr ;
+FieldExpr = Primary ("." IDENT)+ ;
 IntegerExpr = INTEGER_LIT ;
-SetExpr = GetExpr ;
 WhenExpr = "when" Expr "then" Expr "else" Expr
 ConstructorExpr = IDENT "{" [(AssignExpr ",")* AssignExpr [","]] "}"
 

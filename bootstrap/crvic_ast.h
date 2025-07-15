@@ -24,7 +24,8 @@ enum ast_expr_kind {
     AST_EXPR_CONSTRUCTOR, // Type constructor expression.
     AST_EXPR_CONVERT,  // Explicit type conversion.
     AST_EXPR_DEREF,    // Pointer dereference ptr^.
-    AST_EXPR_GET,      // Get (the value of a variable, etc.) expression.
+    AST_EXPR_FIELD,    // Field access expression.
+    AST_EXPR_IDENTIFIER, // Identifer (variable, function, etc.) lookup expression.
     AST_EXPR_INTEGER,  // Integer literal expression.
     AST_EXPR_NULL,     // Literal `null`.
     AST_EXPR_WHEN,     // When (conditional) expression.
@@ -167,16 +168,16 @@ struct ast_expr {
             struct ast_type *target_type;
             enum type_conv_kind kind;
         } convert;
-        struct ast_expr_deref {
+        struct {
             struct ast_expr *pointer;
         } deref;
-        struct ast_expr_get {
-            struct ast_expr_get *rest;  // RHS of `.` operator, optional.
-            union {
-                struct lxl_string_view identifier;
-            } target;
-            enum ast_target_kind kind;
-        } get;
+        struct {
+            struct ast_expr *target;  // LHS of '.'.
+            struct lxl_string_view name;  // Field name.
+        } field;
+        struct {
+            struct lxl_string_view name;
+        } identifier;
         struct {
             int64_t value;
         } integer;

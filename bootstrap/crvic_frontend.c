@@ -282,8 +282,8 @@ static bool check_comparison(bool strict) {
 }
 
 static bool check_assignment_target(struct ast_expr expr) {
-    // For now, only variable names can be assignment tragets.
-    return expr.kind == AST_EXPR_GET;
+    // For now, only variable names can be assignment targets.
+    return expr.kind == AST_EXPR_IDENTIFIER;
 }
 
 static bool is_digit(char c, int base) {
@@ -484,24 +484,8 @@ static struct ast_expr parse_primary(void) {
         }
         else {
             expr = (struct ast_expr) {
-                .kind = AST_EXPR_GET,
-                .get = {
-                    .rest = NULL,
-                    .target.identifier = name,
-                    .kind = AST_TARGET_IDENTIFIER}};
-            struct ast_expr_get **get = &expr.get.rest;
-            while (match(TOKEN_DOT, true)) {
-                *get = ALLOCATE(perm, sizeof **get);
-                assert(*get);
-                consume(TOKEN_IDENTIFIER, true, "Expect identifier after '.'");
-                // TODO: other target kinds.
-                name = lxl_token_value(parser.previous_token);
-                **get = (struct ast_expr_get) {
-                    .rest = NULL,
-                    .target.identifier = name,
-                    .kind = AST_TARGET_IDENTIFIER};
-                get = &(*get)->rest;
-            }
+                .kind = AST_EXPR_IDENTIFIER,
+                .identifier = {.name = name}};
         }
     }
     else if (match(TOKEN_BKT_ROUND_LEFT, true)) {
@@ -539,45 +523,57 @@ static struct ast_expr parse_primary(void) {
 
 static struct ast_expr parse_suffix(void) {
     struct ast_expr expr = parse_primary();
-    if (match(TOKEN_CARET, true)) {
-        expr = (struct ast_expr) {
-            .kind = AST_EXPR_DEREF,
-            .deref = {.pointer = copy_expr(expr)}};
-    }
-    else if (match(TOKEN_DOT, true)) {
-        NOT_SUPPORTED_YET_PREVIOUS();
-    }
-    else if (match(TOKEN_BKT_ROUND_LEFT, true)) {
-        struct ast_expr *callee = new_expr();
-        *callee = expr;
-        if (callee->kind != AST_EXPR_GET) {
-            parse_error_previous_show_token("Callee must be an identifier");
+    for (;;) {
+        // Parse multiple suffixes.
+        if (match(TOKEN_CARET, true)) {
+            expr = (struct ast_expr) {
+                .kind = AST_EXPR_DEREF,
+                .deref = {.pointer = copy_expr(expr)}};
         }
-        struct ast_list args = parse_arg_list();
-        expr = (struct ast_expr) {
-            .kind = AST_EXPR_CALL,
-            .call = {
-                .callee_name = callee->get.target.identifier,
-                .arity = args.count,
-                .args = args}};
-    }
-    else if (match(TOKEN_BKT_SQUARE_LEFT, true)) {
-        NOT_SUPPORTED_YET_PREVIOUS();
-    }
-    else if (match(TOKEN_KW_AS, true) || match(TOKEN_KW_TO, true)) {
-        struct lxl_token conversion = parser.previous_token;
-        struct lxl_string_view conv_sv = lxl_token_value(conversion);
-        struct ast_type *target_type = new_type();
-        *target_type = parse_type("Expect target type for '"LXL_SV_FMT_SPEC"' conversion",
-                                  LXL_SV_FMT_ARG(conv_sv));
-        struct ast_expr *operand = new_expr();
-        *operand = expr;
-        expr = (struct ast_expr) {
-            .kind = AST_EXPR_CONVERT,
-            .convert = {
-                .operand = operand,
-                .target_type = target_type,
-                .kind = (conversion.token_type == TOKEN_KW_AS) ? CONVERT_AS : CONVERT_TO}};
+        else if (match(TOKEN_DOT, true)) {
+            struct lxl_token name = consume(TOKEN_IDENTIFIER, false, "Expect field name after '.'");
+            expr = (struct ast_expr) {
+                .kind = AST_EXPR_FIELD,
+                .field = {
+                    .target = copy_expr(expr),
+                    .name = lxl_token_value(name)}};
+        }
+        else if (match(TOKEN_BKT_ROUND_LEFT, true)) {
+            struct ast_expr *callee = new_expr();
+            *callee = expr;
+            if (callee->kind != AST_EXPR_IDENTIFIER) {
+                parse_error_previous_show_token("Callee must be an identifier");
+            }
+            struct ast_list args = parse_arg_list();
+            expr = (struct ast_expr) {
+                .kind = AST_EXPR_CALL,
+                .call = {
+                    .callee_name = callee->identifier.name,
+                    .arity = args.count,
+                    .args = args}};
+        }
+        else if (match(TOKEN_BKT_SQUARE_LEFT, true)) {
+            NOT_SUPPORTED_YET_PREVIOUS();
+        }
+        else if (match(TOKEN_KW_AS, true) || match(TOKEN_KW_TO, true)) {
+            struct lxl_token conversion = parser.previous_token;
+            struct lxl_string_view conv_sv = lxl_token_value(conversion);
+            struct ast_type *target_type = new_type();
+            *target_type = parse_type("Expect target type for '"LXL_SV_FMT_SPEC"' conversion",
+                                      LXL_SV_FMT_ARG(conv_sv));
+            struct ast_expr *operand = new_expr();
+            *operand = expr;
+            expr = (struct ast_expr) {
+                .kind = AST_EXPR_CONVERT,
+                .convert = {
+                    .operand = operand,
+                    .target_type = target_type,
+                    .kind = (conversion.token_type == TOKEN_KW_AS) ? CONVERT_AS : CONVERT_TO}};
+        }
+        else {
+            // No more suffixes.
+            break;
+        }
     }
     return expr;
 }
@@ -654,7 +650,7 @@ static struct ast_expr parse_assign(void) {
         expr = (struct ast_expr) {
             .kind = AST_EXPR_ASSIGN,
             .assign = {
-                .target = expr.get.target.identifier,
+                .target = expr.identifier.name,
                 .value = value}};
     }
     return expr;
@@ -1297,67 +1293,67 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         }
         result_type = info->pointer_type.dest_type;
     } break;
-    case AST_EXPR_GET: {
-        struct lxl_string_view name = expr->get.target.identifier;
-        struct symbol *target_symbol = lookup_symbol(&symbols, st_key_of(name));
-        if (!target_symbol) {
+    case AST_EXPR_FIELD: {
+        TypeID target_type = type_check_expr(expr->field.target);
+        struct type_info *target_info = get_type(target_type);
+        assert(target_info);
+        if (target_info->kind == KIND_RECORD) {
+            TODO("record field type checking");
+        }
+        else {
+            type_error("Cannot get field of type '"LXL_SV_FMT_SPEC"'.",
+                       LXL_SV_FMT_ARG(target_info->repr));
+            break;
+        }
+    } break;
+    case AST_EXPR_IDENTIFIER: {
+        struct lxl_string_view name = expr->identifier.name;
+        struct symbol *symbol = lookup_symbol(&symbols, st_key_of(name));
+        if (!symbol) {
             name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
             break;
         }
-        if (target_symbol->kind == SYMBOL_VAR) {
-            result_type = target_symbol->var.type;
+        if (symbol->kind == SYMBOL_VAR) {
+            result_type = symbol->var.type;
         }
-        else if (target_symbol->kind == SYMBOL_VAL) {
-            result_type = target_symbol->val.type;
+        else if (symbol->kind == SYMBOL_VAL) {
+            result_type = symbol->val.type;
         }
-        else if (target_symbol->kind == SYMBOL_TYPE_ALIAS) {
-            result_type = resolve_type(&target_symbol->type_alias.type);
-            struct type_info *info = get_type(result_type);
-            assert(info);
-            assert(info->id == result_type);
-            if (info->kind != KIND_ENUM) {
-                name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a variable or enum", LXL_SV_FMT_ARG(name));
-                break;
-            }
-            assert(expr->get.rest);
-            // Transform get expr to integer expr.
-            struct ast_expr_get *rest = expr->get.rest;
-            if (rest->kind != AST_TARGET_IDENTIFIER) {
-                type_error("Expect enum field name");
-                break;
-            }
-            VIC_INT value = 0;
-            if (!get_enum_field_value(info->enum_type.fields, rest->target.identifier, &value)) {
-                struct lxl_string_view enum_sv = get_type_sv(info->id);
-                type_error("'"LXL_SV_FMT_SPEC"' is not a field of '"LXL_SV_FMT_SPEC"'",
-                           LXL_SV_FMT_ARG(rest->target.identifier), LXL_SV_FMT_ARG(enum_sv));
-                break;
-            }
-            if (rest->rest != NULL) {
-                type_error("Inavlid use of '.' on enum field");
-                break;
-            }
-            *expr = (struct ast_expr) {
-                .kind = AST_EXPR_INTEGER,
-                .integer = { value }};
-            break;
+        else if (symbol->kind == SYMBOL_TYPE_ALIAS) {
+            TODO("Type alias identifier expressions");
+            /* result_type = resolve_type(&target_symbol->type_alias.type); */
+            /* struct type_info *info = get_type(result_type); */
+            /* assert(info); */
+            /* assert(info->id == result_type); */
+            /* if (info->kind != KIND_ENUM) { */
+            /*     name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a variable or enum", LXL_SV_FMT_ARG(name)); */
+            /*     break; */
+            /* } */
+            /* assert(expr->field.rest); */
+            /* // Transform get expr to integer expr. */
+            /* struct ast_expr_get *rest = expr->field.rest; */
+            /* if (rest->kind != AST_TARGET_IDENTIFIER) { */
+            /*     type_error("Expect enum field name"); */
+            /*     break; */
+            /* } */
+            /* VIC_INT value = 0; */
+            /* if (!get_enum_field_value(info->enum_type.fields, rest->target.identifier, &value)) { */
+            /*     struct lxl_string_view enum_sv = get_type_sv(info->id); */
+            /*     type_error("'"LXL_SV_FMT_SPEC"' is not a field of '"LXL_SV_FMT_SPEC"'", */
+            /*                LXL_SV_FMT_ARG(rest->target.identifier), LXL_SV_FMT_ARG(enum_sv)); */
+            /*     break; */
+            /* } */
+            /* if (rest->rest != NULL) { */
+            /*     type_error("Inavlid use of '.' on enum field"); */
+            /*     break; */
+            /* } */
+            /* *expr = (struct ast_expr) { */
+            /*     .kind = AST_EXPR_INTEGER, */
+            /*     .integer = { value }}; */
+            /* break; */
         }
         else {
-            name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a variable or enum", LXL_SV_FMT_ARG(name));
-            break;
-        }
-        for (struct ast_expr_get *get = expr->get.rest; get; get = get->rest) {
-            TypeID lhs_type = result_type;
-            struct type_info *info = get_type(lhs_type);
-            assert(get->kind == AST_TARGET_IDENTIFIER);
-            assert(info->kind = KIND_RECORD);
-            result_type = get_record_field_type(info->record_type.fields, get->target.identifier);
-            if (!result_type) {
-                struct lxl_string_view record_type_sv = get_type_sv(lhs_type);
-                type_error("Type '"LXL_SV_FMT_SPEC"' has no field '"LXL_SV_FMT_SPEC"'",
-                           LXL_SV_FMT_ARG(record_type_sv), LXL_SV_FMT_ARG(get->target.identifier));
-                break;
-            }
+            name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a variable or type", LXL_SV_FMT_ARG(name));
         }
     } break;
     case AST_EXPR_INTEGER:
