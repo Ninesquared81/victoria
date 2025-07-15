@@ -1298,7 +1298,13 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         struct type_info *target_info = get_type(target_type);
         assert(target_info);
         if (target_info->kind == KIND_RECORD) {
-            TODO("record field type checking");
+            TypeID field_type = get_record_field_type(target_info->record_type.fields, expr->field.name);
+            if (!field_type) {
+                name_error("Unknown field '"LXL_SV_FMT_SPEC"' in type '"LXL_SV_FMT_SPEC"'",
+                           LXL_SV_FMT_ARG(expr->field.name), LXL_SV_FMT_ARG(target_info->repr));
+                break;
+            }
+            result_type = field_type;
         }
         else {
             type_error("Cannot get field of type '"LXL_SV_FMT_SPEC"'.",
