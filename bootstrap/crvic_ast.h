@@ -14,6 +14,7 @@ enum ast_node_kind {
     AST_EXPR,  // Expression.
     AST_STMT,  // Statement.
     AST_DECL,  // Declaration/definition.
+    AST_TYPE,  // Type expression.
 };
 
 enum ast_expr_kind {
