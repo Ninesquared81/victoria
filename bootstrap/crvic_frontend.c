@@ -1306,6 +1306,28 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             }
             result_type = field_type;
         }
+        else if (target_type == TYPE_TYPE_EXPR) {
+            // Do we need the type TYPE_TYPE_EXPR?
+            assert(expr->field.target->kind == AST_EXPR_TYPE_EXPR);
+            TypeID inner_type = resolve_type(expr->field.target->type_expr.type);
+            struct type_info *inner_info = get_type(inner_type);
+            if (inner_info->kind == KIND_ENUM) {
+                VIC_INT value = 0;
+                if (!get_enum_field_value(inner_info->enum_type.fields, expr->field.name, &value)) {
+                    name_error("Unknown variant '"LXL_SV_FMT_SPEC"' for type '"LXL_SV_FMT_SPEC"'.",
+                               LXL_SV_FMT_ARG(expr->field.name), LXL_SV_FMT_ARG(inner_info->repr));
+                    break;
+                }
+                *expr = (struct ast_expr) {
+                    .kind = AST_EXPR_INTEGER,
+                    .type = inner_info->enum_type.underlying_type,
+                    .integer = {.value = value}};
+            }
+            else {
+                type_error("Expect enum, not '"LXL_SV_FMT_SPEC"'.", LXL_SV_FMT_ARG(inner_info->repr));
+                break;
+            }
+        }
         else {
             type_error("Cannot get field of type '"LXL_SV_FMT_SPEC"'.",
                        LXL_SV_FMT_ARG(target_info->repr));
