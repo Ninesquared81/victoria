@@ -9,6 +9,7 @@
 
 enum type_primitive {
     TYPE_NO_TYPE,      // Sentinel type denoting no type.
+    TYPE_TYPE_EXPR,    // `type_of(T)`.
     TYPE_ABSURD,       // Absurd type `!`. Used to denote expressions that do not return.
     TYPE_UNIT,         // Unit type `()`. Used to denote an expression with no meaningful value.
     TYPE_NULLPTR_TYPE, // `type_of(null)`.
