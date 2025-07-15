@@ -581,7 +581,7 @@ static struct ast_expr parse_suffix(void) {
 static struct ast_expr parse_prefix(void) {
     struct ast_expr expr = {0};
     if (match(TOKEN_AMPERSAND, true)) {
-        struct ast_expr target = parse_suffix();
+        struct ast_expr target = parse_prefix();
         expr = (struct ast_expr) {
             .kind = AST_EXPR_ADDRESS_OF,
             .address_of = {.target = copy_expr(target)}};
@@ -604,7 +604,7 @@ static struct ast_expr parse_factor(void) {
         struct ast_expr *lhs = new_expr();
         struct ast_expr *rhs = new_expr();
         *lhs = expr;
-        *rhs = parse_suffix();
+        *rhs = parse_factor();
         expr = (struct ast_expr) {
             .kind = AST_EXPR_BINARY,
             .binary = {
@@ -621,7 +621,7 @@ static struct ast_expr parse_term(void) {
         struct ast_expr *lhs = new_expr();
         struct ast_expr *rhs = new_expr();
         *lhs = expr;
-        *rhs = parse_factor();
+        *rhs = parse_term();
         expr = (struct ast_expr) {
             .kind = AST_EXPR_BINARY,
             .binary = {
