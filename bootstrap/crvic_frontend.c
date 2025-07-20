@@ -1348,6 +1348,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                 type_error("Expect enum, not '"LXL_SV_FMT_SPEC"'.", LXL_SV_FMT_ARG(inner_info->repr));
                 break;
             }
+            result_type = inner_type;
         }
         else {
             type_error("Cannot get field of type '"LXL_SV_FMT_SPEC"'.",
