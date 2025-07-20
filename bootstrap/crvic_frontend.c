@@ -432,6 +432,19 @@ static struct ast_type parse_type(const char *fmt, ...) {
             .pointer = {
                 .dest_type = copy_type(dest_type)}};
     }
+    // Array, array-like pointer, slice.
+    if (match(TOKEN_BKT_SQUARE_LEFT, false)) {
+        // Array-like pointer.
+        if (match(TOKEN_CARET, false)) {
+            consume(TOKEN_BKT_SQUARE_RIGHT, false, "Expect ']' after '[^' for array-like pointer type");
+            struct ast_type dest_type = parse_type("Expect type after '[^]'");
+            return (struct ast_type) {
+                .kind = AST_TYPE_ARRAY_LIKE_POINTER,
+                .array_like_pointer = {
+                    .dest_type = copy_type(dest_type)}};
+        }
+        TODO("Other array-like types");
+    }
     // Not a type.
     va_list vargs;
     va_start(vargs, fmt);
@@ -1041,12 +1054,18 @@ static TypeID resolve_enum(struct ast_type *type) {
 }
 
 static TypeID resolve_pointer(struct ast_type *type) {
-    assert(type->kind == AST_TYPE_POINTER);
+    enum pointer_kind pointer_kind = POINTER_PROPER;
+    if (type->kind == AST_TYPE_ARRAY_LIKE_POINTER) {
+        pointer_kind = POINTER_ARRAY_LIKE;
+    }
+    else if (type->kind != AST_TYPE_POINTER) {
+        UNREACHABLE();
+    }
     TypeID dest_type = resolve_type(type->pointer.dest_type);
     assert(dest_type != TYPE_NO_TYPE);
-    TypeID found = find_pointer_type(dest_type);
+    TypeID found = find_pointer_type(pointer_kind, dest_type);
     if (!found) {
-        found = add_type(make_pointer_type(dest_type));
+        found = add_type(make_pointer_type(pointer_kind, dest_type));
     }
     assert(found);
     type->resolved_type = found;
@@ -1077,6 +1096,7 @@ static TypeID resolve_type(struct ast_type *type) {
     case AST_TYPE_ENUM:
         return resolve_enum(type);
     case AST_TYPE_POINTER:
+    case AST_TYPE_ARRAY_LIKE_POINTER:
         return resolve_pointer(type);
     }
     UNREACHABLE();
@@ -1130,9 +1150,10 @@ static TypeID type_check_expr(struct ast_expr *expr) {
     case AST_EXPR_ADDRESS_OF: {
         TypeID target_type = type_check_expr(expr->address_of.target);
         // TODO: check if `target_type` is addressable.
-        TypeID found = find_pointer_type(target_type);
+        enum pointer_kind pointer_kind = POINTER_PROPER;
+        TypeID found = find_pointer_type(pointer_kind, target_type);
         if (!found) {
-            struct type_info info = make_pointer_type(target_type);
+            struct type_info info = make_pointer_type(pointer_kind, target_type);
             found = add_type(info);
         }
         assert(found);

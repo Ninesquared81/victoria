@@ -334,7 +334,6 @@ const char *crvic_get_c_type(TypeID type) {
         return crvic_get_c_type(info->enum_type.underlying_type);
     case KIND_POINTER:
         return crvic_get_c_pointer(info->pointer_type.dest_type);
-
     case KIND_NO_KIND:
     case KIND_PRIMITIVE:
         UNREACHABLE();

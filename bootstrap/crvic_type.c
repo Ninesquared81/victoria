@@ -183,26 +183,43 @@ bool get_enum_field_value(struct enum_field_list fields, struct lxl_string_view 
     return false;
 }
 
-TypeID find_pointer_type(TypeID dest_type) {
+TypeID find_pointer_type(enum pointer_kind kind, TypeID dest_type) {
     for (int i = TYPE_PRIMITIVE_COUNT; i < type_count; ++i) {
         struct type_info *info = get_type(i);
         assert(info);
-        if (info->kind == KIND_POINTER && info->pointer_type.dest_type == dest_type) {
+        if (info->kind == KIND_POINTER
+            && info->pointer_type.kind == kind
+            && info->pointer_type.dest_type == dest_type) {
             return i;
         }
     }
     return TYPE_NO_TYPE;
 }
 
-struct type_info make_pointer_type(TypeID dest_type) {
+struct type_info make_pointer_type(enum pointer_kind kind, TypeID dest_type) {
     return (struct type_info) {
         .kind = KIND_POINTER,
         .size = sizeof(VIC_INT),
-        .repr = make_pointer_repr(dest_type),
-        .pointer_type = {.dest_type = dest_type}};
+        .repr = make_pointer_repr(kind, dest_type),
+        .pointer_type = {
+            .kind = kind,
+            .dest_type = dest_type}};
 }
 
-struct lxl_string_view make_pointer_repr(TypeID dest_type) {
+static struct lxl_string_view make_array_like_pointer_repr(TypeID dest_type) {
+    struct lxl_string_view dest_sv = get_type_sv(dest_type);
+    size_t repr_length = 3 + dest_sv.length;  // +3 for "[^]"
+    char *repr = ALLOCATE(perm, repr_length + 1);
+    assert(repr_length >= 3);
+    strcpy(repr, "[^]");
+    memcpy(repr + 3, dest_sv.start, dest_sv.length);
+    repr[repr_length] = '\0';
+    return (struct lxl_string_view) {.start = repr, .length = repr_length};
+}
+
+struct lxl_string_view make_pointer_repr(enum pointer_kind kind, TypeID dest_type) {
+    if (kind == POINTER_ARRAY_LIKE) return make_array_like_pointer_repr(dest_type);
+    assert(kind == POINTER_PROPER);
     struct lxl_string_view dest_sv = get_type_sv(dest_type);
     size_t repr_length = 1 + dest_sv.length;  // +1 for '^'
     char *repr = ALLOCATE(perm, repr_length + 1);

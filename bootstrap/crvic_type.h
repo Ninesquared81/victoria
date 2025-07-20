@@ -77,7 +77,7 @@ enum kind {
     KIND_PRIMITIVE,             // Primitive type (see above).
     KIND_ENUM,                  // Enumeration type.
     KIND_RECORD,                // Record type (named product type).
-    KIND_POINTER,               // Pointer type, ^T.
+    KIND_POINTER,               // Pointer type, ^T, [^]T.
 };
 
 struct enum_field {
@@ -103,6 +103,12 @@ static inline bool enum_field_eq(void *e1, void *e2) {
 #define ENUM_FIELD_LIST(ALLOCATOR)              \
     ((struct enum_field_list) {.allocator = ALLOCATOR, .elem_eq = enum_field_eq})
 
+enum pointer_kind {
+    POINTER_PROPER,
+    POINTER_ARRAY_LIKE,
+    // POINTER_FUNCTION?
+};
+
 struct type_info {
     TypeID id;                    // ID of type T.
     enum kind kind;               // Kind of type T.
@@ -118,6 +124,7 @@ struct type_info {
             struct type_decl_list fields;
         } record_type;
         struct {
+            enum pointer_kind kind;
             TypeID dest_type;
         } pointer_type;
     };
@@ -138,9 +145,9 @@ struct lxl_string_view make_enum_repr(struct enum_field_list fields);
 bool get_enum_field_value(struct enum_field_list fields, struct lxl_string_view field_name,
                           VIC_INT *OUT_value);
 
-TypeID find_pointer_type(TypeID dest_type);
-struct type_info make_pointer_type(TypeID dest_type);
-struct lxl_string_view make_pointer_repr(TypeID dest_type);
+TypeID find_pointer_type(enum pointer_kind kind, TypeID dest_type);
+struct type_info make_pointer_type(enum pointer_kind kind, TypeID dest_type);
+struct lxl_string_view make_pointer_repr(enum pointer_kind kind, TypeID dest_type);
 
 bool is_integer_type(TypeID type);
 enum signedness sign_of_type(TypeID type);
