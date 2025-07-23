@@ -150,7 +150,7 @@ static inline int array_eq(void *a, void *b, int count, size_t elem_size,
 
 // Doubly-linked lists.
 // Required members:
-//  - list: `.head`, `.tail`
+//  - list: `.head`, `.tail`, `.count`
 //  - node: `.next`, `.prev`
 
 // Insert a (pre-allocated) node at the head of a list.
@@ -266,5 +266,44 @@ struct iterator {
 
 #define FOR_ITER(T, var, it)                    \
     for (T var; (var = ITER_NEXT(it)); )
+
+struct sb_node {
+    struct sb_node *next, *prev;
+    struct lxl_string_view sv;
+};
+
+struct sb_head {
+    struct sb_node *head, *tail;
+    int count;
+    struct allocatorAD allocator;
+};
+
+static inline void sb_append(struct sb_head *sb, struct lxl_string_view sv) {
+    struct sb_node *node = ALLOCATE(sb->allocator, sizeof *node);
+    node->sv = sv;
+    DLLIST_APPEND(sb, node);
+}
+
+static inline void sb_append_char(struct sb_head *sb, char c) {
+    char *p = ALLOCATE(sb->allocator, 1);
+    *p = c;
+    sb_append(sb, (struct lxl_string_view) {.start = p, .length = 1});
+}
+
+static inline struct lxl_string_view sb_to_sv(struct sb_head *sb, struct allocatorAD allocator) {
+    size_t length = 0;
+    FOR_DLLIST (struct sb_node *, node, sb) {
+        length += node->sv.length;
+    }
+    char *start = ALLOCATE(allocator, length + 1);  // +1 for '\0'.
+    char *p = start;
+    FOR_DLLIST (struct sb_node *, node, sb) {
+        memcpy(p, node->sv.start, node->sv.length);
+        p += node->sv.length;
+    }
+    assert(p == start + length);
+    *p = '\0';
+    return (struct lxl_string_view) {.start = start, .length = length};
+}
 
 #endif  // UBIQS_H
