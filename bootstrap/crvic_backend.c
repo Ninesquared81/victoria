@@ -194,6 +194,13 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
     case AST_EXPR_NULL:
         sb_add_string(sb, "NULL");
         break;
+    case AST_EXPR_STRING:
+        sb_add_string(sb, "\"");
+        for (size_t i = 0; i < expr->string.value.length; ++i) {
+            sb_add_formatted(sb, "\\x%.2x", expr->string.value.start[i]);
+        }
+        sb_add_string(sb, "\"");
+        break;
     case AST_EXPR_TYPE_EXPR:
         return CGEN_UNEXPECTED_TYPE;
     case AST_EXPR_WHEN:
@@ -344,8 +351,8 @@ const char *crvic_get_c_type(TypeID type) {
 const char *crvic_get_c_pointer(TypeID dest_type) {
     assert(dest_type < TYPE_PRIMITIVE_COUNT && "Only pointers to primitive types are supported");
     const char *dest_type_string = crvic_get_c_type(dest_type);
-    size_t count = strlen(dest_type_string) + 1;
+    size_t count = 5 + 1 + strlen(dest_type_string) + 1;
     char *name = ALLOCATE(perm, count + 1);
-    snprintf(name, count + 1, "%s*", dest_type_string);
+    snprintf(name, count + 1, "const %s*", dest_type_string);
     return name;
 }

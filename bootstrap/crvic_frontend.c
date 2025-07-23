@@ -331,6 +331,58 @@ static uint64_t parse_previous_integer(void) {
     return parse_integer(parser.previous_token);
 }
 
+static struct lxl_string_view parse_string(struct lxl_token token) {
+    AUTO_BEGIN_TEMP();
+    struct sb_head sb = {.allocator = ALLOCATOR_ARD2AD(temp)};
+    const char *start = token.start;
+    assert(*start == 'c');
+    ++start;
+    assert(*start == '"');
+    ++start;
+    for (const char *p = start; p < token.end - 1; ++p) {
+        if (*p == '\\') {
+            sb_append(&sb, lxl_sv_from_startend(start, p));
+            switch (*++p) {
+                /* Single digits. */
+            case '0': case '1': case '2': case '3': case '4':
+            case '5': case '6': case '7': case '8': case '9':
+                sb_append_char(&sb, *p - '0'); break;
+                /* Special characters. */
+            case 'a': sb_append_char(&sb, '\a'); break;
+            case 'b': sb_append_char(&sb, '\b'); break;
+            case 'e': sb_append_char(&sb, '\x1B'); break;
+            case 'n': sb_append_char(&sb, '\n'); break;
+            case 'r': sb_append_char(&sb, '\r'); break;
+            case 't': sb_append_char(&sb, '\t'); break;
+            case 'v': sb_append_char(&sb, '\v'); break;
+                /* Escaped characters. */
+            case '"': case '\'': case '\\':
+                sb_append_char(&sb, *p); break;
+                /* Numeric escape sequences. */
+            case 'd':
+                TODO("Decimal string escape"); break;
+            case 'o':
+                TODO("Octal string escape"); break;
+            case 'x':
+                TODO("Hex string escape"); break;
+                /* Unknown. */
+            default:
+                parse_error_previous_show_token("Unknown escape sequence '\\%c'", *p);
+                break;
+            }
+            start = p + 1;
+        }
+    }
+    sb_append(&sb, lxl_sv_from_startend(start, token.end - 1));
+    struct lxl_string_view sv = sb_to_sv(&sb, ALLOCATOR_ARD2AD(perm));
+    AUTO_END_TEMP();
+    return sv;
+}
+
+static struct lxl_string_view parse_previous_string(void) {
+    return parse_string(parser.previous_token);
+}
+
 static TypeID token_to_type(struct lxl_token token) {
     switch (token.token_type) {
         /* Keyword type names */
@@ -482,6 +534,11 @@ static struct ast_expr parse_primary(void) {
         expr = (struct ast_expr) {
             .kind = AST_EXPR_INTEGER,
             .integer = {.value = parse_previous_integer()}};
+    }
+    else if (match(TOKEN_LIT_STRING, true)) {
+        expr = (struct ast_expr) {
+            .kind = AST_EXPR_STRING,
+            .string = {.value = parse_previous_string()}};
     }
     else if (match(TOKEN_IDENTIFIER, true)) {
         // Why is this handled here? Surely we can handle constructors as a suffix operator.
@@ -1389,6 +1446,17 @@ static TypeID type_check_expr(struct ast_expr *expr) {
     case AST_EXPR_NULL:
         result_type = TYPE_NULLPTR_TYPE;
         break;
+    case AST_EXPR_STRING: {
+        // TODO: proper (not C-style) strings.
+        TypeID found = find_pointer_type(POINTER_ARRAY_LIKE, TYPE_I8);
+        if (!found) {
+            struct type_info info = make_pointer_type(POINTER_ARRAY_LIKE, TYPE_I8);
+            found = add_type(info);
+            assert(found);
+        }
+        result_type = found;
+        break;
+    }
     case AST_EXPR_TYPE_EXPR:
         TODO("type check type expressions");
         break;
