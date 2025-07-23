@@ -1,8 +1,7 @@
 type c_int := i32
-type c_char := i8
 
 external {
-    func printf(fmt: [^]c_char, ..!) -> c_int
+    func printf(fmt: c_string, ..!) -> c_int
 }
 
 func main() {

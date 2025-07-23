@@ -386,10 +386,12 @@ static struct lxl_string_view parse_previous_string(void) {
 static TypeID token_to_type(struct lxl_token token) {
     switch (token.token_type) {
         /* Keyword type names */
+    case TOKEN_KW_C_STRING: return TYPE_C_STRING;
     case TOKEN_KW_I8: return TYPE_I8;
     case TOKEN_KW_I16: return TYPE_I16;
     case TOKEN_KW_I32: return TYPE_I32;
     case TOKEN_KW_I64: return TYPE_I64;
+    case TOKEN_KW_STRING: TODO("string keyword"); break;
     case TOKEN_KW_U8: return TYPE_U8;
     case TOKEN_KW_U16: return TYPE_U16;
     case TOKEN_KW_U32: return TYPE_U32;
@@ -1448,13 +1450,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         break;
     case AST_EXPR_STRING: {
         // TODO: proper (not C-style) strings.
-        TypeID found = find_pointer_type(POINTER_ARRAY_LIKE, TYPE_I8);
-        if (!found) {
-            struct type_info info = make_pointer_type(POINTER_ARRAY_LIKE, TYPE_I8);
-            found = add_type(info);
-            assert(found);
-        }
-        result_type = found;
+        result_type = TYPE_C_STRING;
         break;
     }
     case AST_EXPR_TYPE_EXPR:
