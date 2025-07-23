@@ -1,84 +1,10 @@
-external func putchar(c:i32)->i32
-# TODO: external blocks
-external {func aa(); func bb(x: int, y: int) -> int; func cc() -> int; func dd(a: int, b: int, c: int);}
+type c_int := i32
+type c_char := i8
 
-external func variadic(x: int, ..!) -> int
-
-type Vec2 := record {
-     x: int, y: int
+external {
+    func printf(fmt: [^]c_char, ..!) -> c_int
 }
-
-type Rank := enum: i8 {
-     ACE := 1,
-     _2, _3, _4,
-     _5, _6, _7,
-     _8, _9, _10,
-     JACK,
-     QUEEN,
-     KING,
-}
-
-type Suit := enum: i8 {
-     CLUBS,
-     DIAMONDS,
-     HEARTS,
-     SPADES,
-}
-
-type Card := record {
-     rank: Rank,
-     suit: Suit
-}
-
-# func thing2(x: int)
-
-func thing1() -> int {
-    thing2(5)
-    aa(); bb(5, 7); cc(); dd(1, 2, 3);
-    return 42
-}
-
-func thing2(x: int) {return;}
 
 func main() {
-    val a := 42
-    var b := a + 5
-    var p: ^int = null
-    p := &a
-    var deref := p^
-    var x: record {x: int, y: int}
-    # val c: int
-    # a := a
-    var v := Vec2 {a, b}
-    v := Vec2 {2*v.x, v.y}
-    var card := Card {Rank.ACE, Suit.SPADES}
-    type Z := i32
-    putchar(72 to Z)
-    putchar(101 to i32)
-    putchar(108 to i32)
-    putchar(108 to i32)
-    putchar(111 to i32)
-    var cond := 0
-    putchar(44 to i32)
-    putchar(32 to i32)
-    if cond
-    {
-        putchar(87 to i32)
-        putchar(111 to i32)
-        putchar(114 to i32)
-        putchar(108 to i32)
-        putchar(100 to i32)
-    }
-    else
-    {
-        putchar(84 to i32)
-        putchar(104 to i32)
-        putchar(101 to i32)
-        putchar(114 to i32)
-        putchar(101 to i32)
-    }
-    putchar((when cond then 33 else 46) to i32)
-    putchar(10 to i32)
-    variadic(5, 1, 2, 3)
-    variadic(42)
+    printf(c"Hello, World!\n")
 }
