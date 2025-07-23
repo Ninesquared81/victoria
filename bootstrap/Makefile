@@ -1,6 +1,6 @@
 CC = clang
 
-CFLAGS = -Wall -Werror -Wextra -pedantic -g -std=c11 -D__USE_MINGW_ANSI_STDIO=1 -fsanitize=undefined -fsanitize-trap
+CFLAGS = -Wall -Werror -Wextra -Wimplicit-fallthrough -pedantic -g -std=c11 -D__USE_MINGW_ANSI_STDIO=1 -fsanitize=undefined -fsanitize-trap
 
 .PHONY: all
 
