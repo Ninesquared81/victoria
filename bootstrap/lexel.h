@@ -874,7 +874,7 @@ const struct lxl_delim_pair *lxl_lexer__check_string_opener(struct lxl_lexer *le
         : lexer->multiline_string_delims;
     if (string_delims == NULL) return NULL;
     for (const struct lxl_delim_pair *delims = string_delims; delims->opener != NULL; ++delims) {
-        if (lxl_lexer__check_chars(lexer, delims->opener)) return delims;
+        if (lxl_lexer__check_string(lexer, delims->opener)) return delims;
     }
     return NULL;
 }
@@ -1038,7 +1038,7 @@ const struct lxl_delim_pair *lxl_lexer__match_string_opener(struct lxl_lexer *le
         : lexer->multiline_string_delims;
     if (string_delims == NULL) return NULL;
     for (const struct lxl_delim_pair *delims = string_delims; delims->opener != NULL; ++delims) {
-        if (lxl_lexer__match_chars(lexer, delims->opener)) return delims;
+        if (lxl_lexer__match_string(lexer, delims->opener)) return delims;
     }
     return NULL;
 }
