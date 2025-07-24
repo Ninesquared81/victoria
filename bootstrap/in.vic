@@ -6,5 +6,6 @@ external {
 
 func main() {
     var p: ^mut int
+    p^ := 42
     printf(c"Hello, World!\n")
 }
