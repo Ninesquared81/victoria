@@ -111,6 +111,12 @@ enum pointer_kind {
     // POINTER_FUNCTION?
 };
 
+enum rw_access {
+    RW_READ_ONLY,               // No modifier.
+    RW_READ_WRITE,              // `mut` modifier.
+    RW_WRITE_BEFORE_READ,       // `out` modifier.
+};
+
 struct type_info {
     TypeID id;                    // ID of type T.
     enum kind kind;               // Kind of type T.
@@ -127,6 +133,7 @@ struct type_info {
         } record_type;
         struct {
             enum pointer_kind kind;
+            enum rw_access rw;
             TypeID dest_type;
         } pointer_type;
     };
@@ -147,9 +154,9 @@ struct lxl_string_view make_enum_repr(struct enum_field_list fields);
 bool get_enum_field_value(struct enum_field_list fields, struct lxl_string_view field_name,
                           VIC_INT *OUT_value);
 
-TypeID find_pointer_type(enum pointer_kind kind, TypeID dest_type);
-struct type_info make_pointer_type(enum pointer_kind kind, TypeID dest_type);
-struct lxl_string_view make_pointer_repr(enum pointer_kind kind, TypeID dest_type);
+TypeID find_pointer_type(enum pointer_kind kind, enum rw_access rw, TypeID dest_type);
+struct type_info make_pointer_type(enum pointer_kind kind, enum rw_access rw, TypeID dest_type);
+struct lxl_string_view make_pointer_repr(enum pointer_kind kind, enum rw_access rw, TypeID dest_type);
 
 bool is_integer_type(TypeID type);
 enum signedness sign_of_type(TypeID type);

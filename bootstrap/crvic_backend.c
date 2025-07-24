@@ -341,7 +341,7 @@ const char *crvic_get_c_type(TypeID type) {
     case KIND_ENUM:
         return crvic_get_c_type(info->enum_type.underlying_type);
     case KIND_POINTER:
-        return crvic_get_c_pointer(info->pointer_type.dest_type);
+        return crvic_get_c_pointer(*info);
     case KIND_NO_KIND:
     case KIND_PRIMITIVE:
         UNREACHABLE();
@@ -349,11 +349,14 @@ const char *crvic_get_c_type(TypeID type) {
     return NULL;
 }
 
-const char *crvic_get_c_pointer(TypeID dest_type) {
-    assert(dest_type < TYPE_PRIMITIVE_COUNT && "Only pointers to primitive types are supported");
-    const char *dest_type_string = crvic_get_c_type(dest_type);
-    size_t count = 5 + 1 + strlen(dest_type_string) + 1;
+const char *crvic_get_c_pointer(struct type_info info) {
+    assert(info.kind == KIND_POINTER);
+    assert(info.pointer_type.dest_type < TYPE_PRIMITIVE_COUNT
+           && "Only pointers to primitive types are supported");
+    const char *dest_type_string = crvic_get_c_type(info.pointer_type.dest_type);
+    const char *qualifier = (info.pointer_type.rw == RW_READ_ONLY) ? "const " : "";
+    size_t count = snprintf(NULL, 0, "%s%s*", qualifier, dest_type_string);
     char *name = ALLOCATE(perm, count + 1);
-    snprintf(name, count + 1, "const %s*", dest_type_string);
+    snprintf(name, count + 1, "%s%s*", qualifier, dest_type_string);
     return name;
 }

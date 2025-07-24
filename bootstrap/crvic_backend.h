@@ -36,6 +36,6 @@ enum cgen_error crvic_generate_c_record_defn(struct type_info info, int indent_s
 
 const char *crvic_get_c_op(enum ast_bin_op_kind op);
 const char *crvic_get_c_type(TypeID type);
-const char *crvic_get_c_pointer(TypeID dest_type);
+const char *crvic_get_c_pointer(struct type_info info);
 
 #endif

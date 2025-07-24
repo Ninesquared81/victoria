@@ -1114,6 +1114,7 @@ static TypeID resolve_enum(struct ast_type *type) {
 
 static TypeID resolve_pointer(struct ast_type *type) {
     enum pointer_kind pointer_kind = POINTER_PROPER;
+    enum rw_access rw = RW_READ_ONLY;
     if (type->kind == AST_TYPE_ARRAY_LIKE_POINTER) {
         pointer_kind = POINTER_ARRAY_LIKE;
     }
@@ -1122,9 +1123,9 @@ static TypeID resolve_pointer(struct ast_type *type) {
     }
     TypeID dest_type = resolve_type(type->pointer.dest_type);
     assert(dest_type != TYPE_NO_TYPE);
-    TypeID found = find_pointer_type(pointer_kind, dest_type);
+    TypeID found = find_pointer_type(pointer_kind, rw, dest_type);
     if (!found) {
-        found = add_type(make_pointer_type(pointer_kind, dest_type));
+        found = add_type(make_pointer_type(pointer_kind, rw, dest_type));
     }
     assert(found);
     type->resolved_type = found;
@@ -1210,9 +1211,9 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         TypeID target_type = type_check_expr(expr->address_of.target);
         // TODO: check if `target_type` is addressable.
         enum pointer_kind pointer_kind = POINTER_PROPER;
-        TypeID found = find_pointer_type(pointer_kind, target_type);
+        TypeID found = find_pointer_type(pointer_kind, RW_READ_ONLY, target_type);
         if (!found) {
-            struct type_info info = make_pointer_type(pointer_kind, target_type);
+            struct type_info info = make_pointer_type(pointer_kind, RW_READ_ONLY, target_type);
             found = add_type(info);
         }
         assert(found);
