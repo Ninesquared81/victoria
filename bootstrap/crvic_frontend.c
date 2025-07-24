@@ -407,6 +407,12 @@ static TypeID token_to_type(struct lxl_token token) {
 static struct ast_expr parse_expr(void);
 static struct ast_stmt parse_stmt(void);
 
+static enum rw_access parse_rw_access(void) {
+    if (match(TOKEN_KW_MUT, false)) return RW_READ_WRITE;
+    if (match(TOKEN_KW_OUT, false)) return RW_WRITE_BEFORE_READ;
+    return RW_READ_ONLY;
+}
+
 static struct ast_type parse_type(const char *fmt, ...) {
     static_assert(TYPE_NO_TYPE == 0, "TYPE_NO_TYPE should be 'falsy'");
     // Basic types.
@@ -480,8 +486,8 @@ static struct ast_type parse_type(const char *fmt, ...) {
     }
     // Pointer types.
     if (match(TOKEN_CARET, false)) {
+        enum rw_access rw = parse_rw_access();
         struct ast_type dest_type = parse_type("Expect type after '^'");
-        enum rw_access rw = RW_READ_ONLY;
         return (struct ast_type) {
             .kind = AST_TYPE_POINTER,
             .pointer = {
@@ -494,8 +500,8 @@ static struct ast_type parse_type(const char *fmt, ...) {
         // Array-like pointer.
         if (match(TOKEN_CARET, false)) {
             consume(TOKEN_BKT_SQUARE_RIGHT, false, "Expect ']' after '[^' for array-like pointer type");
+            enum rw_access rw = parse_rw_access();
             struct ast_type dest_type = parse_type("Expect type after '[^]'");
-            enum rw_access rw = RW_READ_ONLY;
             return (struct ast_type) {
                 .kind = AST_TYPE_POINTER,
                 .pointer = {
@@ -1121,12 +1127,11 @@ static TypeID resolve_enum(struct ast_type *type) {
 static TypeID resolve_pointer(struct ast_type *type) {
     assert(type->kind == AST_TYPE_POINTER);
     enum pointer_kind pointer_kind = POINTER_PROPER;
-    enum rw_access rw = RW_READ_ONLY;
     TypeID dest_type = resolve_type(type->pointer.dest_type);
     assert(dest_type != TYPE_NO_TYPE);
-    TypeID found = find_pointer_type(pointer_kind, rw, dest_type);
+    TypeID found = find_pointer_type(pointer_kind, type->pointer.rw, dest_type);
     if (!found) {
-        found = add_type(make_pointer_type(pointer_kind, rw, dest_type));
+        found = add_type(make_pointer_type(pointer_kind, type->pointer.rw, dest_type));
     }
     assert(found);
     type->resolved_type = found;
