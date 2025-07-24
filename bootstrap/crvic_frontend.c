@@ -728,15 +728,17 @@ static struct ast_expr parse_compare(void) {
 
 static struct ast_expr parse_assign(void) {
     struct ast_expr expr = parse_compare();
-    if (check_assignment_target(expr) && match(TOKEN_COLON_EQUALS, true)) {
-        struct ast_expr *value = new_expr();
-        *value = parse_compare();
-        expr = (struct ast_expr) {
-            .kind = AST_EXPR_ASSIGN,
-            .assign = {
-                .target = expr.identifier.name,
-                .value = value}};
+    if (!match(TOKEN_COLON_EQUALS, true)) return expr;
+    if (!check_assignment_target(expr)) {
+        parse_error_previous_show_token("Expression on left hand side of ':=' is not assignable");
     }
+    struct ast_expr *value = new_expr();
+    *value = parse_compare();
+    expr = (struct ast_expr) {
+        .kind = AST_EXPR_ASSIGN,
+        .assign = {
+            .target = expr.identifier.name,
+            .value = value}};
     return expr;
 }
 
