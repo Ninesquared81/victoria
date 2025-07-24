@@ -481,9 +481,12 @@ static struct ast_type parse_type(const char *fmt, ...) {
     // Pointer types.
     if (match(TOKEN_CARET, false)) {
         struct ast_type dest_type = parse_type("Expect type after '^'");
+        enum rw_access rw = RW_READ_ONLY;
         return (struct ast_type) {
             .kind = AST_TYPE_POINTER,
             .pointer = {
+                .kind = POINTER_PROPER,
+                .rw = rw,
                 .dest_type = copy_type(dest_type)}};
     }
     // Array, array-like pointer, slice.
@@ -492,9 +495,12 @@ static struct ast_type parse_type(const char *fmt, ...) {
         if (match(TOKEN_CARET, false)) {
             consume(TOKEN_BKT_SQUARE_RIGHT, false, "Expect ']' after '[^' for array-like pointer type");
             struct ast_type dest_type = parse_type("Expect type after '[^]'");
+            enum rw_access rw = RW_READ_ONLY;
             return (struct ast_type) {
-                .kind = AST_TYPE_ARRAY_LIKE_POINTER,
-                .array_like_pointer = {
+                .kind = AST_TYPE_POINTER,
+                .pointer = {
+                    .kind = POINTER_ARRAY_LIKE,
+                    .rw = rw,
                     .dest_type = copy_type(dest_type)}};
         }
         TODO("Other array-like types");
@@ -1113,14 +1119,9 @@ static TypeID resolve_enum(struct ast_type *type) {
 }
 
 static TypeID resolve_pointer(struct ast_type *type) {
+    assert(type->kind == AST_TYPE_POINTER);
     enum pointer_kind pointer_kind = POINTER_PROPER;
     enum rw_access rw = RW_READ_ONLY;
-    if (type->kind == AST_TYPE_ARRAY_LIKE_POINTER) {
-        pointer_kind = POINTER_ARRAY_LIKE;
-    }
-    else if (type->kind != AST_TYPE_POINTER) {
-        UNREACHABLE();
-    }
     TypeID dest_type = resolve_type(type->pointer.dest_type);
     assert(dest_type != TYPE_NO_TYPE);
     TypeID found = find_pointer_type(pointer_kind, rw, dest_type);
@@ -1156,7 +1157,6 @@ static TypeID resolve_type(struct ast_type *type) {
     case AST_TYPE_ENUM:
         return resolve_enum(type);
     case AST_TYPE_POINTER:
-    case AST_TYPE_ARRAY_LIKE_POINTER:
         return resolve_pointer(type);
     }
     UNREACHABLE();

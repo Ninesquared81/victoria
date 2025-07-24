@@ -74,7 +74,6 @@ enum ast_type_kind {
     AST_TYPE_RECORD,
     AST_TYPE_ENUM,
     AST_TYPE_POINTER,
-    AST_TYPE_ARRAY_LIKE_POINTER,
 };
 
 struct ast_list {
@@ -137,11 +136,10 @@ struct ast_type {
             struct ast_enum_field_list fields;
         } enum_lit;
         struct {
+            enum pointer_kind kind;
+            enum rw_access rw;
             struct ast_type *dest_type;
         } pointer;
-        struct {
-            struct ast_type *dest_type;
-        } array_like_pointer;
     };
 };
 
