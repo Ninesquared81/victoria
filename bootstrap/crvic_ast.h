@@ -235,8 +235,7 @@ struct ast_decl {
             enum ast_var_kind kind;
             struct ast_expr *value;
         } var_defn;
-        // TODO: remove _defn from this name.
-        struct ast_decl_func_defn {
+        struct ast_decl_func {
             struct ast_sig *sig;
             struct ast_decl *prev_decl;
             enum func_link_kind link_kind;

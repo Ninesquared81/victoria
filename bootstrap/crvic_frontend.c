@@ -1493,7 +1493,7 @@ static bool compare_sigs(struct func_sig *sig1, struct func_sig *sig2) {
     return true;
 }
 
-static void type_check_function(struct ast_decl_func_defn *func) {
+static void type_check_function(struct ast_decl_func *func) {
     struct func_sig *sig = resolve_func_sig(func->sig);
     struct st_key key = st_key_of(sig->name);
     struct symbol *symbol = lookup_symbol(&symbols, key);
