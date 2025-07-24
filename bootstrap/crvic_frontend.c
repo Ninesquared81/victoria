@@ -888,8 +888,8 @@ struct ast_decl parse_var_decl(enum ast_var_kind kind) {
     }
     end_statement();
     return (struct ast_decl) {
-        .kind = AST_DECL_VAR_DEFN,
-        .var_defn = {
+        .kind = AST_DECL_VAR,
+        .var = {
             .name = name,
             .type = type,
             .kind = kind,
@@ -1530,26 +1530,26 @@ static void type_check_function(struct ast_decl_func *func) {
 
 static void type_check_decl(struct ast_decl *decl) {
     switch (decl->kind) {
-    case AST_DECL_VAR_DEFN: {
-        assert(decl->var_defn.value != NULL || decl->var_defn.type != NULL);
-        TypeID value_type = (decl->var_defn.value)
-            ? type_check_expr(decl->var_defn.value)
-            : resolve_type(decl->var_defn.type);
+    case AST_DECL_VAR: {
+        assert(decl->var.value != NULL || decl->var.type != NULL);
+        TypeID value_type = (decl->var.value)
+            ? type_check_expr(decl->var.value)
+            : resolve_type(decl->var.type);
         if (!value_type) return;
-        if (!decl->var_defn.type) decl->var_defn.type = copy_type(RESOLVED_TYPE(value_type));
-        TypeID var_type = resolve_type(decl->var_defn.type);
+        if (!decl->var.type) decl->var.type = copy_type(RESOLVED_TYPE(value_type));
+        TypeID var_type = resolve_type(decl->var.type);
         if (!check_assignable(var_type, value_type)) {
             type_error("Mismatched types in variable definition");
         }
-        struct symbol symbol = (decl->var_defn.kind == AST_VAR_VAR)
+        struct symbol symbol = (decl->var.kind == AST_VAR_VAR)
             ? (struct symbol) {
                 .kind = SYMBOL_VAR,
                 .var = {.type = var_type}}
             : (struct symbol) {
                 .kind = SYMBOL_VAL,
                 .val = {.type = var_type}};
-        if (!insert_symbol(&symbols, st_key_of(decl->var_defn.name), symbol)) {
-            name_error("Redeclaration of symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(decl->var_defn.name));
+        if (!insert_symbol(&symbols, st_key_of(decl->var.name), symbol)) {
+            name_error("Redeclaration of symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(decl->var.name));
         }
     } return;
     case AST_DECL_FUNC:

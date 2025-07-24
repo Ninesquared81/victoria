@@ -91,13 +91,13 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
     sb_add_formatted(sb, "%*s", indent, "");
     enum cgen_error error = CGEN_OK;
     switch (decl->kind) {
-    case AST_DECL_VAR_DEFN:
+    case AST_DECL_VAR:
         sb_add_formatted(sb, "%s "LXL_SV_FMT_SPEC" = ",
-                         crvic_get_c_type(decl->var_defn.type->resolved_type),
-                         LXL_SV_FMT_ARG(decl->var_defn.name));
-        if (decl->var_defn.value) {
+                         crvic_get_c_type(decl->var.type->resolved_type),
+                         LXL_SV_FMT_ARG(decl->var.name));
+        if (decl->var.value) {
             // Initial value.
-            if ((error = crvic_generate_c_expr(decl->var_defn.value, sb))) return error;
+            if ((error = crvic_generate_c_expr(decl->var.value, sb))) return error;
         }
         else {
             // Implicit zero-initialisation.

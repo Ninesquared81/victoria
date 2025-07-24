@@ -42,7 +42,7 @@ enum ast_stmt_kind {
 };
 
 enum ast_decl_kind {
-    AST_DECL_VAR_DEFN,  // Variable definition.
+    AST_DECL_VAR,       // Variable definition/declaration.
     AST_DECL_FUNC,      // Function definition/declaration.
     AST_DECL_EXTERNAL_BLOCK,  // Block of external function declarations.
     AST_DECL_TYPE_DEFN, // Type (alias) definition.
@@ -228,7 +228,7 @@ struct ast_decl {
             enum ast_var_kind kind;
             struct ast_expr *value;  // NULL when missing.
             // NOTE: at least one of .type and .value must be non-NULL.
-        } var_defn;
+        } var;
         struct ast_decl_func {
             struct ast_sig *sig;
             struct ast_decl *prev_decl;
