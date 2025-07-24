@@ -42,7 +42,6 @@ enum ast_stmt_kind {
 };
 
 enum ast_decl_kind {
-    AST_DECL_VAR_DECL,  // Variable declaration.
     AST_DECL_VAR_DEFN,  // Variable definition.
     AST_DECL_FUNC,      // Function definition/declaration.
     AST_DECL_EXTERNAL_BLOCK,  // Block of external function declarations.
@@ -223,17 +222,12 @@ struct ast_stmt {
 struct ast_decl {
     enum ast_decl_kind kind;
     union {
-        // TODO: merge `.var_decl` and `.var_defn`.
-        struct {
-            struct lxl_string_view name;
-            struct ast_type *type;  // Impossible to be NULL.
-            enum ast_var_kind kind;
-        } var_decl;
         struct {
             struct lxl_string_view name;
             struct ast_type *type;  // NULL when missing.
             enum ast_var_kind kind;
-            struct ast_expr *value;
+            struct ast_expr *value;  // NULL when missing.
+            // NOTE: at least one of .type and .value must be non-NULL.
         } var_defn;
         struct ast_decl_func {
             struct ast_sig *sig;

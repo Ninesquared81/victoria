@@ -864,43 +864,36 @@ struct ast_decl parse_var_decl(enum ast_var_kind kind) {
     // Sanity check:
     assert((var_token.token_type == TOKEN_KW_VAR && kind == AST_VAR_VAR) ||
            (var_token.token_type == TOKEN_KW_VAL && kind == AST_VAR_VAL));
-    struct ast_decl decl = {0};
     struct lxl_token name_token = consume(TOKEN_IDENTIFIER, false, "Expect variable name after 'var'");
     struct lxl_string_view name = lxl_token_value(name_token);
     struct ast_type *type = NULL;
+    struct ast_expr *value = NULL;
     if (match(TOKEN_COLON, false)) {
         type = copy_type(parse_type("Expect type after ':'"));
         if (!match(TOKEN_EQUALS, false)) {
-            end_statement();
             if (kind == AST_VAR_VAL) {
                 parse_error_show_token(var_token, "Immutable value '"LXL_SV_FMT_SPEC"' must be initialised",
                                        LXL_SV_FMT_ARG(name));
             }
-            assert(type != NULL);
-            decl = (struct ast_decl) {
-                .kind = AST_DECL_VAR_DECL,
-                .var_decl = {
-                    .name = name,
-                    .type = type,
-                    .kind = kind}};
-            return decl;
+        }
+        else {
+            ignore_line_ending();
+            value = copy_expr(parse_expr());
         }
     }
     else {
         consume(TOKEN_COLON_EQUALS, false, "Expect ':=' or ': T =' after variable name");
+        ignore_line_ending();
+        value = copy_expr(parse_expr());
     }
-    ignore_line_ending();
-    struct ast_expr *value = new_expr();
-    *value = parse_expr();
     end_statement();
-    decl = (struct ast_decl) {
+    return (struct ast_decl) {
         .kind = AST_DECL_VAR_DEFN,
         .var_defn = {
             .name = name,
             .type = type,
             .kind = kind,
             .value = value}};
-    return decl;
 }
 
 struct ast_decl parse_type_defn(void) {
@@ -1537,17 +1530,11 @@ static void type_check_function(struct ast_decl_func *func) {
 
 static void type_check_decl(struct ast_decl *decl) {
     switch (decl->kind) {
-    case AST_DECL_VAR_DECL: {
-        assert(decl->var_decl.kind == AST_VAR_VAR);
-        struct symbol symbol = {
-            .kind = SYMBOL_VAR,
-            .var = {.type = resolve_type(decl->var_decl.type)}};
-        if (!insert_symbol(&symbols, st_key_of(decl->var_decl.name), symbol)) {
-            name_error("Redeclaration of symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(decl->var_decl.name));
-        }
-    } return;
     case AST_DECL_VAR_DEFN: {
-        TypeID value_type = type_check_expr(decl->var_defn.value);
+        assert(decl->var_defn.value != NULL || decl->var_defn.type != NULL);
+        TypeID value_type = (decl->var_defn.value)
+            ? type_check_expr(decl->var_defn.value)
+            : resolve_type(decl->var_defn.type);
         if (!value_type) return;
         if (!decl->var_defn.type) decl->var_defn.type = copy_type(RESOLVED_TYPE(value_type));
         TypeID var_type = resolve_type(decl->var_defn.type);
@@ -1561,8 +1548,8 @@ static void type_check_decl(struct ast_decl *decl) {
             : (struct symbol) {
                 .kind = SYMBOL_VAL,
                 .val = {.type = var_type}};
-        if (!insert_symbol(&symbols, st_key_of(decl->var_decl.name), symbol)) {
-            name_error("Redeclaration of symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(decl->var_decl.name));
+        if (!insert_symbol(&symbols, st_key_of(decl->var_defn.name), symbol)) {
+            name_error("Redeclaration of symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(decl->var_defn.name));
         }
     } return;
     case AST_DECL_FUNC:
