@@ -283,7 +283,8 @@ static bool check_comparison(bool strict) {
 
 static bool check_assignment_target(struct ast_expr expr) {
     // For now, only variable names can be assignment targets.
-    return expr.kind == AST_EXPR_IDENTIFIER;
+    return expr.kind == AST_EXPR_IDENTIFIER
+        || expr.kind == AST_EXPR_DEREF;
 }
 
 static bool is_digit(char c, int base) {
@@ -665,10 +666,20 @@ static struct ast_expr parse_suffix(void) {
 static struct ast_expr parse_prefix(void) {
     struct ast_expr expr = {0};
     if (match(TOKEN_AMPERSAND, true)) {
+        enum rw_access rw = RW_READ_ONLY;
+        if (match(TOKEN_KW_MUT, false)) {
+            rw = RW_READ_WRITE;
+        }
+        else if (match(TOKEN_KW_OUT, false)) {
+            rw = RW_WRITE_BEFORE_READ;
+        }
+        ignore_line_ending();
         struct ast_expr target = parse_prefix();
         expr = (struct ast_expr) {
             .kind = AST_EXPR_ADDRESS_OF,
-            .address_of = {.target = copy_expr(target)}};
+            .address_of = {
+                .target = copy_expr(target),
+                .rw = rw}};
     }
     else if (match(TOKEN_MINUS, true)) {
         NOT_SUPPORTED_YET_PREVIOUS();
@@ -1225,6 +1236,23 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
         }
         target->type = target_symbol->var.type;
     } break;
+    case AST_EXPR_DEREF: {
+        TypeID pointer_type = type_check_expr(target->deref.pointer);
+        struct type_info *pointer_info = get_type(pointer_type);
+        assert(pointer_info && pointer_info->kind == KIND_POINTER);
+        switch (pointer_info->pointer_type.rw) {
+        case RW_READ_ONLY:
+            type_error("Attempt to write to read-only pointer");
+            break;
+        case RW_READ_WRITE:
+            // Do nothing.
+            break;
+        case RW_WRITE_BEFORE_READ:
+            TODO("Check 'out' pointers");
+            break;
+        }
+        target->type = pointer_info->pointer_type.dest_type;
+    } break;
     default:
         UNREACHABLE();
     }
@@ -1238,9 +1266,9 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         TypeID target_type = type_check_expr(expr->address_of.target);
         // TODO: check if `target_type` is addressable.
         enum pointer_kind pointer_kind = POINTER_PROPER;
-        TypeID found = find_pointer_type(pointer_kind, RW_READ_ONLY, target_type);
+        TypeID found = find_pointer_type(pointer_kind, expr->address_of.rw, target_type);
         if (!found) {
-            struct type_info info = make_pointer_type(pointer_kind, RW_READ_ONLY, target_type);
+            struct type_info info = make_pointer_type(pointer_kind, expr->address_of.rw, target_type);
             found = add_type(info);
         }
         assert(found);

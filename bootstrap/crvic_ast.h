@@ -148,6 +148,7 @@ struct ast_expr {
     union {
         struct {
             struct ast_expr *target;
+            enum rw_access rw;
         } address_of;
         struct {
             struct ast_expr *target;
