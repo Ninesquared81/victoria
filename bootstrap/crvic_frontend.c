@@ -386,6 +386,8 @@ static struct lxl_string_view parse_previous_string(void) {
 
 static TypeID token_to_type(struct lxl_token token) {
     switch (token.token_type) {
+        /* Symbolic types */
+    case TOKEN_BANG: return TYPE_ABSURD;
         /* Keyword type names */
     case TOKEN_KW_C_STRING: return TYPE_C_STRING;
     case TOKEN_KW_I8: return TYPE_I8;
