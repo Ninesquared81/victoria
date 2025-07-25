@@ -211,9 +211,9 @@ struct type_info make_pointer_type(enum pointer_kind kind, enum rw_access rw, Ty
             .dest_type = dest_type}};
 }
 
-static struct lxl_string_view make_array_like_pointer_repr(enum rw_access rw, TypeID dest_type) {
+struct lxl_string_view make_pointer_repr(enum pointer_kind kind, enum rw_access rw, TypeID dest_type) {
+    const char *prefix = (kind == POINTER_PROPER) ? "^" : "[^]";
     struct lxl_string_view dest_sv = get_type_sv(dest_type);
-    size_t repr_length = 3 + dest_sv.length;  // +3 for "[^]".
     const char *modifier = "";
     switch (rw) {
     case RW_READ_ONLY: break;
@@ -224,24 +224,11 @@ static struct lxl_string_view make_array_like_pointer_repr(enum rw_access rw, Ty
         modifier = "out ";  // Note extra space.
         break;
     }
-    repr_length += strlen(modifier);
+    size_t repr_length = snprintf(NULL, 0, "%s%s"LXL_SV_FMT_SPEC,
+                                  prefix, modifier, LXL_SV_FMT_ARG(dest_sv));
     char *repr = ALLOCATE(perm, repr_length + 1);
-    assert(repr_length >= 3);
-    size_t printed_length = snprintf(repr, repr_length + 1, "[^]%s"LXL_SV_FMT_SPEC,
-                                     modifier, LXL_SV_FMT_ARG(dest_sv));
-    assert(printed_length == repr_length);
-    return (struct lxl_string_view) {.start = repr, .length = repr_length};
-}
-
-struct lxl_string_view make_pointer_repr(enum pointer_kind kind, enum rw_access rw, TypeID dest_type) {
-    if (kind == POINTER_ARRAY_LIKE) return make_array_like_pointer_repr(rw, dest_type);
-    assert(kind == POINTER_PROPER);
-    struct lxl_string_view dest_sv = get_type_sv(dest_type);
-    size_t repr_length = 1 + dest_sv.length;  // +1 for '^'
-    char *repr = ALLOCATE(perm, repr_length + 1);
-    repr[0] = '^';
-    memcpy(repr + 1, dest_sv.start, dest_sv.length);
-    repr[repr_length] = '\0';
+    snprintf(repr, repr_length + 1, "%s%s"LXL_SV_FMT_SPEC,
+             prefix, modifier, LXL_SV_FMT_ARG(dest_sv));
     return (struct lxl_string_view) {.start = repr, .length = repr_length};
 }
 
