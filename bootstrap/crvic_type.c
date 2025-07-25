@@ -9,21 +9,27 @@
 
 #define TYPE_TABLE_CAPACITY 1024
 
+#define TYPE_ENTRY_KIND(NAME, KIND, SIZE, REPR) \
+    [NAME] = {.id = NAME, .kind = KIND, .size = SIZE, .repr = LXL_SV_FROM_STRLIT(REPR)}
+
+#define TYPE_ENTRY_PRIM(NAME, SIZE, REPR) \
+    TYPE_ENTRY_KIND(NAME, KIND_PRIMITIVE, SIZE, REPR)
+
 static struct type_info types[TYPE_TABLE_CAPACITY] = {
-    [TYPE_NO_TYPE] = {.id = TYPE_NO_TYPE, .kind = KIND_NO_KIND,   .size = 0, .repr = LXL_SV_FROM_STRLIT("<No type>")},
-    [TYPE_TYPE_EXPR] = {.id = TYPE_TYPE_EXPR, .kind = KIND_PRIMITIVE, .size = 0, .repr = LXL_SV_FROM_STRLIT("<Type expression>")},
-    [TYPE_ABSURD]  = {.id = TYPE_ABSURD,  .kind = KIND_PRIMITIVE, .size = 0, .repr = LXL_SV_FROM_STRLIT("!")},
-    [TYPE_UNIT]    = {.id = TYPE_UNIT,    .kind = KIND_PRIMITIVE, .size = 0, .repr = LXL_SV_FROM_STRLIT("()")},
-    [TYPE_NULLPTR_TYPE] = {.id = TYPE_NULLPTR_TYPE, .kind = KIND_PRIMITIVE, .size = sizeof(VIC_INT), .repr = LXL_SV_FROM_STRLIT("nullptr_t")},
-    [TYPE_I8]      = {.id = TYPE_I8,      .kind = KIND_PRIMITIVE, .size = 1, .repr = LXL_SV_FROM_STRLIT("i8")},
-    [TYPE_I16]     = {.id = TYPE_I16,     .kind = KIND_PRIMITIVE, .size = 2, .repr = LXL_SV_FROM_STRLIT("i16")},
-    [TYPE_I32]     = {.id = TYPE_I32,     .kind = KIND_PRIMITIVE, .size = 4, .repr = LXL_SV_FROM_STRLIT("i32")},
-    [TYPE_I64]     = {.id = TYPE_I64,     .kind = KIND_PRIMITIVE, .size = 8, .repr = LXL_SV_FROM_STRLIT("i64")},
-    [TYPE_U8]      = {.id = TYPE_U8,      .kind = KIND_PRIMITIVE, .size = 1, .repr = LXL_SV_FROM_STRLIT("u8")},
-    [TYPE_U16]     = {.id = TYPE_U16,     .kind = KIND_PRIMITIVE, .size = 1, .repr = LXL_SV_FROM_STRLIT("u16")},
-    [TYPE_U32]     = {.id = TYPE_U32,     .kind = KIND_PRIMITIVE, .size = 4, .repr = LXL_SV_FROM_STRLIT("u32")},
-    [TYPE_U64]     = {.id = TYPE_U64,     .kind = KIND_PRIMITIVE, .size = 8, .repr = LXL_SV_FROM_STRLIT("u64")},
-    [TYPE_C_STRING] = {.id = TYPE_C_STRING, .kind = KIND_PRIMITIVE, .size = sizeof(VIC_INT), .repr = LXL_SV_FROM_STRLIT("c_string")},
+    TYPE_ENTRY_KIND(TYPE_NO_TYPE, KIND_NO_KIND, 0, "<No type>"),
+    TYPE_ENTRY_PRIM(TYPE_TYPE_EXPR,     0, "<Type expression>"),
+    TYPE_ENTRY_PRIM(TYPE_ABSURD,        0, "!"),
+    TYPE_ENTRY_PRIM(TYPE_UNIT,          0, "()"),
+    TYPE_ENTRY_PRIM(TYPE_NULLPTR_TYPE,  sizeof(VIC_INT), "type_of(null)"),
+    TYPE_ENTRY_PRIM(TYPE_I8,            1, "i8"),
+    TYPE_ENTRY_PRIM(TYPE_I16,           2, "i16"),
+    TYPE_ENTRY_PRIM(TYPE_I32,           4, "i32"),
+    TYPE_ENTRY_PRIM(TYPE_I64,           8, "i64"),
+    TYPE_ENTRY_PRIM(TYPE_U8,            1, "u8"),
+    TYPE_ENTRY_PRIM(TYPE_U16,           1, "u16"),
+    TYPE_ENTRY_PRIM(TYPE_U32,           4, "u32"),
+    TYPE_ENTRY_PRIM(TYPE_U64,           8, "u64"),
+    TYPE_ENTRY_PRIM(TYPE_C_STRING,      sizeof(VIC_INT), "c_string"),
     /* ... Other types to be filled in later ... */
 };
 
