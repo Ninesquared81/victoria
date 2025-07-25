@@ -1250,7 +1250,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         struct ast_expr *target = expr->assign.target;
         TypeID target_type = type_check_assignment_target(target);
         result_type = type_check_expr(expr->assign.value);
-        if (!check_assignable(result_type, target_type)) {
+        if (!check_assignable(target_type, result_type)) {
             struct lxl_string_view result_type_name = get_type_sv(result_type);
             struct lxl_string_view target_type_name = get_type_sv(target_type);
             type_error("Cannot assign value of type '"LXL_SV_FMT_SPEC"'"
