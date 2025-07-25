@@ -150,7 +150,7 @@ struct ast_expr {
             struct ast_expr *target;
         } address_of;
         struct {
-            struct lxl_string_view target;
+            struct ast_expr *target;
             struct ast_expr *value;
         } assign;
         struct {

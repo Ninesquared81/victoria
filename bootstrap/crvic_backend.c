@@ -142,7 +142,8 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         break;
     case AST_EXPR_ASSIGN:
         sb_add_string(sb, "(");
-        sb_add_formatted(sb, ""LXL_SV_FMT_SPEC" = ", LXL_SV_FMT_ARG(expr->assign.target));
+        if ((error = crvic_generate_c_expr(expr->assign.target, sb))) return error;
+        sb_add_string(sb, " = ");
         if ((error = crvic_generate_c_expr(expr->assign.value, sb))) return error;
         sb_add_string(sb, ")");
         break;

@@ -737,7 +737,7 @@ static struct ast_expr parse_assign(void) {
     expr = (struct ast_expr) {
         .kind = AST_EXPR_ASSIGN,
         .assign = {
-            .target = expr.identifier.name,
+            .target = copy_expr(expr),
             .value = value}};
     return expr;
 }
@@ -1204,6 +1204,33 @@ static bool check_assignable(TypeID ltype, TypeID rtype) {
     return false;
 }
 
+static TypeID type_check_expr(struct ast_expr *expr);
+
+static TypeID type_check_assignment_target(struct ast_expr *target) {
+    switch (target->kind) {
+    case AST_EXPR_IDENTIFIER: {
+        struct lxl_string_view name = target->identifier.name;
+        struct symbol *target_symbol = lookup_symbol(&symbols, st_key_of(name));
+        if (!target_symbol) {
+            name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
+            break;
+        }
+        if (target_symbol->kind == SYMBOL_VAL) {
+            type_error("Cannot reassign immutable value '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
+            break;
+        }
+        else if (target_symbol->kind != SYMBOL_VAR) {
+            name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a variable", LXL_SV_FMT_ARG(name));
+            break;
+        }
+        target->type = target_symbol->var.type;
+    } break;
+    default:
+        UNREACHABLE();
+    }
+    return target->type;
+}
+
 static TypeID type_check_expr(struct ast_expr *expr) {
     TypeID result_type = TYPE_NO_TYPE;
     switch (expr->kind) {
@@ -1220,27 +1247,15 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         result_type = found;
     } break;
     case AST_EXPR_ASSIGN: {
-        struct lxl_string_view name = expr->assign.target;
-        struct symbol *target_symbol = lookup_symbol(&symbols, st_key_of(name));
-        if (!target_symbol) {
-            name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
-            break;
-        }
-        if (target_symbol->kind == SYMBOL_VAL) {
-            type_error("Cannot reassign immutable value '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
-            break;
-        }
-        else if (target_symbol->kind != SYMBOL_VAR) {
-            name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a variable", LXL_SV_FMT_ARG(name));
-            break;
-        }
+        struct ast_expr *target = expr->assign.target;
+        TypeID target_type = type_check_assignment_target(target);
         result_type = type_check_expr(expr->assign.value);
-        if (!check_assignable(result_type, target_symbol->var.type)) {
+        if (!check_assignable(result_type, target_type)) {
             struct lxl_string_view result_type_name = get_type_sv(result_type);
-            struct lxl_string_view target_type_name = get_type_sv(target_symbol->var.type);
-            type_error("Cannot assign value of type '"LXL_SV_FMT_SPEC"' to variable '"
-                       LXL_SV_FMT_SPEC"' of type '"LXL_SV_FMT_SPEC"'",
-                       LXL_SV_FMT_ARG(result_type_name), LXL_SV_FMT_ARG(name),
+            struct lxl_string_view target_type_name = get_type_sv(target_type);
+            type_error("Cannot assign value of type '"LXL_SV_FMT_SPEC"'"
+                       " to target of type '"LXL_SV_FMT_SPEC"'",
+                       LXL_SV_FMT_ARG(result_type_name),
                        LXL_SV_FMT_ARG(target_type_name));
         }
     } break;
