@@ -11,8 +11,10 @@
 
 static struct type_info types[TYPE_TABLE_CAPACITY] = {
     [TYPE_NO_TYPE] = {.id = TYPE_NO_TYPE, .kind = KIND_NO_KIND,   .size = 0, .repr = LXL_SV_FROM_STRLIT("<No type>")},
+    [TYPE_TYPE_EXPR] = {.id = TYPE_TYPE_EXPR, .kind = KIND_PRIMITIVE, .size = 0, .repr = LXL_SV_FROM_STRLIT("<Type expression>")},
     [TYPE_ABSURD]  = {.id = TYPE_ABSURD,  .kind = KIND_PRIMITIVE, .size = 0, .repr = LXL_SV_FROM_STRLIT("!")},
     [TYPE_UNIT]    = {.id = TYPE_UNIT,    .kind = KIND_PRIMITIVE, .size = 0, .repr = LXL_SV_FROM_STRLIT("()")},
+    [TYPE_NULLPTR_TYPE] = {.id = TYPE_NULLPTR_TYPE, .kind = KIND_PRIMITIVE, .size = sizeof(VIC_INT), .repr = LXL_SV_FROM_STRLIT("nullptr_t")},
     [TYPE_I8]      = {.id = TYPE_I8,      .kind = KIND_PRIMITIVE, .size = 1, .repr = LXL_SV_FROM_STRLIT("i8")},
     [TYPE_I16]     = {.id = TYPE_I16,     .kind = KIND_PRIMITIVE, .size = 2, .repr = LXL_SV_FROM_STRLIT("i16")},
     [TYPE_I32]     = {.id = TYPE_I32,     .kind = KIND_PRIMITIVE, .size = 4, .repr = LXL_SV_FROM_STRLIT("i32")},
@@ -21,6 +23,7 @@ static struct type_info types[TYPE_TABLE_CAPACITY] = {
     [TYPE_U16]     = {.id = TYPE_U16,     .kind = KIND_PRIMITIVE, .size = 1, .repr = LXL_SV_FROM_STRLIT("u16")},
     [TYPE_U32]     = {.id = TYPE_U32,     .kind = KIND_PRIMITIVE, .size = 4, .repr = LXL_SV_FROM_STRLIT("u32")},
     [TYPE_U64]     = {.id = TYPE_U64,     .kind = KIND_PRIMITIVE, .size = 8, .repr = LXL_SV_FROM_STRLIT("u64")},
+    [TYPE_C_STRING] = {.id = TYPE_C_STRING, .kind = KIND_PRIMITIVE, .size = sizeof(VIC_INT), .repr = LXL_SV_FROM_STRLIT("c_string")},
     /* ... Other types to be filled in later ... */
 };
 
