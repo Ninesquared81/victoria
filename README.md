@@ -26,6 +26,9 @@ They are separated into different categories.
 
 ###### Read-/Write-access modifiers
 
+> [!NOTE]
+> `out` modifiers currently have only partial support
+
 These modifiers affect how pointers can be used in derefence operations.
 
 * _no modifier_ &rarr; Read-only pointer. The pointed-to value cannot be assigned to.
@@ -41,6 +44,9 @@ paths), it acts like a `mut` pointer.
 These three modifiers are all mutually exclusive with each other.
 
 ###### Alignment modifiers
+
+> [!NOTE]
+> Alignment modifiers are not yet supported
 
 These modifiers turn a normal pointer into a specific-alignment pointer. A specific-alignment pointer
 points to a value which may have stricter alignment requirements than the pointed-to type.
