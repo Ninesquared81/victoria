@@ -5,9 +5,8 @@ external {
 }
 
 func main() {
-    var a := 5
-    var p := &mut a
-    p^ := 42
+    var a : int
+    var p : ^mut! = &mut a
+    (p to ^mut int)^ := 42
     printf(c"Hello, World!\n")
-    printf(c"p = %p, p^ = %lld\n", p, p^)
 }
