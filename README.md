@@ -26,7 +26,7 @@ They are separated into different categories.
 
 ###### Read-/Write-access modifiers
 
-> [!NOTE]
+> [!WARNING]
 > `out` modifiers currently have only partial support
 
 These modifiers affect how pointers can be used in derefence operations.
@@ -45,7 +45,7 @@ These three modifiers are all mutually exclusive with each other.
 
 ###### Alignment modifiers
 
-> [!NOTE]
+> [!WARNING]
 > Alignment modifiers are not yet supported
 
 These modifiers turn a normal pointer into a specific-alignment pointer. A specific-alignment pointer
