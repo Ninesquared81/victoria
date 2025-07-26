@@ -3,8 +3,9 @@ A C-like systems programming language for my own needs
 
 ## Language overview
 
-NOTE: The following overview is mainly so I can get some ideas on (virtual) paper. The actual implementation
-is nowhere near what is described here. I may even remove stuff from here once I have proper docs.
+> [!NOTE]
+> The following overview is mainly so I can get some ideas on (virtual) paper. The actual implementation
+> is nowhere near what is described here. I may even remove stuff from here once I have proper docs.
 
 ### Pointers
 
