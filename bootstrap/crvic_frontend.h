@@ -62,7 +62,6 @@ enum token_type {
     TOKEN_VBAR_EQUALS,
     // Identifier.
     TOKEN_IDENTIFIER,
-    TOKEN_UNDERSCORE,
     // Keywords.
     TOKEN_KW_AND,
     TOKEN_KW_AS,

@@ -178,7 +178,6 @@ struct lxl_lexer *init_lexer(struct lxl_string_view source) {
     // Keywords.
     add_string_type_pairs(
         &lexer.keywords, &lexer.keyword_types,
-        "_",             TOKEN_UNDERSCORE,
         "and",           TOKEN_KW_AND,
         "as",            TOKEN_KW_AS,
         "c_string",      TOKEN_KW_C_STRING,
@@ -304,7 +303,6 @@ const char *token_type_string(struct lxl_token token) {
     case TOKEN_VBAR_EQUALS:            return "TOKEN_VBAR_EQUALS";
     // Identifier.
     case TOKEN_IDENTIFIER:             return "TOKEN_IDENTIFIER";
-    case TOKEN_UNDERSCORE:             return "TOKEN_UNDERSCORE";
     // Keywords.
     case TOKEN_KW_AND:                 return "TOKEN_KW_AND";
     case TOKEN_KW_AS:                  return "TOKEN_KW_AS";
