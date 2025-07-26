@@ -1210,10 +1210,14 @@ static TypeID convert_binary(TypeID lhs_type, TypeID rhs_type) {
 static bool check_assignable(TypeID ltype, TypeID rtype) {
     if (ltype == rtype) return true;
     struct type_info *linfo = get_type(ltype);
-    // struct type_into *rinfo = get_type(rtype);
-    assert(linfo /* && rinfo */);
-    // Pointers can be assigned `null`.
-    if (linfo->kind == KIND_POINTER && rtype == TYPE_NULLPTR_TYPE) return true;
+    struct type_info *rinfo = get_type(rtype);
+    assert(linfo && rinfo);
+    if (linfo->kind == KIND_POINTER) {
+        // Pointers can be assigned `null`.
+        if (rtype == TYPE_NULLPTR_TYPE) return true;
+        // Pointers to `!` can be obtained from any pointer.
+        if (linfo->pointer_type.dest_type == TYPE_ABSURD && rinfo->kind == KIND_POINTER) return true;
+    }
     return false;
 }
 
