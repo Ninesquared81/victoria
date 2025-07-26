@@ -24,7 +24,7 @@ behaviout can be overridden (see [Alignment modifiers](#alignment-modifiers)).
 A pointer type may include modifiers. Several modifiers may be combined, but some are mutually-exclusive.
 They are separated into different categories.
 
-###### Read-/Write-access modifiers
+##### Read-/Write-access modifiers
 
 > [!WARNING]
 > `out` modifiers currently have only partial support
@@ -43,7 +43,7 @@ paths), it acts like a `mut` pointer.
 
 These three modifiers are all mutually exclusive with each other.
 
-###### Alignment modifiers
+##### Alignment modifiers
 
 > [!WARNING]
 > Alignment modifiers are not yet supported
@@ -61,7 +61,7 @@ At most one alignment modifier is allowed per pointer. A pointer with no alignme
 a pointer specified thusly, `^%T T`, i.e., it assumes its pointed-to value is aligned per its own alignment
 requirements.
 
-##### Combining modifiers
+#### Combining modifiers
 
 Modifiers from different categories may be combined together. For example, a mutable generic pointer to
 `u32`-aligned data is specified as `^%u32 mut!`. The pointed-to type must come last, but modifiers
