@@ -1254,6 +1254,9 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
             break;
         }
         target->type = pointer_info->pointer_type.dest_type;
+        if (target->type == TYPE_ABSURD) {
+            type_error("Cannot dereference pointer to absurd type '!'");
+        }
     } break;
     default:
         UNREACHABLE();
@@ -1413,9 +1416,12 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         assert(info);
         if (info->kind != KIND_POINTER) {
             struct lxl_string_view type_name = get_type_sv(pointer);
-            type_error("Cannot dereference type '"LXL_SV_FMT_SPEC"'; expect pointer.",
+            type_error("Cannot dereference type '"LXL_SV_FMT_SPEC"'; expect pointer",
                        LXL_SV_FMT_ARG(type_name));
             break;
+        }
+        if (info->pointer_type.dest_type == TYPE_ABSURD) {
+            type_error("Cannot dereference pointer to absurd type '!'");
         }
         result_type = info->pointer_type.dest_type;
     } break;
@@ -1579,13 +1585,13 @@ static void type_check_decl(struct ast_decl *decl) {
     switch (decl->kind) {
     case AST_DECL_VAR: {
         assert(decl->var.value != NULL || decl->var.type != NULL);
-        TypeID value_type = (decl->var.value)
-            ? type_check_expr(decl->var.value)
-            : resolve_type(decl->var.type);
-        if (!value_type) return;
-        if (!decl->var.type) decl->var.type = copy_type(RESOLVED_TYPE(value_type));
-        TypeID var_type = resolve_type(decl->var.type);
-        if (!check_assignable(var_type, value_type)) {
+        TypeID value_type = (decl->var.value) ? type_check_expr(decl->var.value) : TYPE_NO_TYPE;
+        TypeID var_type   = (decl->var.type)  ? resolve_type(decl->var.type)     : value_type;
+        assert(var_type);
+        if (var_type == TYPE_ABSURD) {
+            type_error("Cannot create variable of absurd type '!'");
+        }
+        if (value_type && !check_assignable(var_type, value_type)) {
             type_error("Mismatched types in variable definition");
         }
         struct symbol symbol = (decl->var.kind == AST_VAR_VAR)
