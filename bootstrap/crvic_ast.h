@@ -18,34 +18,35 @@ enum ast_node_kind {
 };
 
 enum ast_expr_kind {
-    AST_EXPR_ADDRESS_OF, // Address-of &target.
-    AST_EXPR_ASSIGN,   // Assignment expression.
-    AST_EXPR_BINARY,   // Binary operation.
-    AST_EXPR_CALL,     // Function call.
-    AST_EXPR_CONSTRUCTOR, // Type constructor expression.
-    AST_EXPR_CONVERT,  // Explicit type conversion.
-    AST_EXPR_DEREF,    // Pointer dereference ptr^.
-    AST_EXPR_FIELD,    // Field access expression.
-    AST_EXPR_IDENTIFIER, // Identifer (variable, function, etc.) lookup expression.
-    AST_EXPR_INTEGER,  // Integer literal expression.
-    AST_EXPR_NULL,     // Literal `null`.
-    AST_EXPR_STRING,   // String literal expression.
-    AST_EXPR_TYPE_EXPR, // Type expression, e.g., `int`.
-    AST_EXPR_WHEN,     // When (conditional) expression.
+    AST_EXPR_ADDRESS_OF,        // Address-of &target.
+    AST_EXPR_ASSIGN,            // Assignment expression.
+    AST_EXPR_BINARY,            // Binary operation.
+    AST_EXPR_CALL,              // Function call.
+    AST_EXPR_CONSTRUCTOR,       // Type constructor expression.
+    AST_EXPR_CONVERT,           // Explicit type conversion.
+    AST_EXPR_DEREF,             // Pointer dereference ptr^.
+    AST_EXPR_FIELD,             // Field access expression.
+    AST_EXPR_IDENTIFIER,        // Identifer (variable, function, etc.) lookup expression.
+    AST_EXPR_INDEX,             // Array index arr[i].
+    AST_EXPR_INTEGER,           // Integer literal expression.
+    AST_EXPR_NULL,              // Literal `null`.
+    AST_EXPR_STRING,            // String literal expression.
+    AST_EXPR_TYPE_EXPR,         // Type expression, e.g., `int`.
+    AST_EXPR_WHEN,              // When (conditional) expression.
 };
 
 enum ast_stmt_kind {
-    AST_STMT_DECL,  // Declaration statement.
-    AST_STMT_EXPR,  // Expression statement.
-    AST_STMT_IF,    // If statement.
-    AST_STMT_RETURN, // Return statment.
+    AST_STMT_DECL,              // Declaration statement.
+    AST_STMT_EXPR,              // Expression statement.
+    AST_STMT_IF,                // If statement.
+    AST_STMT_RETURN,            // Return statment.
 };
 
 enum ast_decl_kind {
-    AST_DECL_VAR,       // Variable definition/declaration.
-    AST_DECL_FUNC,      // Function definition/declaration.
-    AST_DECL_EXTERNAL_BLOCK,  // Block of external function declarations.
-    AST_DECL_TYPE_DEFN, // Type (alias) definition.
+    AST_DECL_VAR,               // Variable definition/declaration.
+    AST_DECL_FUNC,              // Function definition/declaration.
+    AST_DECL_EXTERNAL_BLOCK,    // Block of external function declarations.
+    AST_DECL_TYPE_DEFN,         // Type (alias) definition.
 };
 
 enum ast_bin_op_kind {
@@ -189,6 +190,10 @@ struct ast_expr {
         struct {
             struct lxl_string_view name;
         } identifier;
+        struct {
+            struct ast_expr *array;
+            struct ast_expr *index;
+        } index;
         struct {
             int64_t value;
         } integer;

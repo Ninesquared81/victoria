@@ -284,8 +284,10 @@ static bool check_comparison(bool strict) {
 
 static bool check_assignment_target(struct ast_expr expr) {
     // For now, only variable names can be assignment targets.
-    return expr.kind == AST_EXPR_IDENTIFIER
-        || expr.kind == AST_EXPR_DEREF;
+    return expr.kind == AST_EXPR_DEREF
+        || expr.kind == AST_EXPR_IDENTIFIER
+        || expr.kind == AST_EXPR_INDEX
+        ;
 }
 
 static bool is_digit(char c, int base) {
@@ -662,7 +664,14 @@ static struct ast_expr parse_suffix(void) {
                     .args = args}};
         }
         else if (match(TOKEN_BKT_SQUARE_LEFT, true)) {
-            NOT_SUPPORTED_YET_PREVIOUS();
+            ignore_line_ending();
+            struct ast_expr index = parse_expr();
+            consume(TOKEN_BKT_SQUARE_RIGHT, false, "Expect ']' after array index");
+            expr = (struct ast_expr) {
+                .kind = AST_EXPR_INDEX,
+                .index = {
+                    .array = copy_expr(expr),
+                    .index = copy_expr(index)}};
         }
         else if (match(TOKEN_KW_AS, true) || match(TOKEN_KW_TO, true)) {
             struct lxl_token conversion = parser.previous_token;
@@ -1299,6 +1308,25 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
             type_error("Cannot dereference pointer to absurd type '!'");
         }
     } break;
+    case AST_EXPR_INDEX: {
+        TypeID array_type = type_check_expr(target->index.array);
+        struct type_info *array_info = get_type(array_type);
+        assert(array_info && array_info->kind == KIND_ARRAY);
+        switch (array_info->array_type.rw) {
+        case RW_READ_ONLY:
+            type_error("Attempt to write to read-only array element");
+            break;
+        case RW_READ_WRITE:
+            // Do nothing.
+            break;
+        case RW_WRITE_BEFORE_READ:
+            // Should we even allow 'out' elements?
+            TODO("Check 'out' array elements");
+            break;
+        }
+        target->type = array_info->array_type.dest_type;
+        assert(target->type != TYPE_ABSURD);  // You cannot have an array of absurd.
+    } break;
     default:
         UNREACHABLE();
     }
@@ -1395,6 +1423,11 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                            LXL_SV_FMT_ARG(callee_name), LXL_SV_FMT_ARG(arg_type_name));
             }
         }
+        for (; arg != NULL; arg = arg->next) {
+            // Type check variadic arguments.
+            // NOTE: variadic arguments can have any type; we don't verify varidic argument types.
+            type_check_expr(&arg->expr);
+        }
         assert(arg == NULL || callee->sig->c_variadic);
     } break;
     case AST_EXPR_CONSTRUCTOR: {
@@ -1443,6 +1476,8 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         result_type = type;
     } break;
     case AST_EXPR_CONVERT: {
+        TypeID operand_type = type_check_expr(expr->convert.operand);
+        (void)operand_type;
         if (expr->convert.kind == CONVERT_AS) {
             // TODO: ensure 'as' conversion is compatible.
         }
@@ -1533,6 +1568,25 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         else {
             name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a variable or type", LXL_SV_FMT_ARG(name));
         }
+    } break;
+    case AST_EXPR_INDEX: {
+        TypeID array_type = type_check_expr(expr->index.array);
+        struct type_info *array_info = get_type(array_type);
+        assert(array_info);
+        if (array_info->kind != KIND_ARRAY) {
+            struct lxl_string_view array_type_name = get_type_sv(array_type);
+            type_error("Only array types can be indexed, not '"LXL_SV_FMT_SPEC"'",
+                       LXL_SV_FMT_ARG(array_type_name));
+            break;
+        }
+        TypeID index_type = type_check_expr(expr->index.index);
+        if (!is_integer_type(index_type)) {
+            struct lxl_string_view index_type_name = get_type_sv(index_type);
+            type_error("Expect integer type for array index, not '"LXL_SV_FMT_SPEC"'",
+                       LXL_SV_FMT_ARG(index_type_name));
+            break;
+        }
+        result_type = array_info->array_type.dest_type;
     } break;
     case AST_EXPR_INTEGER:
         // TODO "untyped" literals... i.e. integer literals have an "INTEGER_LITERAL" type.

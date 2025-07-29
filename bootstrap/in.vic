@@ -5,9 +5,11 @@ external {
 }
 
 func main() {
-    var a : int
-    var p : ^mut! = &mut a
-    var arr: [5]int
-    (p to ^mut int)^ := 42
-    printf(c"Hello, World!\n")
+    #var a : int
+    #var p : ^mut! = &mut a
+    var arr: [5]mut int
+    arr[2] := 7
+    #(p to ^mut int)^ := 42
+    #printf(c"Hello, World!\n")
+    printf(c"%d\n", arr[2] to c_int)
 }
