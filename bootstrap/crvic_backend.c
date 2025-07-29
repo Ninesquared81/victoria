@@ -197,10 +197,11 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
     case AST_EXPR_INDEX:
         // TODO: bounds checking.
         assert(get_type(expr->index.array->type)->kind == KIND_ARRAY);
+        sb_add_string(sb, "(");
         if ((error = crvic_generate_c_expr(expr->index.array, sb))) return error;
         sb_add_string(sb, "._[");  // N.B. arrays are wrapped in a struct.
         if ((error = crvic_generate_c_expr(expr->index.index, sb))) return error;
-        sb_add_string(sb, "]");
+        sb_add_string(sb, "])");
         break;
     case AST_EXPR_INTEGER:
         sb_add_formatted(sb, "%"PRId64, expr->integer.value);
