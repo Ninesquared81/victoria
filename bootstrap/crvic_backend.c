@@ -102,7 +102,9 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
         else {
             // Implicit zero-initialisation.
             // TODO: type-specific zero value.
-            sb_add_string(sb, "0");
+            assert(decl->var.type);
+            assert(decl->var.type->resolved_type);
+            sb_add_string(sb, crvic_get_c_zero_value(decl->var.type->resolved_type));
         }
         sb_add_string(sb, ";\n");
         break;
@@ -279,6 +281,12 @@ enum cgen_error crvic_generate_c_types(int indent_step, struct string_buffer *sb
         if (info->kind == KIND_RECORD) {
             if ((ret = crvic_generate_c_record_defn(*info, indent_step, sb)) != CGEN_OK) return ret;
         }
+        else if (info->kind == KIND_ARRAY) {
+            sb_add_formatted(sb, "%s {%s _[%d];};\n",
+                             crvic_get_c_type(info->id),
+                             crvic_get_c_type(info->array_type.dest_type),
+                             info->array_type.count);
+        }
     }
     return CGEN_OK;
 }
@@ -335,6 +343,7 @@ const char *crvic_get_c_type(TypeID type) {
     struct type_info *info = get_type(type);
     assert(info);
     switch (info->kind) {
+    case KIND_ARRAY:
     case KIND_RECORD: {
         int count = snprintf(NULL, 0, "struct VICTYPE_%d__", info->id);
         // +1 for null terminator.
@@ -346,9 +355,6 @@ const char *crvic_get_c_type(TypeID type) {
         return crvic_get_c_type(info->enum_type.underlying_type);
     case KIND_POINTER:
         return crvic_get_c_pointer(*info);
-    case KIND_ARRAY:
-        TODO("Arrays");
-        break;
     case KIND_NO_KIND:
     case KIND_PRIMITIVE:
         UNREACHABLE();
@@ -366,4 +372,28 @@ const char *crvic_get_c_pointer(struct type_info info) {
     char *name = ALLOCATE(perm, count + 1);
     snprintf(name, count + 1, "%s%s*", qualifier, dest_type_string);
     return name;
+}
+
+const char *crvic_get_c_zero_value(TypeID type) {
+    struct type_info *info = get_type(type);
+    assert(info);
+    switch (info->kind) {
+    case KIND_PRIMITIVE:
+        if (is_integer_type(type)) return "0";
+        if (type == TYPE_NULLPTR_TYPE) return "NULL";
+        if (type == TYPE_C_STRING) return "\"\"";
+        break;
+    case KIND_ENUM:
+        TODO("enum zero value");
+        break;
+    case KIND_RECORD:
+    case KIND_ARRAY:
+        return "{0}";
+    case KIND_POINTER:
+        return "NULL";
+        /* Unreachable.*/
+    case KIND_NO_KIND:
+        UNREACHABLE();
+    }
+    return "THIS_TYPE_HAS_NO_VALID_ZERO_VALUE";
 }
