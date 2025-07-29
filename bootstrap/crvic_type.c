@@ -217,24 +217,62 @@ struct type_info make_pointer_type(enum pointer_kind kind, enum rw_access rw, Ty
             .dest_type = dest_type}};
 }
 
+const char *get_modifier(enum rw_access rw) {
+    switch (rw) {
+    case RW_READ_ONLY:         return "";
+    case RW_READ_WRITE:        return "mut "; // Note extra space.
+    case RW_WRITE_BEFORE_READ: return "out "; // Note extra space.
+    }
+}
+
 struct lxl_string_view make_pointer_repr(enum pointer_kind kind, enum rw_access rw, TypeID dest_type) {
     const char *prefix = (kind == POINTER_PROPER) ? "^" : "[^]";
+    const char *modifier = get_modifier(rw);
     struct lxl_string_view dest_sv = get_type_sv(dest_type);
-    const char *modifier = "";
-    switch (rw) {
-    case RW_READ_ONLY: break;
-    case RW_READ_WRITE:
-        modifier = "mut ";  // Note extra space.
-        break;
-    case RW_WRITE_BEFORE_READ:
-        modifier = "out ";  // Note extra space.
-        break;
-    }
     size_t repr_length = snprintf(NULL, 0, "%s%s"LXL_SV_FMT_SPEC,
                                   prefix, modifier, LXL_SV_FMT_ARG(dest_sv));
     char *repr = ALLOCATE(perm, repr_length + 1);
     snprintf(repr, repr_length + 1, "%s%s"LXL_SV_FMT_SPEC,
              prefix, modifier, LXL_SV_FMT_ARG(dest_sv));
+    return (struct lxl_string_view) {.start = repr, .length = repr_length};
+}
+
+
+// TODO: Unify all the find_ functions into a single TypeID find_type(struct type_info)
+// and bool types_equal(type_info, type_info)
+TypeID find_array_type(VIC_INT count, enum rw_access rw, TypeID dest_type) {
+    for (int i = 0; i < type_count; ++i) {
+        struct type_info *info = get_type(i);
+        assert(info);
+        if (info->kind == KIND_ARRAY
+            && info->array_type.count == count
+            && info->array_type.rw == rw
+            && info->array_type.dest_type == dest_type) {
+            return i;
+        }
+    }
+    return TYPE_NO_TYPE;
+}
+
+struct type_info make_array_type(VIC_INT count, enum rw_access rw, TypeID dest_type) {
+    return (struct type_info) {
+        .kind = KIND_ARRAY,
+        .size = count * get_type_size(dest_type),
+        .repr = make_array_repr(count, rw, dest_type),
+        .array_type = {
+            .count = count,
+            .rw = rw,
+            .dest_type = dest_type}};
+}
+
+struct lxl_string_view make_array_repr(VIC_INT count, enum rw_access rw, TypeID dest_type) {
+    const char *modifier = get_modifier(rw);
+    struct lxl_string_view dest_sv = get_type_sv(dest_type);
+    size_t repr_length = snprintf(NULL, 0, "[%"PRId64"]%s"LXL_SV_FMT_SPEC,
+                                  count, modifier, LXL_SV_FMT_ARG(dest_sv));
+    char *repr = ALLOCATE(perm, repr_length + 1);
+    snprintf(repr, repr_length + 1, "[%"PRId64"]%s"LXL_SV_FMT_SPEC,
+             count, modifier, LXL_SV_FMT_ARG(dest_sv));
     return (struct lxl_string_view) {.start = repr, .length = repr_length};
 }
 
@@ -253,6 +291,12 @@ struct lxl_string_view get_type_sv(TypeID type) {
     struct type_info *info = get_type(type);
     assert(info);
     return info->repr;
+}
+
+size_t get_type_size(TypeID type) {
+    struct type_info *info = get_type(type);
+    assert(info);
+    return info->size;
 }
 
 TypeID max_type_rank(TypeID type1, TypeID type2) {

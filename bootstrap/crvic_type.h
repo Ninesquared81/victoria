@@ -80,6 +80,7 @@ enum kind {
     KIND_ENUM,                  // Enumeration type.
     KIND_RECORD,                // Record type (named product type).
     KIND_POINTER,               // Pointer type, ^T, [^]T.
+    KIND_ARRAY,                 // Array type, [n]T.
 };
 
 struct enum_field {
@@ -136,6 +137,11 @@ struct type_info {
             enum rw_access rw;
             TypeID dest_type;
         } pointer_type;
+        struct {
+            VIC_INT count;
+            enum rw_access rw;
+            TypeID dest_type;
+        } array_type;
     };
 };
 
@@ -158,9 +164,14 @@ TypeID find_pointer_type(enum pointer_kind kind, enum rw_access rw, TypeID dest_
 struct type_info make_pointer_type(enum pointer_kind kind, enum rw_access rw, TypeID dest_type);
 struct lxl_string_view make_pointer_repr(enum pointer_kind kind, enum rw_access rw, TypeID dest_type);
 
+TypeID find_array_type(VIC_INT count, enum rw_access rw, TypeID dest_type);
+struct type_info make_array_type(VIC_INT count, enum rw_access rw, TypeID dest_type);
+struct lxl_string_view make_array_repr(VIC_INT count, enum rw_access rw, TypeID dest_type);
+
 bool is_integer_type(TypeID type);
 enum signedness sign_of_type(TypeID type);
 struct lxl_string_view get_type_sv(TypeID type);
+size_t get_type_size(TypeID type);
 TypeID get_sized_int(TypeID type);
 TypeID max_type_rank(TypeID type1, TypeID type2);
 

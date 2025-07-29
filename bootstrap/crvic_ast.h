@@ -70,6 +70,7 @@ enum ast_func_decl_kind {
 enum ast_type_kind {
     AST_TYPE_PRIMITIVE,
     AST_TYPE_ALIAS,
+    AST_TYPE_ARRAY,
     AST_TYPE_RECORD,
     AST_TYPE_ENUM,
     AST_TYPE_POINTER,
@@ -127,6 +128,11 @@ struct ast_type {
         struct {
             struct lxl_string_view name;
         } alias;
+        struct {
+            struct ast_expr *count;
+            enum rw_access rw;
+            struct ast_type *dest_type;
+        } array;
         struct {
             struct ast_type_decl_list fields;
         } record_lit;

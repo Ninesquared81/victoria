@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <inttypes.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -512,7 +513,28 @@ static struct ast_type parse_type(const char *fmt, ...) {
                     .rw = rw,
                     .dest_type = copy_type(dest_type)}};
         }
-        TODO("Other array-like types");
+        // Slice.
+        if (match(TOKEN_BKT_SQUARE_RIGHT, false)) {
+            TODO("slices");  // Do we even need them in rVic?
+        }
+        // Array (fixed size).
+        struct ast_expr count = parse_expr();
+        // TODO: magic '_' for size. Idea: NULL means inferred size.
+        consume(TOKEN_BKT_SQUARE_RIGHT, false, "Expect ']' after array size");
+        enum rw_access rw = RW_READ_ONLY;
+        if (match(TOKEN_KW_MUT, false)) {
+            rw = RW_READ_WRITE;
+        }
+        else if (match(TOKEN_KW_OUT, false)) {
+            rw = RW_WRITE_BEFORE_READ;
+        }
+        struct ast_type dest_type = parse_type("Expect array element type");
+        return (struct ast_type) {
+            .kind = AST_TYPE_ARRAY,
+            .array = {
+                .count = copy_expr(count),
+                .rw = rw,
+                .dest_type = copy_type(dest_type)}};
     }
     // Not a type.
     va_list vargs;
@@ -1066,8 +1088,8 @@ struct ast_list parse(void) {
     return nodes;
 }
 
-VIC_INT fold_integer_constant(struct ast_expr expr, const char *fmt, ...) {
-    if (expr.kind == AST_EXPR_INTEGER) return expr.integer.value;
+VIC_INT fold_integer_constant(struct ast_expr *expr, const char *fmt, ...) {
+    if (expr->kind == AST_EXPR_INTEGER) return expr->integer.value;
     TODO("Other constant expressions");
     // Not an integer constant.
     va_list vargs;
@@ -1077,7 +1099,22 @@ VIC_INT fold_integer_constant(struct ast_expr expr, const char *fmt, ...) {
     return 0;
 }
 
+static TypeID type_check_expr(struct ast_expr *expr);
 static TypeID resolve_type(struct ast_type *type);
+
+static TypeID resolve_array(struct ast_type *type) {
+    assert(type->kind == AST_TYPE_ARRAY);
+    type_check_expr(type->array.count);
+    VIC_INT count = fold_integer_constant(type->array.count, "Array size must be an integer constant");
+    TypeID dest_type = resolve_type(type->array.dest_type);
+    TypeID found = find_array_type(count, type->array.rw, dest_type);
+    if (!found) {
+        found = add_type(make_array_type(count, type->array.rw, dest_type));
+    }
+    assert(found);
+    type->resolved_type = found;
+    return found;
+}
 
 static struct type_decl resolve_type_decl(struct ast_type_decl *type_decl) {
     return (struct type_decl) {
@@ -1105,7 +1142,7 @@ static TypeID resolve_record(struct ast_type *type) {
 
 static struct enum_field resolve_enum_field(struct ast_enum_field *field) {
     if (field->value) {
-        set_enum_counter(fold_integer_constant(*field->value, "Expect integer constant for enum field"));
+        set_enum_counter(fold_integer_constant(field->value, "Expect integer constant for enum field"));
     }
     return (struct enum_field) {
         .name = field->name,
@@ -1165,6 +1202,8 @@ static TypeID resolve_type(struct ast_type *type) {
         }
         return (type->resolved_type = resolve_type(&symbol->type_alias.type));
     }
+    case AST_TYPE_ARRAY:
+        return resolve_array(type);
     case AST_TYPE_RECORD:
         return resolve_record(type);
     case AST_TYPE_ENUM:
@@ -1220,8 +1259,6 @@ static bool check_assignable(TypeID ltype, TypeID rtype) {
     }
     return false;
 }
-
-static TypeID type_check_expr(struct ast_expr *expr);
 
 static TypeID type_check_assignment_target(struct ast_expr *target) {
     switch (target->kind) {

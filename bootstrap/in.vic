@@ -7,6 +7,7 @@ external {
 func main() {
     var a : int
     var p : ^mut! = &mut a
+    var arr: [5]int
     (p to ^mut int)^ := 42
     printf(c"Hello, World!\n")
 }
