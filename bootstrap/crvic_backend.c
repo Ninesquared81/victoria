@@ -211,7 +211,7 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
     case AST_EXPR_STRING:
         sb_add_string(sb, "\"");
         for (size_t i = 0; i < expr->string.value.length; ++i) {
-            sb_add_formatted(sb, "\\x%.2x", expr->string.value.start[i]);
+            sb_add_formatted(sb, "\\x%x", expr->string.value.start[i]);
         }
         sb_add_string(sb, "\"");
         break;
