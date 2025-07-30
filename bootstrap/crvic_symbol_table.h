@@ -2,7 +2,7 @@
 #define CRVIC_SYMBOL_TABLE_H
 
 #include "crvic_ast.h"
-#include "crvic_function.h"
+#include "crvic_type.h"
 
 enum symbol_kind {
     SYMBOL_FUNC,       // Function symbol.

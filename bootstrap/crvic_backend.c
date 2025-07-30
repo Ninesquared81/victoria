@@ -4,8 +4,8 @@
 #include <string.h>
 
 #include "crvic_backend.h"
-#include "crvic_function.h"
 #include "crvic_resources.h"
+#include "crvic_type.h"
 
 enum cgen_error crvic_generate_c_file(struct ast_list nodes, struct string_buffer *sb) {
     int indent_step = 4;  // Number of spaces to indent by for each indent/dedent.

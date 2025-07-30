@@ -12,9 +12,9 @@
 
 #include "crvic_ast.h"
 #include "crvic_frontend.h"
-#include "crvic_function.h"
 #include "crvic_resources.h"
 #include "crvic_symbol_table.h"
+#include "crvic_type.h"
 
 #define NOT_SUPPORTED_YET(token)                                        \
     do {                                                                \

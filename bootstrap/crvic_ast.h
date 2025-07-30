@@ -7,7 +7,6 @@
 
 #include "ubiqs.h"  // struct allocatorARD.
 
-#include "crvic_function.h"
 #include "crvic_type.h"  // TypeID.
 
 enum ast_node_kind {

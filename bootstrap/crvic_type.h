@@ -62,6 +62,19 @@ static inline bool type_decl_eq(void *e1, void *e2) {
 #define TYPE_DECL_LIST(ALLOCATOR)                                       \
     ((struct type_decl_list) {.allocator = ALLOCATOR, .elem_eq = type_decl_eq})
 
+enum func_link_kind {
+    FUNC_EXTERNAL,  // A function defined externally (possibly in a different language, like C).
+    FUNC_INTERNAL,  // A function defined within this source file.
+};
+
+struct func_sig {
+    struct lxl_string_view name;
+    TypeID ret_type;
+    int arity;
+    struct type_decl_list params;
+    bool c_variadic;
+};
+
 enum signedness {
     SIGN_SIGNED = -1,     // Can be tested with x < 0.
     SIGN_NO_SIGN = 0,     // Can be tested with !x.
