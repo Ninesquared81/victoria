@@ -181,6 +181,7 @@ struct lxl_string_view make_record_repr(struct record_info info);
 struct lxl_string_view make_enum_repr(struct enum_info info);
 struct lxl_string_view make_pointer_repr(struct pointer_info info);
 struct lxl_string_view make_array_repr(struct array_info info);
+struct lxl_string_view make_function_repr(struct function_info info);
 
 size_t calculate_record_size(struct record_info info);
 TypeID get_record_field_type(struct record_info info, struct lxl_string_view field_name);

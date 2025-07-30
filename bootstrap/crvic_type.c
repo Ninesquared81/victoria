@@ -5,6 +5,7 @@
 #include "lexel.h"
 
 #include "crvic_resources.h"
+#include "crvic_string_buffer.h"
 #include "crvic_type.h"
 
 #define TYPE_TABLE_CAPACITY 1024
@@ -75,7 +76,8 @@ void init_type(struct type_info *info) {
         info->repr = make_array_repr(info->array_type);
         break;
     case KIND_FUNCTION:
-        TODO("function types");
+        info->size = 0;  // Functions types have no meaningful size.
+        info->repr = make_function_repr(info->function_type);
         break;
     case KIND_PRIMITIVE:
     case KIND_NO_KIND:
@@ -221,6 +223,30 @@ struct lxl_string_view make_array_repr(struct array_info info) {
     snprintf(repr, repr_length + 1, "[%"PRId64"]%s"LXL_SV_FMT_SPEC,
              info.count, modifier, LXL_SV_FMT_ARG(dest_sv));
     return (struct lxl_string_view) {.start = repr, .length = repr_length};
+}
+
+struct lxl_string_view make_function_repr(struct function_info info) {
+    static struct string_buffer sb = {0};
+    sb_clear(&sb);
+    sb_add_string(&sb, "func (");
+    sb_add_string(&sb, ")");
+    if (info.sig->params.count >= 1) {
+        struct type_decl *param = &info.sig->params.items[0];
+        struct lxl_string_view param_type_sv = get_type_sv(param->type);
+        sb_add_formatted(&sb, ""LXL_SV_FMT_SPEC": "LXL_SV_FMT_SPEC"",
+                         LXL_SV_FMT_ARG(param->name), LXL_SV_FMT_ARG(param_type_sv));
+    }
+    for (int i = 1; i < info.sig->params.count; ++i) {
+        struct type_decl *param = &info.sig->params.items[i];
+        struct lxl_string_view param_type_sv = get_type_sv(param->type);
+        sb_add_formatted(&sb, ""LXL_SV_FMT_SPEC": "LXL_SV_FMT_SPEC"",
+                         LXL_SV_FMT_ARG(param->name), LXL_SV_FMT_ARG(param_type_sv));
+    }
+    if (info.sig->ret_type != TYPE_UNIT) {
+        struct lxl_string_view ret_sv = get_type_sv(info.sig->ret_type);
+        sb_add_formatted(&sb, " -> "LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(ret_sv));
+    }
+    return sb_export(&sb, ALLOCATOR_ARD2AD(perm));
 }
 
 size_t calculate_record_size(struct record_info info) {
