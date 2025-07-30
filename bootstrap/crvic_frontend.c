@@ -845,14 +845,13 @@ static struct ast_decl parse_func_decl(void) {
             break;
         }
     }
-    bool had_line_ending = check_line_ending();
     sig->ret_type = new_type();
-    *sig->ret_type = (match(TOKEN_ARROW_RIGHT, false))
+    *sig->ret_type = (match(TOKEN_ARROW_RIGHT, true))
         ? parse_type("Expect return type after '->'")
         : (struct ast_type) {
             .kind = AST_TYPE_PRIMITIVE,
             .resolved_type = TYPE_UNIT};
-    had_line_ending += check_line_ending();
+    bool had_line_ending = check_line_ending();
     if (match(TOKEN_BKT_CURLY_LEFT, false)) {
         if (parser.current_func_kind == FUNC_EXTERNAL) {
             parse_error_previous_show_token("External functions can only be declared, not defined");
