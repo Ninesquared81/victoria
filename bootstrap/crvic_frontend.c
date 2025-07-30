@@ -1225,9 +1225,11 @@ static TypeID resolve_pointer(struct ast_type *type) {
 static TypeID resolve_function(struct ast_type *type) {
     assert(type->kind == AST_TYPE_FUNCTION);
     struct func_sig *sig = resolve_func_sig(type->function.sig);
-    TODO("fix how types are added before continuing with function types");
-    (void)sig;
-    return TYPE_NO_TYPE;
+    struct type_info function_info = {
+        .kind = KIND_FUNCTION,
+        .function_type = {.sig = sig}};
+    type->resolved_type = get_or_add_type(function_info);
+    return type->resolved_type;
 }
 
 static TypeID resolve_type(struct ast_type *type) {
