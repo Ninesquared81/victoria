@@ -388,10 +388,13 @@ const char *crvic_get_c_type(TypeID type) {
 
 const char *crvic_get_c_pointer(struct type_info info) {
     assert(info.kind == KIND_POINTER);
-    assert(info.pointer_type.dest_type < TYPE_PRIMITIVE_COUNT
-           && "Only pointers to primitive types are supported");
+    // NOTE: complex types are typdef'd, so we /should/ be able to use them as a normal type name.
     const char *dest_type_string = crvic_get_c_type(info.pointer_type.dest_type);
     const char *qualifier = (info.pointer_type.rw == RW_READ_ONLY) ? "const " : "";
+    if (type_is_kind(info.pointer_type.dest_type, KIND_FUNCTION)) {
+        // We cannot have qualifiers on function types.
+        qualifier = "";
+    }
     size_t count = snprintf(NULL, 0, "%s%s*", qualifier, dest_type_string);
     char *name = ALLOCATE(perm, count + 1);
     snprintf(name, count + 1, "%s%s*", qualifier, dest_type_string);
