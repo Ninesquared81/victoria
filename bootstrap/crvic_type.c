@@ -194,9 +194,9 @@ struct lxl_string_view make_enum_repr(struct enum_info info) {
 
 static const char *get_modifier(enum rw_access rw) {
     switch (rw) {
-    case RW_READ_ONLY:         return "";
-    case RW_READ_WRITE:        return "mut "; // Note extra space.
-    case RW_WRITE_BEFORE_READ: return "out "; // Note extra space.
+    case RW_READ_ONLY:          return "";
+    case RW_READ_WRITE:         return "mut "; // Note extra space.
+    case RW_WRITE_BEFORE_READ:  return "out "; // Note extra space.
     }
 }
 
