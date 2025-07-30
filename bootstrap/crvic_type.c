@@ -274,6 +274,12 @@ bool get_enum_field_value(struct enum_info info, struct lxl_string_view field_na
     return false;
 }
 
+bool type_is_kind(TypeID type, enum kind kind) {
+    struct type_info *info = get_type(type);
+    assert(info);
+    return info->kind == kind;
+}
+
 bool is_integer_type(TypeID type) {
     static_assert(TYPE_I8 < TYPE_U8, "Signed types assumed before unsigned");
     return TYPE_I8 <= type && type <= TYPE_U64;

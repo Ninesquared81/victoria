@@ -187,6 +187,7 @@ size_t calculate_record_size(struct record_info info);
 TypeID get_record_field_type(struct record_info info, struct lxl_string_view field_name);
 bool get_enum_field_value(struct enum_info info, struct lxl_string_view field_name, VIC_INT *OUT_value);
 
+bool type_is_kind(TypeID type, enum kind kind);
 bool is_integer_type(TypeID type);
 enum signedness sign_of_type(TypeID type);
 struct lxl_string_view get_type_sv(TypeID type);
