@@ -7,6 +7,12 @@
 #define SB_LEFT_COUNT(sb) (STRING_BUFFER_SIZE - 1 - (sb).count)
 #define SB_CURRENT(sb) ((sb).buffer + (sb).count)
 
+void sb_clear(struct string_buffer *sb) {
+    memset(sb->buffer, 0, sb->count);
+    sb->count = 0;
+    sb->had_error = false;
+}
+
 bool sb_add_string(struct string_buffer *sb, const char *string) {
     assert(sb != NULL);
     assert(sb->count < STRING_BUFFER_SIZE);

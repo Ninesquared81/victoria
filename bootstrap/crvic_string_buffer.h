@@ -12,6 +12,8 @@ struct string_buffer {
     char buffer[STRING_BUFFER_SIZE];
 };
 
+void sb_clear(struct string_buffer *sb);
+
 bool sb_add_string(struct string_buffer *sb, const char *string);
 bool sb_add_formatted(struct string_buffer *sb, const char *fmt, ...);
 bool sb_add_vformatted(struct string_buffer *sb, const char *fmt, va_list vargs);
