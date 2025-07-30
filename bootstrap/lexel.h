@@ -488,6 +488,8 @@ struct lxl_string_view lxl_sv_from_string(const char *s);
 #define LXL_SV_FROM_STRLIT(lit) (struct lxl_string_view) {.start = lit, .length = sizeof(lit) - 1}
 // Create a `string_view` object from `start` and `end` pointers.
 struct lxl_string_view lxl_sv_from_startend(const char *start, const char * end);
+// Create an empty string view.
+#define LXL_SV_EMPTY() ((struct lxl_string_view) {0})
 
 // Get a pointer to (one past) the end of a string view.
 #define LXL_SV_END(sv) ((sv).start + (sv).length)
