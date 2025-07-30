@@ -94,6 +94,7 @@ enum kind {
     KIND_RECORD,                // Record type (named product type).
     KIND_POINTER,               // Pointer type, ^T, [^]T.
     KIND_ARRAY,                 // Array type, [n]T.
+    KIND_FUNCTION,              // Function type, func f(p1: P1, p2: P2) -> R.
 };
 
 struct enum_field {
@@ -155,6 +156,9 @@ struct type_info {
             enum rw_access rw;
             TypeID dest_type;
         } array_type;
+        struct {
+            struct func_sig sig;
+        } function_type;
     };
 };
 

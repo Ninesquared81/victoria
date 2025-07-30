@@ -287,23 +287,37 @@ enum cgen_error crvic_generate_c_types(int indent_step, struct string_buffer *sb
     struct iterator it = get_type_iterator();
     FOR_ITER(struct type_info *, info, &it) {
         enum cgen_error ret = CGEN_OK;
+        const char *this_type_name = crvic_get_c_type(info->id);
         if (info->kind == KIND_RECORD) {
-            if ((ret = crvic_generate_c_record_defn(*info, indent_step, sb)) != CGEN_OK) return ret;
+            sb_add_formatted(sb, "typedef struct %s %s;\n", this_type_name, this_type_name);
+            if ((ret = crvic_generate_c_record_defn(*info, indent_step,
+                                                    this_type_name, sb)) != CGEN_OK) return ret;
         }
         else if (info->kind == KIND_ARRAY) {
-            sb_add_formatted(sb, "%s {%s _[%d];};\n",
-                             crvic_get_c_type(info->id),
+            sb_add_formatted(sb, "typedef struct %s %s;\nstruct %s {%s _[%d];};\n",
+                             this_type_name, this_type_name, this_type_name,
                              crvic_get_c_type(info->array_type.dest_type),
                              info->array_type.count);
+        }
+        else if (info->kind == KIND_FUNCTION) {
+            struct func_sig *sig = &info->function_type.sig;
+            sb_add_formatted(sb, "typedef %s %s(", sig->ret_type, this_type_name);
+            if (sig->params.count >= 1) {
+                sb_add_formatted(sb, "%s", crvic_get_c_type(sig->params.items[0].type));
+            }
+            for (int i = 1; i < sig->params.count; ++i) {
+                sb_add_formatted(sb, ", %s", crvic_get_c_type(sig->params.items[i].type));
+            }
+            sb_add_string(sb, ");\n");
         }
     }
     return CGEN_OK;
 }
 
 enum cgen_error crvic_generate_c_record_defn(struct type_info info, int indent_step,
-                                             struct string_buffer *sb) {
+                                             const char *type_name, struct string_buffer *sb) {
     assert(info.kind == KIND_RECORD);
-    sb_add_formatted(sb, "%s {\n", crvic_get_c_type(info.id));
+    sb_add_formatted(sb, "struct %s {\n", type_name);
     for (int i = 0; i < info.record_type.fields.count; ++i) {
         struct type_decl field = info.record_type.fields.items[i];
         sb_add_formatted(sb, "%*s%s "LXL_SV_FMT_SPEC";\n", indent_step, "",
@@ -353,11 +367,12 @@ const char *crvic_get_c_type(TypeID type) {
     assert(info);
     switch (info->kind) {
     case KIND_ARRAY:
+    case KIND_FUNCTION:
     case KIND_RECORD: {
-        int count = snprintf(NULL, 0, "struct VICTYPE_%d__", info->id);
+        int count = snprintf(NULL, 0, "VICTYPE_%d__", info->id);
         // +1 for null terminator.
         char *name = ALLOCATE(perm, count + 1);
-        snprintf(name, count + 1, "struct VICTYPE_%d__", info->id);
+        snprintf(name, count + 1, "VICTYPE_%d__", info->id);
         return name;
     }
     case KIND_ENUM:
@@ -401,6 +416,8 @@ const char *crvic_get_c_zero_value(TypeID type) {
     case KIND_POINTER:
         return "NULL";
         /* Unreachable.*/
+    case KIND_FUNCTION:
+        // You cannot create a variable with function type.
     case KIND_NO_KIND:
         UNREACHABLE();
     }
