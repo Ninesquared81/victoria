@@ -157,7 +157,7 @@ struct type_info {
             TypeID dest_type;
         } array_type;
         struct {
-            struct func_sig sig;
+            struct func_sig *sig;
         } function_type;
     };
 };

@@ -300,7 +300,7 @@ enum cgen_error crvic_generate_c_types(int indent_step, struct string_buffer *sb
                              info->array_type.count);
         }
         else if (info->kind == KIND_FUNCTION) {
-            struct func_sig *sig = &info->function_type.sig;
+            struct func_sig *sig = info->function_type.sig;
             sb_add_formatted(sb, "typedef %s %s(", sig->ret_type, this_type_name);
             if (sig->params.count >= 1) {
                 sb_add_formatted(sb, "%s", crvic_get_c_type(sig->params.items[0].type));

@@ -412,6 +412,7 @@ static TypeID token_to_type(struct lxl_token token) {
 
 static struct ast_expr parse_expr(void);
 static struct ast_stmt parse_stmt(void);
+static struct ast_sig parse_func_sig(struct lxl_string_view name);
 
 static enum rw_access parse_rw_access(void) {
     if (match(TOKEN_KW_MUT, false)) return RW_READ_WRITE;
@@ -537,6 +538,16 @@ static struct ast_type parse_type(const char *fmt, ...) {
                 .count = copy_expr(count),
                 .rw = rw,
                 .dest_type = copy_type(dest_type)}};
+    }
+    // Function types.
+    if (match(TOKEN_KW_FUNC, false)) {
+        consume(TOKEN_BKT_ROUND_LEFT, false,
+                "Expect '(' after 'func' in fucntion type (note the name is omitted)");
+        struct ast_sig *sig = ALLOCATE(perm, sizeof *sig);
+        *sig  = parse_func_sig(LXL_SV_EMPTY());
+        return (struct ast_type) {
+            .kind = AST_TYPE_FUNCTION,
+            .function = {.sig = sig}};
     }
     // Not a type.
     va_list vargs;
@@ -803,22 +814,17 @@ static struct ast_list parse_block(void) {
     return stmts;
 }
 
-static struct ast_decl parse_func_decl(void) {
-    struct ast_decl decl = {0};
-    struct lxl_token name_token = consume(TOKEN_IDENTIFIER, false, "Expect function name");
-    struct lxl_string_view name = lxl_token_value(name_token);
-    struct ast_sig *sig = ALLOCATE(perm, sizeof *sig);
-    *sig = (struct ast_sig) {
+static struct ast_sig parse_func_sig(struct lxl_string_view name) {
+    struct ast_sig sig = {
         .resolved_sig = {
             .name = name,
             .params = TYPE_DECL_LIST(perm)},
         .params = AST_TYPE_DECL_LIST(perm)};
-    consume(TOKEN_BKT_ROUND_LEFT, false, "Expect '(' after function name");
     while (!match(TOKEN_BKT_ROUND_RIGHT, false)) {
         ensure_not_at_end("Unclosed function parameter list");
         if (match(TOKEN_DOT_DOT_BANG, false)) {
             // Variadic (C-style) parameter(s).
-            sig->c_variadic = true;
+            sig.c_variadic = true;
             if (parser.current_func_kind != FUNC_EXTERNAL) {
                 parse_error_previous_show_token(
                     "Only external functions can have C-style variadic parameters");
@@ -837,7 +843,7 @@ static struct ast_decl parse_func_decl(void) {
         struct ast_type_decl param = {
             .name = param_name,
             .type = param_type};
-        DA_APPEND(&sig->params, param);
+        DA_APPEND(&sig.params, param);
         if (!match(TOKEN_COMMA, true)) {
             // Allow no trailing comma.
             consume(TOKEN_BKT_ROUND_RIGHT, false,
@@ -845,12 +851,22 @@ static struct ast_decl parse_func_decl(void) {
             break;
         }
     }
-    sig->ret_type = new_type();
-    *sig->ret_type = (match(TOKEN_ARROW_RIGHT, true))
+    sig.ret_type = new_type();
+    *sig.ret_type = (match(TOKEN_ARROW_RIGHT, true))
         ? parse_type("Expect return type after '->'")
         : (struct ast_type) {
             .kind = AST_TYPE_PRIMITIVE,
             .resolved_type = TYPE_UNIT};
+    return sig;
+}
+
+static struct ast_decl parse_func_decl(void) {
+    struct ast_decl decl = {0};
+    struct lxl_token name_token = consume(TOKEN_IDENTIFIER, false, "Expect function name");
+    struct lxl_string_view name = lxl_token_value(name_token);
+    consume(TOKEN_BKT_ROUND_LEFT, false, "Expect '(' after function name");
+    struct ast_sig *sig = ALLOCATE(perm, sizeof *sig);
+    *sig = parse_func_sig(name);
     bool had_line_ending = check_line_ending();
     if (match(TOKEN_BKT_CURLY_LEFT, false)) {
         if (parser.current_func_kind == FUNC_EXTERNAL) {
@@ -1130,6 +1146,20 @@ static struct type_decl resolve_type_decl(struct ast_type_decl *type_decl) {
         .type = resolve_type(type_decl->type)};
 }
 
+static struct func_sig *resolve_func_sig(struct ast_sig *sig) {
+    if (sig->resolved) return &sig->resolved_sig;;
+    struct type_decl_list *resolved_params = &sig->resolved_sig.params;
+    DA_RESERVE(resolved_params, sig->params.count);
+    for (int i = 0; i < sig->params.count; ++i) {
+        resolved_params->items[resolved_params->count++] = resolve_type_decl(&sig->params.items[i]);
+    }
+    sig->resolved_sig.ret_type = resolve_type(sig->ret_type);
+    sig->resolved_sig.arity = sig->resolved_sig.params.count;
+    sig->resolved_sig.c_variadic = sig->c_variadic;
+    sig->resolved = true;
+    return &sig->resolved_sig;
+}
+
 static TypeID resolve_record(struct ast_type *type) {
     assert(type->kind == AST_TYPE_RECORD);
     AUTO_BEGIN_TEMP();
@@ -1191,6 +1221,14 @@ static TypeID resolve_pointer(struct ast_type *type) {
     return found;
 }
 
+static TypeID resolve_function(struct ast_type *type) {
+    assert(type->kind == AST_TYPE_FUNCTION);
+    struct func_sig *sig = resolve_func_sig(type->function.sig);
+    TODO("fix how types are added before continuing with function types");
+    (void)sig;
+    return TYPE_NO_TYPE;
+}
+
 static TypeID resolve_type(struct ast_type *type) {
     assert(type);
     if (type->resolved_type) return type->resolved_type;
@@ -1212,29 +1250,17 @@ static TypeID resolve_type(struct ast_type *type) {
     }
     case AST_TYPE_ARRAY:
         return resolve_array(type);
-    case AST_TYPE_RECORD:
-        return resolve_record(type);
     case AST_TYPE_ENUM:
         return resolve_enum(type);
+    case AST_TYPE_FUNCTION:
+        return resolve_function(type);
     case AST_TYPE_POINTER:
         return resolve_pointer(type);
+    case AST_TYPE_RECORD:
+        return resolve_record(type);
     }
     UNREACHABLE();
     return TYPE_NO_TYPE;
-}
-
-static struct func_sig *resolve_func_sig(struct ast_sig *sig) {
-    if (sig->resolved) return &sig->resolved_sig;;
-    struct type_decl_list *resolved_params = &sig->resolved_sig.params;
-    DA_RESERVE(resolved_params, sig->params.count);
-    for (int i = 0; i < sig->params.count; ++i) {
-        resolved_params->items[resolved_params->count++] = resolve_type_decl(&sig->params.items[i]);
-    }
-    sig->resolved_sig.ret_type = resolve_type(sig->ret_type);
-    sig->resolved_sig.arity = sig->resolved_sig.params.count;
-    sig->resolved_sig.c_variadic = sig->c_variadic;
-    sig->resolved = true;
-    return &sig->resolved_sig;
 }
 
 static bool expect_integer_type(TypeID type) {
