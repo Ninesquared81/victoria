@@ -59,3 +59,10 @@ bool sb_add_vformatted(struct string_buffer *sb, const char *fmt, va_list vargs)
     sb->count += real_count;
     return true;
 }
+
+struct lxl_string_view sb_export(struct string_buffer *sb, struct allocatorAD allocator) {
+    char *buffer = ALLOCATE(allocator, sb->count + 1);
+    memcpy(buffer, sb->buffer, sb->count);
+    buffer[sb->count] = '\0';
+    return (struct lxl_string_view) {.start = buffer, .length = sb->count};
+}
