@@ -39,6 +39,8 @@ typedef int TypeID;             // Unique ID for a type (i.e., an index into the
 typedef intptr_t  VIC_INT;      // C type for Victoria `int` type.
 typedef uintptr_t VIC_UINT;     // C type for Victoria `uint` type.
 
+#define VIC_PTR_SIZE sizeof(VIC_INT)
+
 struct type_decl {
     struct lxl_string_view name;
     TypeID type;
@@ -139,24 +141,24 @@ struct type_info {
     struct lxl_string_view repr;  // Textual representation of T.
     union {
         /* struct {} primitive_type; */
-        struct {
+        struct enum_info {
             TypeID underlying_type;
             struct enum_field_list fields;
         } enum_type;
-        struct {
+        struct record_info {
             struct type_decl_list fields;
         } record_type;
-        struct {
+        struct pointer_info {
             enum pointer_kind kind;
             enum rw_access rw;
             TypeID dest_type;
         } pointer_type;
-        struct {
+        struct array_info {
             VIC_INT count;
             enum rw_access rw;
             TypeID dest_type;
         } array_type;
-        struct {
+        struct function_info {
             struct func_sig *sig;
         } function_type;
     };
@@ -165,25 +167,24 @@ struct type_info {
 TypeID add_type(struct type_info info);
 struct type_info *get_type(TypeID type);
 
-TypeID find_record_type(struct type_decl_list fields);
-struct type_info make_record_type(struct type_decl_list fields);
-size_t calculate_record_size(struct type_decl_list fields);
-struct lxl_string_view make_record_repr(struct type_decl_list fields);
-TypeID get_record_field_type(struct type_decl_list fields, struct lxl_string_view field_name);
+TypeID get_or_add_type(struct type_info info);
+void init_type(struct type_info *info);
 
-TypeID find_enum_type(TypeID underlying_type, struct enum_field_list fields);
-struct type_info make_enum_type(TypeID underlying_type, struct enum_field_list fields);
-struct lxl_string_view make_enum_repr(struct enum_field_list fields);
-bool get_enum_field_value(struct enum_field_list fields, struct lxl_string_view field_name,
-                          VIC_INT *OUT_value);
+bool types_equal(struct type_info *a, struct type_info *b);
 
-TypeID find_pointer_type(enum pointer_kind kind, enum rw_access rw, TypeID dest_type);
-struct type_info make_pointer_type(enum pointer_kind kind, enum rw_access rw, TypeID dest_type);
-struct lxl_string_view make_pointer_repr(enum pointer_kind kind, enum rw_access rw, TypeID dest_type);
+bool enum_types_equal(struct enum_info *a, struct enum_info *b);
+bool record_types_equal(struct record_info *a, struct record_info *b);
+bool pointer_types_equal(struct pointer_info *a, struct pointer_info *b);
+bool array_types_equal(struct array_info *a, struct array_info *b);
 
-TypeID find_array_type(VIC_INT count, enum rw_access rw, TypeID dest_type);
-struct type_info make_array_type(VIC_INT count, enum rw_access rw, TypeID dest_type);
-struct lxl_string_view make_array_repr(VIC_INT count, enum rw_access rw, TypeID dest_type);
+struct lxl_string_view make_record_repr(struct record_info info);
+struct lxl_string_view make_enum_repr(struct enum_info info);
+struct lxl_string_view make_pointer_repr(struct pointer_info info);
+struct lxl_string_view make_array_repr(struct array_info info);
+
+size_t calculate_record_size(struct record_info info);
+TypeID get_record_field_type(struct record_info info, struct lxl_string_view field_name);
+bool get_enum_field_value(struct enum_info info, struct lxl_string_view field_name, VIC_INT *OUT_value);
 
 bool is_integer_type(TypeID type);
 enum signedness sign_of_type(TypeID type);

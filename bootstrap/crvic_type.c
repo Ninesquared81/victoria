@@ -48,32 +48,74 @@ struct type_info *get_type(TypeID id) {
     return &types[id];
 }
 
-TypeID find_record_type(struct type_decl_list fields) {
-    for (int i = TYPE_PRIMITIVE_COUNT; i < type_count; ++i) {
-        struct type_info *info = get_type(i);
-        if (info->kind == KIND_RECORD && DA_EQ(&info->record_type.fields, &fields)) return i;
+TypeID get_or_add_type(struct type_info info) {
+    for (int i = 0; i < type_count; ++i) {
+        if (types_equal(get_type(i), &info)) return i;
     }
-    return TYPE_NO_TYPE;
+    init_type(&info);
+    return add_type(info);
 }
 
-struct type_info make_record_type(struct type_decl_list fields) {
-    return (struct type_info) {
-        .kind = KIND_RECORD,
-        .repr = make_record_repr(fields),
-        .size = calculate_record_size(fields),
-        .record_type = {.fields = fields}};
-}
-
-size_t calculate_record_size(struct type_decl_list fields) {
-    size_t size = 0;
-    for (int i = 0; i < fields.count; ++i) {
-        size += get_type(fields.items[i].type)->size;
+void init_type(struct type_info *info) {
+    switch (info->kind) {
+    case KIND_ENUM:
+        info->size = get_type_size(info->enum_type.underlying_type);
+        info->repr = make_enum_repr(info->enum_type);
+        break;
+    case KIND_RECORD:
+        info->size = calculate_record_size(info->record_type);
+        info->repr = make_record_repr(info->record_type);
+        break;
+    case KIND_POINTER:
+        info->size = VIC_PTR_SIZE;
+        info->repr = make_pointer_repr(info->pointer_type);
+        break;
+    case KIND_ARRAY:
+        info->size = info->array_type.count * get_type_size(info->array_type.dest_type);
+        info->repr = make_array_repr(info->array_type);
+        break;
+    case KIND_FUNCTION:
+        TODO("function types");
+        break;
+    case KIND_PRIMITIVE:
+    case KIND_NO_KIND:
+        UNREACHABLE();
     }
-    return size;
 }
 
-struct lxl_string_view make_record_repr(struct type_decl_list fields) {
-    if (fields.count == 0) return LXL_SV_FROM_STRLIT("record {}");
+bool types_equal(struct type_info *a, struct type_info *b) {
+    if (!a || !b)           return false;
+    if (a->kind != b->kind) return false;
+    switch (a->kind) {
+    case KIND_NO_KIND:      return false; // ???
+    case KIND_PRIMITIVE:    return a->id == b->id;
+    case KIND_ENUM:         return enum_types_equal(&a->enum_type, &b->enum_type);
+    case KIND_RECORD:       return record_types_equal(&a->record_type, &b->record_type);
+    case KIND_POINTER:      return pointer_types_equal(&a->pointer_type, &b->pointer_type);
+    case KIND_ARRAY:        return array_types_equal(&a->array_type, &b->array_type);
+    case KIND_FUNCTION: TODO("Function types"); return false;
+    }
+}
+
+bool enum_types_equal(struct enum_info *a, struct enum_info *b) {
+    return a->underlying_type == b->underlying_type && DA_EQ(&a->fields, &b->fields);
+}
+
+bool record_types_equal(struct record_info *a, struct record_info *b) {
+    return DA_EQ(&a->fields, &b->fields);
+}
+
+bool pointer_types_equal(struct pointer_info *a, struct pointer_info *b) {
+    return a->kind == b->kind && a->rw == b->rw && a->dest_type == b->dest_type;
+
+}
+
+bool array_types_equal(struct array_info *a, struct array_info *b) {
+    return a->count == b->count && a->rw == b->rw && a->dest_type == b->dest_type;
+}
+
+struct lxl_string_view make_record_repr(struct record_info info) {
+    if (info.fields.count == 0) return LXL_SV_FROM_STRLIT("record {}");
     ptrdiff_t capacity = 32;
     char *repr = ALLOCATE(perm, capacity);
     char *ptr = repr;
@@ -81,9 +123,9 @@ struct lxl_string_view make_record_repr(struct type_decl_list fields) {
     assert((ptrdiff_t)(sizeof header) <= capacity);
     memcpy(ptr, header, sizeof header - 1);
     ptr += sizeof header - 1;
-    for (int i = 0; i < fields.count; ++i) {
-        struct lxl_string_view name_sv = fields.items[i].name;
-        struct lxl_string_view type_sv = get_type_sv(fields.items[i].type);
+    for (int i = 0; i < info.fields.count; ++i) {
+        struct lxl_string_view name_sv = info.fields.items[i].name;
+        struct lxl_string_view type_sv = get_type_sv(info.fields.items[i].type);
         // NOTE: +2 for ': ', +2 for ', '.
         ptrdiff_t needed_size = name_sv.length + 2 + type_sv.length + 2;
         ptrdiff_t count = ptr - repr;
@@ -113,39 +155,8 @@ struct lxl_string_view make_record_repr(struct type_decl_list fields) {
     return lxl_sv_from_startend(repr, ptr);
 }
 
-TypeID get_record_field_type(struct type_decl_list fields, struct lxl_string_view field_name) {
-    for (int i = 0; i < fields.count; ++i) {
-        if (lxl_sv_equal(fields.items[i].name, field_name)) return fields.items[i].type;
-    }
-    return TYPE_NO_TYPE;
-}
-
-
-TypeID find_enum_type(TypeID underlying_type, struct enum_field_list fields) {
-    for (int i = TYPE_PRIMITIVE_COUNT; i < type_count; ++i) {
-        struct type_info *info = get_type(i);
-        if (info->kind == KIND_ENUM
-            && info->enum_type.underlying_type == underlying_type
-            && DA_EQ(&info->enum_type.fields, &fields)
-            ) return i;
-    }
-    return TYPE_NO_TYPE;
-}
-
-struct type_info make_enum_type(TypeID underlying_type, struct enum_field_list fields) {
-    struct type_info *underlying_info = get_type(underlying_type);
-    assert(underlying_info != NULL);
-    return (struct type_info) {
-        .kind = KIND_ENUM,
-        .size = underlying_info->size,
-        .repr = make_enum_repr(fields),
-        .enum_type = {
-            .underlying_type = underlying_type,
-            .fields = fields}};
-}
-
-struct lxl_string_view make_enum_repr(struct enum_field_list fields) {
-    if (fields.count == 0) return LXL_SV_FROM_STRLIT("enum {}");
+struct lxl_string_view make_enum_repr(struct enum_info info) {
+    if (info.fields.count == 0) return LXL_SV_FROM_STRLIT("enum {}");
     ptrdiff_t capacity = 32;
     char *repr = ALLOCATE(perm, capacity);
     char *ptr = repr;
@@ -153,9 +164,9 @@ struct lxl_string_view make_enum_repr(struct enum_field_list fields) {
     assert((ptrdiff_t)(sizeof header) <= capacity);
     memcpy(ptr, header, sizeof header - 1);
     ptr += sizeof header - 1;
-    for (int i = 0; i < fields.count; ++i) {
-        struct lxl_string_view name_sv = fields.items[i].name;
-        int64_t value = fields.items[i].value;
+    for (int i = 0; i < info.fields.count; ++i) {
+        struct lxl_string_view name_sv = info.fields.items[i].name;
+        int64_t value = info.fields.items[i].value;
         int value_length = snprintf(NULL, 0, " := %"PRId64", ", value);
         // NOTE: extra chars habdled in snprintf().
         ptrdiff_t needed_size = name_sv.length + value_length;
@@ -181,43 +192,7 @@ struct lxl_string_view make_enum_repr(struct enum_field_list fields) {
     return lxl_sv_from_startend(repr, ptr);
 }
 
-bool get_enum_field_value(struct enum_field_list fields, struct lxl_string_view field_name,
-                          VIC_INT *OUT_value) {
-    for (int i = 0; i < fields.count; ++i) {
-        if (lxl_sv_equal(fields.items[i].name, field_name)) {
-            *OUT_value = fields.items[i].value;
-            return true;
-        }
-    }
-    return false;
-}
-
-TypeID find_pointer_type(enum pointer_kind kind, enum rw_access rw, TypeID dest_type) {
-    for (int i = TYPE_PRIMITIVE_COUNT; i < type_count; ++i) {
-        struct type_info *info = get_type(i);
-        assert(info);
-        if (info->kind == KIND_POINTER
-            && info->pointer_type.kind == kind
-            && info->pointer_type.rw == rw
-            && info->pointer_type.dest_type == dest_type) {
-            return i;
-        }
-    }
-    return TYPE_NO_TYPE;
-}
-
-struct type_info make_pointer_type(enum pointer_kind kind, enum rw_access rw, TypeID dest_type) {
-    return (struct type_info) {
-        .kind = KIND_POINTER,
-        .size = sizeof(VIC_INT),
-        .repr = make_pointer_repr(kind, rw, dest_type),
-        .pointer_type = {
-            .kind = kind,
-            .rw = rw,
-            .dest_type = dest_type}};
-}
-
-const char *get_modifier(enum rw_access rw) {
+static const char *get_modifier(enum rw_access rw) {
     switch (rw) {
     case RW_READ_ONLY:         return "";
     case RW_READ_WRITE:        return "mut "; // Note extra space.
@@ -225,10 +200,10 @@ const char *get_modifier(enum rw_access rw) {
     }
 }
 
-struct lxl_string_view make_pointer_repr(enum pointer_kind kind, enum rw_access rw, TypeID dest_type) {
-    const char *prefix = (kind == POINTER_PROPER) ? "^" : "[^]";
-    const char *modifier = get_modifier(rw);
-    struct lxl_string_view dest_sv = get_type_sv(dest_type);
+struct lxl_string_view make_pointer_repr(struct pointer_info info) {
+    const char *prefix = (info.kind == POINTER_PROPER) ? "^" : "[^]";
+    const char *modifier = get_modifier(info.rw);
+    struct lxl_string_view dest_sv = get_type_sv(info.dest_type);
     size_t repr_length = snprintf(NULL, 0, "%s%s"LXL_SV_FMT_SPEC,
                                   prefix, modifier, LXL_SV_FMT_ARG(dest_sv));
     char *repr = ALLOCATE(perm, repr_length + 1);
@@ -237,43 +212,40 @@ struct lxl_string_view make_pointer_repr(enum pointer_kind kind, enum rw_access 
     return (struct lxl_string_view) {.start = repr, .length = repr_length};
 }
 
+struct lxl_string_view make_array_repr(struct array_info info) {
+    const char *modifier = get_modifier(info.rw);
+    struct lxl_string_view dest_sv = get_type_sv(info.dest_type);
+    size_t repr_length = snprintf(NULL, 0, "[%"PRId64"]%s"LXL_SV_FMT_SPEC,
+                                  info.count, modifier, LXL_SV_FMT_ARG(dest_sv));
+    char *repr = ALLOCATE(perm, repr_length + 1);
+    snprintf(repr, repr_length + 1, "[%"PRId64"]%s"LXL_SV_FMT_SPEC,
+             info.count, modifier, LXL_SV_FMT_ARG(dest_sv));
+    return (struct lxl_string_view) {.start = repr, .length = repr_length};
+}
 
-// TODO: Unify all the find_ functions into a single TypeID find_type(struct type_info)
-// and bool types_equal(type_info, type_info)
-TypeID find_array_type(VIC_INT count, enum rw_access rw, TypeID dest_type) {
-    for (int i = 0; i < type_count; ++i) {
-        struct type_info *info = get_type(i);
-        assert(info);
-        if (info->kind == KIND_ARRAY
-            && info->array_type.count == count
-            && info->array_type.rw == rw
-            && info->array_type.dest_type == dest_type) {
-            return i;
-        }
+size_t calculate_record_size(struct record_info info) {
+    size_t size = 0;
+    for (int i = 0; i < info.fields.count; ++i) {
+        size += get_type(info.fields.items[i].type)->size;
+    }
+    return size;
+}
+
+TypeID get_record_field_type(struct record_info info, struct lxl_string_view field_name) {
+    for (int i = 0; i < info.fields.count; ++i) {
+        if (lxl_sv_equal(info.fields.items[i].name, field_name)) return info.fields.items[i].type;
     }
     return TYPE_NO_TYPE;
 }
 
-struct type_info make_array_type(VIC_INT count, enum rw_access rw, TypeID dest_type) {
-    return (struct type_info) {
-        .kind = KIND_ARRAY,
-        .size = count * get_type_size(dest_type),
-        .repr = make_array_repr(count, rw, dest_type),
-        .array_type = {
-            .count = count,
-            .rw = rw,
-            .dest_type = dest_type}};
-}
-
-struct lxl_string_view make_array_repr(VIC_INT count, enum rw_access rw, TypeID dest_type) {
-    const char *modifier = get_modifier(rw);
-    struct lxl_string_view dest_sv = get_type_sv(dest_type);
-    size_t repr_length = snprintf(NULL, 0, "[%"PRId64"]%s"LXL_SV_FMT_SPEC,
-                                  count, modifier, LXL_SV_FMT_ARG(dest_sv));
-    char *repr = ALLOCATE(perm, repr_length + 1);
-    snprintf(repr, repr_length + 1, "[%"PRId64"]%s"LXL_SV_FMT_SPEC,
-             count, modifier, LXL_SV_FMT_ARG(dest_sv));
-    return (struct lxl_string_view) {.start = repr, .length = repr_length};
+bool get_enum_field_value(struct enum_info info, struct lxl_string_view field_name, VIC_INT *OUT_value) {
+    for (int i = 0; i < info.fields.count; ++i) {
+        if (lxl_sv_equal(info.fields.items[i].name, field_name)) {
+            *OUT_value = info.fields.items[i].value;
+            return true;
+        }
+    }
+    return false;
 }
 
 bool is_integer_type(TypeID type) {

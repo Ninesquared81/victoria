@@ -1131,13 +1131,14 @@ static TypeID resolve_array(struct ast_type *type) {
     type_check_expr(type->array.count);
     VIC_INT count = fold_integer_constant(type->array.count, "Array size must be an integer constant");
     TypeID dest_type = resolve_type(type->array.dest_type);
-    TypeID found = find_array_type(count, type->array.rw, dest_type);
-    if (!found) {
-        found = add_type(make_array_type(count, type->array.rw, dest_type));
-    }
-    assert(found);
-    type->resolved_type = found;
-    return found;
+    struct type_info array_info = {
+        .kind = KIND_ARRAY,
+        .array_type = {
+            .count = count,
+            .rw = type->array.rw,
+            .dest_type = dest_type}};
+    type->resolved_type = get_or_add_type(array_info);
+    return type->resolved_type;
 }
 
 static struct type_decl resolve_type_decl(struct ast_type_decl *type_decl) {
@@ -1168,14 +1169,13 @@ static TypeID resolve_record(struct ast_type *type) {
     for (int i = 0; i < type->record_lit.fields.count; ++i) {
         fields.items[fields.count++] = resolve_type_decl(&type->record_lit.fields.items[i]);
     }
-    TypeID found = find_record_type(fields);
-    if (!found) {
-        found = add_type(make_record_type((struct type_decl_list) PROMOTE_DA(&fields)));
-    }
+    struct type_info record_info = {
+        .kind = KIND_RECORD,
+        .record_type = {
+            .fields = PROMOTE_DA(&fields)}};
     AUTO_END_TEMP();
-    assert(found);
-    type->resolved_type = found;
-    return found;
+    type->resolved_type = get_or_add_type(record_info);
+    return type->resolved_type;
 }
 
 static struct enum_field resolve_enum_field(struct ast_enum_field *field) {
@@ -1197,14 +1197,14 @@ static TypeID resolve_enum(struct ast_type *type) {
         fields.items[fields.count++] = resolve_enum_field(&type->enum_lit.fields.items[i]);
     }
     TypeID underlying_type = resolve_type(type->enum_lit.underlying_type);
-    TypeID found = find_enum_type(underlying_type, fields);
-    if (!found) {
-        found = add_type(make_enum_type(underlying_type, (struct enum_field_list) PROMOTE_DA(&fields)));
-    }
+    struct type_info enum_info = {
+        .kind = KIND_ENUM,
+        .enum_type = {
+            .underlying_type = underlying_type,
+            .fields = PROMOTE_DA(&fields)}};
     AUTO_END_TEMP();
-    assert(found);
-    type->resolved_type = found;
-    return found;
+    type->resolved_type = get_or_add_type(enum_info);
+    return type->resolved_type;
 }
 
 static TypeID resolve_pointer(struct ast_type *type) {
@@ -1212,13 +1212,14 @@ static TypeID resolve_pointer(struct ast_type *type) {
     enum pointer_kind pointer_kind = POINTER_PROPER;
     TypeID dest_type = resolve_type(type->pointer.dest_type);
     assert(dest_type != TYPE_NO_TYPE);
-    TypeID found = find_pointer_type(pointer_kind, type->pointer.rw, dest_type);
-    if (!found) {
-        found = add_type(make_pointer_type(pointer_kind, type->pointer.rw, dest_type));
-    }
-    assert(found);
-    type->resolved_type = found;
-    return found;
+    struct type_info pointer_info = {
+        .kind = KIND_POINTER,
+        .pointer_type = {
+            .kind = pointer_kind,
+            .rw = type->pointer.rw,
+            .dest_type = dest_type}};
+    type->resolved_type = get_or_add_type(pointer_info);
+    return type->resolved_type;
 }
 
 static TypeID resolve_function(struct ast_type *type) {
@@ -1365,13 +1366,13 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         TypeID target_type = type_check_expr(expr->address_of.target);
         // TODO: check if `target_type` is addressable.
         enum pointer_kind pointer_kind = POINTER_PROPER;
-        TypeID found = find_pointer_type(pointer_kind, expr->address_of.rw, target_type);
-        if (!found) {
-            struct type_info info = make_pointer_type(pointer_kind, expr->address_of.rw, target_type);
-            found = add_type(info);
-        }
-        assert(found);
-        result_type = found;
+        struct type_info pointer_info = {
+            .kind = KIND_POINTER,
+            .pointer_type = {
+                .kind = pointer_kind,
+                .rw = expr->address_of.rw,
+                .dest_type = target_type}};
+        result_type = get_or_add_type(pointer_info);
     } break;
     case AST_EXPR_ASSIGN: {
         struct ast_expr *target = expr->assign.target;
@@ -1531,7 +1532,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         struct type_info *target_info = get_type(target_type);
         assert(target_info);
         if (target_info->kind == KIND_RECORD) {
-            TypeID field_type = get_record_field_type(target_info->record_type.fields, expr->field.name);
+            TypeID field_type = get_record_field_type(target_info->record_type, expr->field.name);
             if (!field_type) {
                 name_error("Unknown field '"LXL_SV_FMT_SPEC"' in type '"LXL_SV_FMT_SPEC"'",
                            LXL_SV_FMT_ARG(expr->field.name), LXL_SV_FMT_ARG(target_info->repr));
@@ -1546,7 +1547,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             struct type_info *inner_info = get_type(inner_type);
             if (inner_info->kind == KIND_ENUM) {
                 VIC_INT value = 0;
-                if (!get_enum_field_value(inner_info->enum_type.fields, expr->field.name, &value)) {
+                if (!get_enum_field_value(inner_info->enum_type, expr->field.name, &value)) {
                     name_error("Unknown variant '"LXL_SV_FMT_SPEC"' for type '"LXL_SV_FMT_SPEC"'.",
                                LXL_SV_FMT_ARG(expr->field.name), LXL_SV_FMT_ARG(inner_info->repr));
                     break;
