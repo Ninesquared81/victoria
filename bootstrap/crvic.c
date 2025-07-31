@@ -11,6 +11,37 @@
 
 #define INBUF_SIZE 0x8000
 
+#define OUT_FILENAME_SIZE 512
+
+const char *get_input_file(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "ERROR: Missing input file.\n");
+        fprintf(stderr, "Usage: %s file\n", argv[0]);
+        exit(1);
+    }
+    if (argc > 2) {
+        fprintf(stderr, "WARNING: Extra positional arguments.\n");
+    }
+    return argv[1];
+}
+
+const char *get_output_file(const char *in_filename) {
+    static char out_filename[OUT_FILENAME_SIZE];
+    int len = snprintf(out_filename, OUT_FILENAME_SIZE, "%s", in_filename);
+    if (in_filename[len] != '\0') {
+        fprintf(stderr, "Overlong input filename. Please use a shorter name.\n");
+        exit(1);
+    }
+    char *ext = strrchr(out_filename, '.');
+    if (!ext || &out_filename[len] - ext < 2) {
+        fprintf(stderr, "Bad filename. Include extension.\n");
+        exit(1);
+    }
+    ext[1] = 'c';
+    ext[2] = '\0';
+    return out_filename;
+}
+
 struct lxl_string_view read_source(const char *in_filename) {
     static char input_buffer[INBUF_SIZE] = {0};
     FILE *f = fopen(in_filename, "r");
@@ -34,10 +65,10 @@ struct lxl_string_view read_source(const char *in_filename) {
     };
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
     init_crvic();
-    const char *in_filename = "in.vic";
-    const char *out_filename = "out.c";
+    const char *in_filename = get_input_file(argc, argv);
+    const char *out_filename = get_output_file(in_filename);
     struct lxl_string_view source = read_source(in_filename);
     init_frontend(source, in_filename);  // This also initialises the lexer.
     struct ast_list nodes = parse();
