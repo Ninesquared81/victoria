@@ -176,6 +176,7 @@ bool enum_types_equal(struct enum_info *a, struct enum_info *b);
 bool record_types_equal(struct record_info *a, struct record_info *b);
 bool pointer_types_equal(struct pointer_info *a, struct pointer_info *b);
 bool array_types_equal(struct array_info *a, struct array_info *b);
+bool function_types_equal(struct function_info *a, struct function_info *b);
 
 struct lxl_string_view make_record_repr(struct record_info info);
 struct lxl_string_view make_enum_repr(struct enum_info info);

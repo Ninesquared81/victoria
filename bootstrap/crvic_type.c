@@ -95,7 +95,7 @@ bool types_equal(struct type_info *a, struct type_info *b) {
     case KIND_RECORD:       return record_types_equal(&a->record_type, &b->record_type);
     case KIND_POINTER:      return pointer_types_equal(&a->pointer_type, &b->pointer_type);
     case KIND_ARRAY:        return array_types_equal(&a->array_type, &b->array_type);
-    case KIND_FUNCTION: TODO("Function types"); return false;
+    case KIND_FUNCTION:     return function_types_equal(&a->function_type, &b->function_type);
     }
 }
 
@@ -114,6 +114,10 @@ bool pointer_types_equal(struct pointer_info *a, struct pointer_info *b) {
 
 bool array_types_equal(struct array_info *a, struct array_info *b) {
     return a->count == b->count && a->rw == b->rw && a->dest_type == b->dest_type;
+}
+
+bool function_types_equal(struct function_info *a, struct function_info *b) {
+    return a->sig->ret_type == b->sig->ret_type && DA_EQ(&a->sig->params, &b->sig->params);
 }
 
 struct lxl_string_view make_record_repr(struct record_info info) {
