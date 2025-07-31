@@ -12,8 +12,7 @@ enum symbol_kind {
 };
 
 struct symbol_func {
-    // TODO: Change this to ast_decl_func(_defn)
-    struct ast_decl func_decl;
+    struct ast_decl_func decl;
     struct func_sig *sig;  // NOTE: points to `.func_decl.sig.resolved_sig`.
 };
 

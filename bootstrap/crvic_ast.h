@@ -251,7 +251,7 @@ struct ast_decl {
         } var;
         struct ast_decl_func {
             struct ast_sig *sig;
-            struct ast_decl *prev_decl;
+            struct ast_decl_func *prev_decl;
             enum func_link_kind link_kind;
             enum ast_func_decl_kind decl_kind;
             struct ast_list body;
