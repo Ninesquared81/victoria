@@ -101,7 +101,6 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
         }
         else {
             // Implicit zero-initialisation.
-            // TODO: type-specific zero value.
             assert(decl->var.type);
             assert(decl->var.type->resolved_type);
             sb_add_string(sb, crvic_get_c_zero_value(decl->var.type->resolved_type));
