@@ -1,0 +1,9 @@
+type c_int := i32
+
+external {
+    func printf(fmt: c_string, ..!) -> c_int
+}
+
+func main() {
+    printf(c"Hello, World!\n")
+}
