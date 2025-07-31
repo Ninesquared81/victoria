@@ -25,6 +25,7 @@ enum ast_expr_kind {
     AST_EXPR_CONVERT,           // Explicit type conversion.
     AST_EXPR_DEREF,             // Pointer dereference ptr^.
     AST_EXPR_FIELD,             // Field access expression.
+    AST_EXPR_FUNC_EXPR,         // Function expression (derived from identifier).
     AST_EXPR_IDENTIFIER,        // Identifer (variable, function, etc.) lookup expression.
     AST_EXPR_INDEX,             // Array index arr[i].
     AST_EXPR_INTEGER,           // Integer literal expression.
@@ -170,7 +171,7 @@ struct ast_expr {
             enum ast_bin_op_kind op;
         } binary;
         struct {
-            struct lxl_string_view callee_name;
+            struct ast_expr *callee;
             int arity;  // Number of arguments at call site.
             struct ast_list args;
         } call;
@@ -190,6 +191,10 @@ struct ast_expr {
             struct ast_expr *target;  // LHS of '.'.
             struct lxl_string_view name;  // Field name.
         } field;
+        struct {
+            struct func_sig *sig;
+            struct lxl_string_view name;
+        } func_expr;
         struct {
             struct lxl_string_view name;
         } identifier;

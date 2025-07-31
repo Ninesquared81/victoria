@@ -663,14 +663,11 @@ static struct ast_expr parse_suffix(void) {
         else if (match(TOKEN_BKT_ROUND_LEFT, true)) {
             struct ast_expr *callee = new_expr();
             *callee = expr;
-            if (callee->kind != AST_EXPR_IDENTIFIER) {
-                parse_error_previous_show_token("Callee must be an identifier");
-            }
             struct ast_list args = parse_arg_list();
             expr = (struct ast_expr) {
                 .kind = AST_EXPR_CALL,
                 .call = {
-                    .callee_name = callee->identifier.name,
+                    .callee = callee,
                     .arity = args.count,
                     .args = args}};
         }
@@ -1395,28 +1392,20 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         result_type = convert_binary(lhs_type, rhs_type);
     } break;
     case AST_EXPR_CALL: {
-        struct lxl_string_view callee_name = expr->call.callee_name;
-        struct symbol *symbol = lookup_symbol(&symbols, st_key_of(callee_name));
-        if (!symbol) {
-            name_error("Unknown function '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(callee_name));
+        TypeID callee_type = type_check_expr(expr->call.callee);
+        struct type_info *callee_info = get_type(callee_type);
+        assert(callee_info);
+        if (callee_info->kind != KIND_FUNCTION) {
+            type_error("Only functions are callable, not '"LXL_SV_FMT_SPEC"'",
+                       LXL_SV_FMT_ARG(callee_info->repr));
             break;
         }
-        if (symbol->kind != SYMBOL_FUNC) {
-            name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a function", LXL_SV_FMT_ARG(callee_name));
-            break;
-        }
-        assert(symbol && symbol->kind == SYMBOL_FUNC);
-        struct symbol_func *callee = &symbol->func;
-        if (!symbol->resolved) {
-            assert(!callee->func_decl.func.sig->resolved);
-            struct func_sig *sig = resolve_func_sig(callee->func_decl.func.sig);
-            assert(sig == callee->sig);
-            symbol->resolved = true;
-        }
-        assert(callee->func_decl.func.sig->resolved);
-        assert(symbol->resolved);
+        struct function_info *callee = &callee_info->function_type;
         // Set the result type here to avoid a cascade of type errors, even if the arguments are incorrect.
         result_type = callee->sig->ret_type;
+        struct lxl_string_view callee_name = (expr->call.callee->kind == AST_EXPR_FUNC_EXPR)
+            ? expr->call.callee->func_expr.name
+            : LXL_SV_FROM_STRLIT("<Indirect function>");
         int expected_arity = callee->sig->arity;
         int actual_arity = expr->call.arity;
         if (actual_arity < expected_arity) {
@@ -1571,6 +1560,10 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             break;
         }
     } break;
+    case AST_EXPR_FUNC_EXPR:
+        // These nodes are produced BY the type checker and thus should never end up being type checked.
+        UNREACHABLE();
+        break;
     case AST_EXPR_IDENTIFIER: {
         struct lxl_string_view name = expr->identifier.name;
         struct symbol *symbol = lookup_symbol(&symbols, st_key_of(name));
@@ -1593,6 +1586,11 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                 .kind = KIND_FUNCTION,
                 .function_type = {.sig = symbol->func.sig}};
             result_type = get_or_add_type(function_info);
+            *expr = (struct ast_expr) {
+                .kind = AST_EXPR_FUNC_EXPR,
+                .func_expr = {
+                    .sig = symbol->func.sig,
+                    .name = name}};
         }
         else if (symbol->kind == SYMBOL_TYPE_ALIAS) {
             struct ast_type *aliased_type = &symbol->type_alias.type;
