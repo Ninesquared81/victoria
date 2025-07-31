@@ -184,9 +184,9 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         }
         break;
     case AST_EXPR_DEREF:
-        sb_add_string(sb, "*(");
+        sb_add_string(sb, "(*(");
         if ((error = crvic_generate_c_expr(expr->deref.pointer, sb))) return error;
-        sb_add_string(sb, ")");
+        sb_add_string(sb, "))");
         break;
     case AST_EXPR_FIELD:
         if ((error = crvic_generate_c_expr(expr->field.target, sb))) return error;
