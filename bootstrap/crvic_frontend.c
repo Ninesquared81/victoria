@@ -1584,6 +1584,16 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         else if (symbol->kind == SYMBOL_VAL) {
             result_type = symbol->val.type;
         }
+        else if (symbol->kind == SYMBOL_FUNC) {
+            if (!symbol->resolved) {
+                resolve_func_sig(symbol->func.func_decl.func.sig);
+                symbol->resolved = true;
+            }
+            struct type_info function_info = {
+                .kind = KIND_FUNCTION,
+                .function_type = {.sig = symbol->func.sig}};
+            result_type = get_or_add_type(function_info);
+        }
         else if (symbol->kind == SYMBOL_TYPE_ALIAS) {
             struct ast_type *aliased_type = &symbol->type_alias.type;
             *expr = (struct ast_expr) {
