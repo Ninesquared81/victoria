@@ -13,7 +13,7 @@ crvic.exe: $(CRVIC_SOURCES) $(CRVIC_HEADERS) lexer.c lexel.h region.c region.h u
 	$(CC) $(CFLAGS) $(CRVIC_SOURCES) lexer.c region.c -o crvic.exe
 
 out.c: crvic.exe in.vic
-	crvic.exe
+	crvic.exe in.vic out.c
 
 out.exe: out.c
 	$(CC) out.c -o out.exe
