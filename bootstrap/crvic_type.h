@@ -144,23 +144,23 @@ struct type_info {
         struct enum_info {
             TypeID underlying_type;
             struct enum_field_list fields;
-        } enum_type;
+        } enum_;
         struct record_info {
             struct type_decl_list fields;
-        } record_type;
+        } record;
         struct pointer_info {
             enum pointer_kind kind;
             enum rw_access rw;
             TypeID dest_type;
-        } pointer_type;
+        } pointer;
         struct array_info {
             VIC_INT count;
             enum rw_access rw;
             TypeID dest_type;
-        } array_type;
+        } array;
         struct function_info {
             struct func_sig *sig;
-        } function_type;
+        } function;
     };
 };
 

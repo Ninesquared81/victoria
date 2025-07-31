@@ -60,24 +60,24 @@ TypeID get_or_add_type(struct type_info info) {
 void init_type(struct type_info *info) {
     switch (info->kind) {
     case KIND_ENUM:
-        info->size = get_type_size(info->enum_type.underlying_type);
-        info->repr = make_enum_repr(info->enum_type);
+        info->size = get_type_size(info->enum_.underlying_type);
+        info->repr = make_enum_repr(info->enum_);
         break;
     case KIND_RECORD:
-        info->size = calculate_record_size(info->record_type);
-        info->repr = make_record_repr(info->record_type);
+        info->size = calculate_record_size(info->record);
+        info->repr = make_record_repr(info->record);
         break;
     case KIND_POINTER:
         info->size = VIC_PTR_SIZE;
-        info->repr = make_pointer_repr(info->pointer_type);
+        info->repr = make_pointer_repr(info->pointer);
         break;
     case KIND_ARRAY:
-        info->size = info->array_type.count * get_type_size(info->array_type.dest_type);
-        info->repr = make_array_repr(info->array_type);
+        info->size = info->array.count * get_type_size(info->array.dest_type);
+        info->repr = make_array_repr(info->array);
         break;
     case KIND_FUNCTION:
         info->size = 0;  // Functions types have no meaningful size.
-        info->repr = make_function_repr(info->function_type);
+        info->repr = make_function_repr(info->function);
         break;
     case KIND_PRIMITIVE:
     case KIND_NO_KIND:
@@ -91,11 +91,11 @@ bool types_equal(struct type_info *a, struct type_info *b) {
     switch (a->kind) {
     case KIND_NO_KIND:      return false; // ???
     case KIND_PRIMITIVE:    return a->id == b->id;
-    case KIND_ENUM:         return enum_types_equal(&a->enum_type, &b->enum_type);
-    case KIND_RECORD:       return record_types_equal(&a->record_type, &b->record_type);
-    case KIND_POINTER:      return pointer_types_equal(&a->pointer_type, &b->pointer_type);
-    case KIND_ARRAY:        return array_types_equal(&a->array_type, &b->array_type);
-    case KIND_FUNCTION:     return function_types_equal(&a->function_type, &b->function_type);
+    case KIND_ENUM:         return enum_types_equal(&a->enum_, &b->enum_);
+    case KIND_RECORD:       return record_types_equal(&a->record, &b->record);
+    case KIND_POINTER:      return pointer_types_equal(&a->pointer, &b->pointer);
+    case KIND_ARRAY:        return array_types_equal(&a->array, &b->array);
+    case KIND_FUNCTION:     return function_types_equal(&a->function, &b->function);
     }
 }
 

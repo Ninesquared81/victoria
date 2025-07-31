@@ -1130,7 +1130,7 @@ static TypeID resolve_array(struct ast_type *type) {
     TypeID dest_type = resolve_type(type->array.dest_type);
     struct type_info array_info = {
         .kind = KIND_ARRAY,
-        .array_type = {
+        .array = {
             .count = count,
             .rw = type->array.rw,
             .dest_type = dest_type}};
@@ -1168,7 +1168,7 @@ static TypeID resolve_record(struct ast_type *type) {
     }
     struct type_info record_info = {
         .kind = KIND_RECORD,
-        .record_type = {
+        .record = {
             .fields = PROMOTE_DA(&fields)}};
     AUTO_END_TEMP();
     type->resolved_type = get_or_add_type(record_info);
@@ -1196,7 +1196,7 @@ static TypeID resolve_enum(struct ast_type *type) {
     TypeID underlying_type = resolve_type(type->enum_lit.underlying_type);
     struct type_info enum_info = {
         .kind = KIND_ENUM,
-        .enum_type = {
+        .enum_ = {
             .underlying_type = underlying_type,
             .fields = PROMOTE_DA(&fields)}};
     AUTO_END_TEMP();
@@ -1211,7 +1211,7 @@ static TypeID resolve_pointer(struct ast_type *type) {
     assert(dest_type != TYPE_NO_TYPE);
     struct type_info pointer_info = {
         .kind = KIND_POINTER,
-        .pointer_type = {
+        .pointer = {
             .kind = pointer_kind,
             .rw = type->pointer.rw,
             .dest_type = dest_type}};
@@ -1224,7 +1224,7 @@ static TypeID resolve_function(struct ast_type *type) {
     struct func_sig *sig = resolve_func_sig(type->function.sig);
     struct type_info function_info = {
         .kind = KIND_FUNCTION,
-        .function_type = {.sig = sig}};
+        .function = {.sig = sig}};
     type->resolved_type = get_or_add_type(function_info);
     return type->resolved_type;
 }
@@ -1289,7 +1289,7 @@ static bool check_assignable(TypeID ltype, TypeID rtype) {
         // Pointers can be assigned `null`.
         if (rtype == TYPE_NULLPTR_TYPE) return true;
         // Pointers to `!` can be obtained from any pointer.
-        if (linfo->pointer_type.dest_type == TYPE_ABSURD && rinfo->kind == KIND_POINTER) return true;
+        if (linfo->pointer.dest_type == TYPE_ABSURD && rinfo->kind == KIND_POINTER) return true;
     }
     return false;
 }
@@ -1317,7 +1317,7 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
         TypeID pointer_type = type_check_expr(target->deref.pointer);
         struct type_info *pointer_info = get_type(pointer_type);
         assert(pointer_info && pointer_info->kind == KIND_POINTER);
-        switch (pointer_info->pointer_type.rw) {
+        switch (pointer_info->pointer.rw) {
         case RW_READ_ONLY:
             type_error("Attempt to write to read-only pointer");
             break;
@@ -1328,7 +1328,7 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
             TODO("Check 'out' pointers");
             break;
         }
-        target->type = pointer_info->pointer_type.dest_type;
+        target->type = pointer_info->pointer.dest_type;
         if (target->type == TYPE_ABSURD) {
             type_error("Cannot dereference pointer to absurd type '!'");
         }
@@ -1337,7 +1337,7 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
         TypeID array_type = type_check_expr(target->index.array);
         struct type_info *array_info = get_type(array_type);
         assert(array_info && array_info->kind == KIND_ARRAY);
-        switch (array_info->array_type.rw) {
+        switch (array_info->array.rw) {
         case RW_READ_ONLY:
             type_error("Attempt to write to read-only array element");
             break;
@@ -1349,7 +1349,7 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
             TODO("Check 'out' array elements");
             break;
         }
-        target->type = array_info->array_type.dest_type;
+        target->type = array_info->array.dest_type;
         assert(target->type != TYPE_ABSURD);  // You cannot have an array of absurd.
     } break;
     default:
@@ -1367,7 +1367,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         enum pointer_kind pointer_kind = POINTER_PROPER;
         struct type_info pointer_info = {
             .kind = KIND_POINTER,
-            .pointer_type = {
+            .pointer = {
                 .kind = pointer_kind,
                 .rw = expr->address_of.rw,
                 .dest_type = target_type}};
@@ -1400,7 +1400,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                        LXL_SV_FMT_ARG(callee_info->repr));
             break;
         }
-        struct function_info *callee = &callee_info->function_type;
+        struct function_info *callee = &callee_info->function;
         // Set the result type here to avoid a cascade of type errors, even if the arguments are incorrect.
         result_type = callee->sig->ret_type;
         struct lxl_string_view callee_name = (expr->call.callee->kind == AST_EXPR_FUNC_EXPR)
@@ -1461,17 +1461,17 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         TypeID type = resolve_type(&symbol->type_alias.type);
         struct type_info *info = get_type(type);
         if (info->kind == KIND_RECORD) {
-            if (info->record_type.fields.count != expr->constructor.init_list.count) {
+            if (info->record.fields.count != expr->constructor.init_list.count) {
                 type_error("Incorrect number of fields in initialiser list for type '"
                            LXL_SV_FMT_SPEC"'; expected %d but got %d",
-                           LXL_SV_FMT_ARG(name), info->record_type.fields.count,
+                           LXL_SV_FMT_ARG(name), info->record.fields.count,
                            expr->constructor.init_list.count);
                 break;
             }
             struct ast_node *node = expr->constructor.init_list.head;
-            for (int i = 0; i < info->record_type.fields.count; ++i, node = node->next) {
+            for (int i = 0; i < info->record.fields.count; ++i, node = node->next) {
                 assert(node != NULL);
-                TypeID expected_type = info->record_type.fields.items[i].type;
+                TypeID expected_type = info->record.fields.items[i].type;
                 assert(node->kind == AST_EXPR);
                 TypeID actual_type = type_check_expr(&node->expr);
                 if (expected_type != actual_type) {
@@ -1513,17 +1513,17 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                        LXL_SV_FMT_ARG(type_name));
             break;
         }
-        if (info->pointer_type.dest_type == TYPE_ABSURD) {
+        if (info->pointer.dest_type == TYPE_ABSURD) {
             type_error("Cannot dereference pointer to absurd type '!'");
         }
-        result_type = info->pointer_type.dest_type;
+        result_type = info->pointer.dest_type;
     } break;
     case AST_EXPR_FIELD: {
         TypeID target_type = type_check_expr(expr->field.target);
         struct type_info *target_info = get_type(target_type);
         assert(target_info);
         if (target_info->kind == KIND_RECORD) {
-            TypeID field_type = get_record_field_type(target_info->record_type, expr->field.name);
+            TypeID field_type = get_record_field_type(target_info->record, expr->field.name);
             if (!field_type) {
                 name_error("Unknown field '"LXL_SV_FMT_SPEC"' in type '"LXL_SV_FMT_SPEC"'",
                            LXL_SV_FMT_ARG(expr->field.name), LXL_SV_FMT_ARG(target_info->repr));
@@ -1538,14 +1538,14 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             struct type_info *inner_info = get_type(inner_type);
             if (inner_info->kind == KIND_ENUM) {
                 VIC_INT value = 0;
-                if (!get_enum_field_value(inner_info->enum_type, expr->field.name, &value)) {
+                if (!get_enum_field_value(inner_info->enum_, expr->field.name, &value)) {
                     name_error("Unknown variant '"LXL_SV_FMT_SPEC"' for type '"LXL_SV_FMT_SPEC"'.",
                                LXL_SV_FMT_ARG(expr->field.name), LXL_SV_FMT_ARG(inner_info->repr));
                     break;
                 }
                 *expr = (struct ast_expr) {
                     .kind = AST_EXPR_INTEGER,
-                    .type = inner_info->enum_type.underlying_type,
+                    .type = inner_info->enum_.underlying_type,
                     .integer = {.value = value}};
             }
             else {
@@ -1584,7 +1584,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             }
             struct type_info function_info = {
                 .kind = KIND_FUNCTION,
-                .function_type = {.sig = symbol->func.sig}};
+                .function = {.sig = symbol->func.sig}};
             result_type = get_or_add_type(function_info);
             *expr = (struct ast_expr) {
                 .kind = AST_EXPR_FUNC_EXPR,
@@ -1622,7 +1622,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                        LXL_SV_FMT_ARG(index_type_name));
             break;
         }
-        result_type = array_info->array_type.dest_type;
+        result_type = array_info->array.dest_type;
     } break;
     case AST_EXPR_INTEGER:
         // TODO "untyped" literals... i.e. integer literals have an "INTEGER_LITERAL" type.

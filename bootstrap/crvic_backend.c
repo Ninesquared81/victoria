@@ -300,11 +300,11 @@ enum cgen_error crvic_generate_c_types(int indent_step, struct string_buffer *sb
         else if (info->kind == KIND_ARRAY) {
             sb_add_formatted(sb, "typedef struct %s %s;\nstruct %s {%s _[%d];};\n",
                              this_type_name, this_type_name, this_type_name,
-                             crvic_get_c_type(info->array_type.dest_type),
-                             info->array_type.count);
+                             crvic_get_c_type(info->array.dest_type),
+                             info->array.count);
         }
         else if (info->kind == KIND_FUNCTION) {
-            struct func_sig *sig = info->function_type.sig;
+            struct func_sig *sig = info->function.sig;
             sb_add_formatted(sb, "typedef %s %s(", crvic_get_c_type(sig->ret_type), this_type_name);
             if (sig->params.count >= 1) {
                 sb_add_formatted(sb, "%s", crvic_get_c_type(sig->params.items[0].type));
@@ -322,8 +322,8 @@ enum cgen_error crvic_generate_c_record_defn(struct type_info info, int indent_s
                                              const char *type_name, struct string_buffer *sb) {
     assert(info.kind == KIND_RECORD);
     sb_add_formatted(sb, "struct %s {\n", type_name);
-    for (int i = 0; i < info.record_type.fields.count; ++i) {
-        struct type_decl field = info.record_type.fields.items[i];
+    for (int i = 0; i < info.record.fields.count; ++i) {
+        struct type_decl field = info.record.fields.items[i];
         sb_add_formatted(sb, "%*s%s "LXL_SV_FMT_SPEC";\n", indent_step, "",
                          crvic_get_c_type(field.type),
                          LXL_SV_FMT_ARG(field.name));
@@ -380,7 +380,7 @@ const char *crvic_get_c_type(TypeID type) {
         return name;
     }
     case KIND_ENUM:
-        return crvic_get_c_type(info->enum_type.underlying_type);
+        return crvic_get_c_type(info->enum_.underlying_type);
     case KIND_POINTER:
         return crvic_get_c_pointer(*info);
     case KIND_NO_KIND:
@@ -393,9 +393,9 @@ const char *crvic_get_c_type(TypeID type) {
 const char *crvic_get_c_pointer(struct type_info info) {
     assert(info.kind == KIND_POINTER);
     // NOTE: complex types are typdef'd, so we /should/ be able to use them as a normal type name.
-    const char *dest_type_string = crvic_get_c_type(info.pointer_type.dest_type);
-    const char *qualifier = (info.pointer_type.rw == RW_READ_ONLY) ? "const " : "";
-    if (type_is_kind(info.pointer_type.dest_type, KIND_FUNCTION)) {
+    const char *dest_type_string = crvic_get_c_type(info.pointer.dest_type);
+    const char *qualifier = (info.pointer.rw == RW_READ_ONLY) ? "const " : "";
+    if (type_is_kind(info.pointer.dest_type, KIND_FUNCTION)) {
         // We cannot have qualifiers on function types.
         qualifier = "";
     }
