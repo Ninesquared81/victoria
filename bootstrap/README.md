@@ -26,15 +26,17 @@ bootstrap compiler).
 
 - [x] (Internal) function definition/declaration.
 
-- [x] Function calls (internal/external). NOTE: must be declared before call.
+- [x] Function calls (internal/external). NOTE: ~~must be declared before call~~
+can be declared in any order.
 
 - [x] Integer types (`i8`&ndash;`i64`, `u8`&ndash;`u16`, `int`, `uint`).
 
-- [ ] Object pointer types (`^T`, `^mut T`).
+- [x] Object pointer types (`^T`, `^mut T`).
 
-- [ ] Function pointer types.
+- [x] Function ~~pointer~~ types (NOTE: function pointers are an emergent feature from
+the confluence of function types and pointer types).
 
-- [ ] Array types.
+- [x] Array types.
 
 - [x] Record types.
 
