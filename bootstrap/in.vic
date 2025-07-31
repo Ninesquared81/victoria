@@ -13,6 +13,7 @@ func main() {
     #(p to ^mut int)^ := 42
     #printf(c"Hello, World!\n")
     printf(c"%d\n", arr[2] to c_int)
+    (&foo)^(arr[2])
 }
 
 func foo(x: int) {
