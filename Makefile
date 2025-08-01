@@ -16,7 +16,7 @@ all: $(VIC)
 $(VIC): $(MAIN_C) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $(MAIN_C) -o $(VIC)
 
-$(MAIN_C): $(MAIN_VIC)
+$(MAIN_C): $(MAIN_VIC) $(CRVIC)
 	$(CRVIC) $(MAIN_VIC)
 
 bootstrap:
