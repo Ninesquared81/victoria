@@ -1,8 +1,16 @@
 type c_int := i32
+type c_size_t := uint
 
 external {
     # C stdlib
+    # stdlib.h
+    func exit(code: c_int) -> !
     # stdio.h
+    func fopen(file: c_string, mode: c_string) -> ^FILE
+    func fclose(fp: ^FILE) -> c_int
+    func fread(buf: [^]!, size: c_size_t, count: c_size_t, fp: ^FILE) -> c_size_t
+    func ferror(fp: ^FILE) -> c_int
+    func perror(prefix: c_string)
     func printf(fmt: c_string, ..!) -> c_int
 
     # Local C modules
@@ -14,6 +22,7 @@ external {
     func print_tokens(f: ^FILE)
 }
 
+# Opaque types.
 type FILE := !
 type lxl_lexer := !
 
@@ -28,6 +37,31 @@ type lxl_token := record {
 
 type lxl_string_view := record {start: c_string, length: uint}
 
+var input_buffer: [1024]u8
+
 func main() {
-    printf(c"Hello, World!\n")
+    var source := read_source(c"../bootstrap/in.vic");
+    val out_file := fopen(c"out.txt", c"w")
+    print_tokens(out_file)
+    fclose(out_file)
+}
+
+func quit() -> ! {
+    exit(1 as c_int)
+}
+
+func read_source(in_filename: c_string) -> lxl_string_view {
+    val fp := fopen(in_filename, c"r")
+    if (fp) {} else {
+        perror(c"Failed to open input file")
+        quit()
+    }
+    var length := fread(input_buffer as [^]!, 1 to c_size_t, 1023 to c_size_t, fp) to uint
+    if ferror(fp) {
+        perror(c"Failed to read input file")
+        fclose(fp)
+        quit()
+    }
+    fclose(fp)
+    return lxl_string_view {input_buffer to c_string, length}
 }
