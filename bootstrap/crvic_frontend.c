@@ -1717,7 +1717,12 @@ static void type_check_decl(struct ast_decl *decl) {
     case AST_DECL_VAR: {
         assert(decl->var.value != NULL || decl->var.type != NULL);
         TypeID value_type = (decl->var.value) ? type_check_expr(decl->var.value) : TYPE_NO_TYPE;
-        TypeID var_type   = (decl->var.type)  ? resolve_type(decl->var.type)     : value_type;
+        if (!decl->var.type) {
+            assert(value_type);
+            decl->var.type = copy_type(RESOLVED_TYPE(value_type));
+        }
+        assert(decl->var.type);
+        TypeID var_type = resolve_type(decl->var.type);
         assert(var_type);
         if (var_type == TYPE_ABSURD) {
             type_error("Cannot create variable of absurd type '!'");
