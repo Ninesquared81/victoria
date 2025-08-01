@@ -1703,8 +1703,14 @@ static void type_check_function(struct ast_decl_func *func) {
         symbol->resolved = true;
     }
     if (func->decl_kind == AST_FUNC_DECL) return;
-    // TODO: set up arguments as local variables.
     // TODO: local variables.
+    for (int i = 0; i < sig->params.count; ++i) {
+        struct type_decl *param = &sig->params.items[0];
+        struct symbol param_symbol = {
+            .kind = SYMBOL_VAL,
+            .val = {.type = param->type}};
+        insert_symbol(&symbols, st_key_of(param->name), param_symbol);
+    }
     FOR_DLLIST (struct ast_node *, node, &func->body) {
         assert(node->kind == AST_STMT);
         struct ast_stmt *stmt = &node->stmt;
