@@ -14,12 +14,12 @@ enum cgen_error crvic_generate_c_file(struct ast_list nodes, struct string_buffe
                   "#include <stdint.h>  // Fixed-width types.\n"
                   "#include <stddef.h>  // NULL.\n");
     enum cgen_error ret = CGEN_OK;
+    if ((ret = crvic_generate_c_types(indent_step, sb)) != CGEN_OK) return ret;
     for (int i = 0; i < function_count; ++i) {
         // Forward-declare all functions.
         if ((ret = crvic_generate_c_func_header(functions[i]->sig, sb))) return ret;
         sb_add_string(sb, ";\n");
     }
-    if ((ret = crvic_generate_c_types(indent_step, sb)) != CGEN_OK) return ret;
     if ((ret = crvic_generate_c_nodes(nodes, indent, indent_step, sb)) != CGEN_OK) return ret;
     return CGEN_OK;
 }
