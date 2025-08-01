@@ -1,8 +1,32 @@
 type c_int := i32
 
 external {
+    # C stdlib
+    # stdio.h
     func printf(fmt: c_string, ..!) -> c_int
+
+    # Local C modules
+    # lexel.h
+    func lxl_error_message(token_type: c_int) -> c_string
+    # lexer.c
+    func init_lexer(source: lxl_string_view) -> ^lxl_lexer
+    func next_token() -> lxl_token
+    func print_tokens(f: ^FILE)
 }
+
+type FILE := !
+type lxl_lexer := !
+
+type lxl_location := record {line: c_int, column: c_int}
+
+type lxl_token := record {
+    start: c_string,
+    end: c_string,
+    loc: lxl_location,
+    token_type: c_int,
+}
+
+type lxl_string_view := record {start: c_string, length: uint}
 
 func main() {
     printf(c"Hello, World!\n")
