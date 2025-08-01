@@ -179,6 +179,7 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
             // 'to' conversion.
             sb_add_formatted(sb, "((%s)", crvic_get_c_type(expr->convert.target_type->resolved_type));
             if ((error = crvic_generate_c_expr(expr->convert.operand, sb))) return error;
+            if (type_is_kind(expr->convert.operand->type, KIND_ARRAY)) sb_add_string(sb, "._");
             sb_add_string(sb, ")");
         }
         break;
