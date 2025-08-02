@@ -289,6 +289,13 @@ bool is_integer_type(TypeID type) {
     return TYPE_I8 <= type && type <= TYPE_U64;
 }
 
+bool is_ordered_type(TypeID type) {
+    // Only numbers are ordered.
+    // TODO: Should we allow compound types to be compared element-wise?
+    // What about strings?
+    return is_integer_type(type);
+}
+
 enum signedness sign_of_type(TypeID type) {
     if (TYPE_I8 <= type && type <= TYPE_I64) return SIGN_SIGNED;
     if (TYPE_U8 <= type && type <= TYPE_U64) return SIGN_UNSIGNED;

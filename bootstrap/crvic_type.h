@@ -190,6 +190,7 @@ bool get_enum_field_value(struct enum_info info, struct lxl_string_view field_na
 
 bool type_is_kind(TypeID type, enum kind kind);
 bool is_integer_type(TypeID type);
+bool is_ordered_type(TypeID type);
 enum signedness sign_of_type(TypeID type);
 struct lxl_string_view get_type_sv(TypeID type);
 size_t get_type_size(TypeID type);

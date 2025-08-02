@@ -272,14 +272,34 @@ static struct ast_node *copy_node(struct ast_node node) {
     return new;
 }
 
-static bool check_comparison(bool strict) {
-    return check(TOKEN_EQUALS_EQUALS, strict)
-        || check(TOKEN_BANG_EQUALS, strict)
-        || check(TOKEN_GREATER, strict)
-        || check(TOKEN_GREATER_EQUALS, strict)
-        || check(TOKEN_LESS, strict)
-        || check(TOKEN_LESS_EQUALS, strict)
-        ;
+static bool match_comparison(enum ast_cmp_op_kind *OUT_op, bool strict) {
+    enum ast_cmp_op_kind dummy;
+    if (!OUT_op) OUT_op = &dummy;
+    if (match(TOKEN_EQUALS_EQUALS, strict)) {
+        *OUT_op = AST_CMP_EQ;
+        return true;
+    }
+    if (match(TOKEN_BANG_EQUALS, strict)) {
+        *OUT_op = AST_CMP_NEQ;
+        return true;
+    }
+    if (match(TOKEN_GREATER, strict)) {
+        *OUT_op = AST_CMP_GT;
+        return true;
+    }
+    if (match(TOKEN_GREATER_EQUALS, strict)) {
+        *OUT_op = AST_CMP_GE;
+        return true;
+    }
+    if (match(TOKEN_LESS, strict)) {
+        *OUT_op = AST_CMP_LT;
+        return true;
+    }
+    if (match(TOKEN_LESS_EQUALS, strict)){
+        *OUT_op = AST_CMP_LE;
+        return true;
+    }
+    return false;
 }
 
 static bool check_assignment_target(struct ast_expr expr) {
@@ -780,10 +800,18 @@ static struct ast_expr parse_term(void) {
 
 static struct ast_expr parse_compare(void) {
     struct ast_expr expr = parse_term();
-    if (check_comparison(true)) {
-        struct lxl_token op = advance();
-        // NOTE: I want to support multi-way comparisons.
-        NOT_SUPPORTED_YET(op);
+    enum ast_cmp_op_kind op;
+    if (match_comparison(&op, true)) {
+        struct ast_expr rhs = parse_term();
+        expr = (struct ast_expr) {
+            .kind = AST_EXPR_COMPARE,
+            .compare = {
+                .lhs = copy_expr(expr),
+                .rhs = copy_expr(rhs),
+                .op = op}};
+        if (match_comparison(NULL, true)) {
+            parse_error_previous_show_token("Chained comparisons are not allowed in rVic");
+        }
     }
     return expr;
 }
@@ -1497,6 +1525,24 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             type_check_expr(&arg->expr);
         }
         assert(arg == NULL || callee->sig->c_variadic);
+    } break;
+    case AST_EXPR_COMPARE: {
+        TypeID ltype = type_check_expr(expr->compare.lhs);
+        TypeID rtype = type_check_expr(expr->compare.rhs);
+        if (ltype != rtype) {
+            struct lxl_string_view lname = get_type_sv(ltype);
+            struct lxl_string_view rname = get_type_sv(rtype);
+            type_error("Cannot convert differing types '"LXL_SV_FMT_SPEC"' and '"LXL_SV_FMT_SPEC"'",
+                       LXL_SV_FMT_ARG(lname), LXL_SV_FMT_ARG(rname));
+            break;
+        }
+        if (expr->compare.op == AST_CMP_EQ || expr->compare.op == AST_CMP_NEQ) break;
+        if (!is_ordered_type(ltype)) {
+            struct lxl_string_view lname = get_type_sv(ltype);
+            type_error("Cannot use ordered comparison on value of type '"LXL_SV_FMT_SPEC"'",
+                       LXL_SV_FMT_ARG(lname));
+            break;
+        }
     } break;
     case AST_EXPR_CONSTRUCTOR: {
         UNREACHABLE();

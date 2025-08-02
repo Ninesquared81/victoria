@@ -161,6 +161,13 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         if ((error = crvic_generate_c_expr_sep_list(expr->call.args, ", ", sb))) return error;
         sb_add_string(sb, ")");
         break;
+    case AST_EXPR_COMPARE:
+        sb_add_string(sb, "(");  // Brackets to ensure precedence is preserved.
+        if ((error = crvic_generate_c_expr(expr->compare.lhs, sb))) return error;
+        sb_add_formatted(sb, " %s ", crvic_get_c_cmp(expr->compare.op));
+        if ((error = crvic_generate_c_expr(expr->compare.rhs, sb))) return error;
+        sb_add_string(sb, ")");
+        break;
     case AST_EXPR_CONSTRUCTOR:
         sb_add_formatted(sb, "((%s) {", crvic_get_c_type(expr->type));
         if ((error = crvic_generate_c_expr_sep_list(expr->constructor.init_list, ", ", sb))) return error;
@@ -340,6 +347,19 @@ const char *crvic_get_c_op(enum ast_bin_op_kind op) {
         return "*";
     }
     assert(0 && "Unreachable");
+    return NULL;
+}
+
+const char *crvic_get_c_cmp(enum ast_cmp_op_kind op) {
+    switch (op) {
+    case AST_CMP_EQ:    return "=";
+    case AST_CMP_NEQ:   return "!=";
+    case AST_CMP_LT:    return "<";
+    case AST_CMP_LE:    return "<=";
+    case AST_CMP_GT:    return ">";
+    case AST_CMP_GE:    return ">=";
+    }
+    UNREACHABLE();
     return NULL;
 }
 

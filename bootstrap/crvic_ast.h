@@ -21,6 +21,7 @@ enum ast_expr_kind {
     AST_EXPR_ASSIGN,            // Assignment expression.
     AST_EXPR_BINARY,            // Binary operation.
     AST_EXPR_CALL,              // Function call.
+    AST_EXPR_COMPARE,           // Comparison.
     AST_EXPR_CONSTRUCTOR,       // Type constructor expression.
     AST_EXPR_CONVERT,           // Explicit type conversion.
     AST_EXPR_DEREF,             // Pointer dereference ptr^.
@@ -52,6 +53,15 @@ enum ast_decl_kind {
 enum ast_bin_op_kind {
     AST_BIN_ADD,  // Addition operator `+`.
     AST_BIN_MUL,  // Multiplication operator `*`.
+};
+
+enum ast_cmp_op_kind {
+    AST_CMP_EQ,     // Equal to `==`.
+    AST_CMP_NEQ,    // Not equal to `!=`.
+    AST_CMP_LT,     // Less than `<`.
+    AST_CMP_LE,     // Less than or equal to `<=`.
+    AST_CMP_GE,     // Greater than or equal to `>=`.
+    AST_CMP_GT,     // Greater than `>`.
 };
 
 enum ast_target_kind {
@@ -175,6 +185,12 @@ struct ast_expr {
             int arity;  // Number of arguments at call site.
             struct ast_list args;
         } call;
+        struct {
+            // NOTE: We only support binary comparisons in rVic.
+            struct ast_expr *lhs;
+            struct ast_expr *rhs;
+            enum ast_cmp_op_kind op;
+        } compare;
         struct {
             struct ast_type *type;
             struct ast_list init_list;
