@@ -10,7 +10,7 @@ MAIN_C = src/main.c
 MAIN_VIC = src/main.vic
 LEXER = bootstrap/lexer.c
 
-.PHONY: all
+.PHONY: all bootstrap
 
 all: $(VIC)
 
