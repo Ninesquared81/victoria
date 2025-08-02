@@ -1332,6 +1332,11 @@ static bool check_assignable(TypeID ltype, TypeID rtype) {
     return false;
 }
 
+static TypeID check_comparable(TypeID ltype, TypeID rtype) {
+    // We allow the same conversions as in assignment, but in both directions.
+    return check_assignable(ltype, rtype) || check_assignable(rtype, ltype);
+}
+
 static TypeID type_check_assignment_target(struct ast_expr *target) {
     switch (target->kind) {
     case AST_EXPR_IDENTIFIER: {
@@ -1529,10 +1534,10 @@ static TypeID type_check_expr(struct ast_expr *expr) {
     case AST_EXPR_COMPARE: {
         TypeID ltype = type_check_expr(expr->compare.lhs);
         TypeID rtype = type_check_expr(expr->compare.rhs);
-        if (ltype != rtype) {
+        if (!check_comparable(ltype, rtype)) {
             struct lxl_string_view lname = get_type_sv(ltype);
             struct lxl_string_view rname = get_type_sv(rtype);
-            type_error("Cannot convert differing types '"LXL_SV_FMT_SPEC"' and '"LXL_SV_FMT_SPEC"'",
+            type_error("Cannot compare types '"LXL_SV_FMT_SPEC"' and '"LXL_SV_FMT_SPEC"'",
                        LXL_SV_FMT_ARG(lname), LXL_SV_FMT_ARG(rname));
             break;
         }
