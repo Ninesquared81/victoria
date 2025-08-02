@@ -42,7 +42,7 @@ var input_buffer: [1024]u8
 func main() {
     var source := read_source(c"./bootstrap/in.vic")
     val out_file := fopen(c"out.txt", c"w")
-    if out_file {} else {
+    if out_file == null {
         perror(c"Failed to open output file")
         quit()
     }
@@ -56,7 +56,7 @@ func quit() -> ! {
 
 func read_source(in_filename: c_string) -> lxl_string_view {
     val fp := fopen(in_filename, c"r")
-    if fp {} else {
+    if fp == null {
         perror(c"Failed to open input file")
         quit()
     }
