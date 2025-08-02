@@ -1405,6 +1405,11 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         TypeID callee_type = type_check_expr(expr->call.callee);
         if (expr->call.callee->kind == AST_EXPR_TYPE_EXPR) {
             result_type = resolve_type(expr->call.callee->type_expr.type);
+            *expr = (struct ast_expr) {
+                .kind = AST_EXPR_CONSTRUCTOR,
+                .constructor = {
+                    .type = copy_type(RESOLVED_TYPE(result_type)),
+                    .init_list = expr->call.args}};
             struct type_info *info = get_type(result_type);
             struct lxl_string_view name = info->repr;
             if (info->kind == KIND_RECORD) {
@@ -1437,11 +1442,6 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                 type_error("Invalid type for constructor: '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
                 break;
             }
-            *expr = (struct ast_expr) {
-                .kind = AST_EXPR_CONSTRUCTOR,
-                .constructor = {
-                    .type = copy_type(RESOLVED_TYPE(result_type)),
-                    .init_list = expr->call.args}};
             break;
         }
         struct type_info *callee_info = get_type(callee_type);
