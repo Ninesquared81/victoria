@@ -176,7 +176,7 @@ struct ast_expr {
             struct ast_list args;
         } call;
         struct {
-            struct lxl_string_view name;
+            struct ast_type *type;
             struct ast_list init_list;
         } constructor;
         struct {

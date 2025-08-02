@@ -598,6 +598,7 @@ static struct ast_list parse_arg_list(void) {
 
 static struct ast_expr parse_primary(void) {
     struct ast_expr expr = {0};
+    struct ast_type type = {0};
     if (match(TOKEN_LIT_INTEGER, true)) {
         expr = (struct ast_expr) {
             .kind = AST_EXPR_INTEGER,
@@ -609,23 +610,11 @@ static struct ast_expr parse_primary(void) {
             .string = {.value = parse_previous_string()}};
     }
     else if (match(TOKEN_IDENTIFIER, true)) {
-        // Why is this handled here? Surely we can handle constructors as a suffix operator.
         struct lxl_string_view name = lxl_token_value(parser.previous_token);
-        if (match(TOKEN_BKT_CURLY_LEFT, true)) {
-            struct ast_list inits = parse_comma_list_no_assign(TOKEN_BKT_CURLY_RIGHT,
-                                                     "Expect '}' after initialiser list");
-            expr = (struct ast_expr) {
-                .kind = AST_EXPR_CONSTRUCTOR,
-                .constructor = {
-                    .name = name,
-                    .init_list = inits}};
-        }
-        else {
-            expr = (struct ast_expr) {
-                .kind = AST_EXPR_IDENTIFIER,
-                .identifier = {.name = name}};
-        }
-    }
+        expr = (struct ast_expr) {
+            .kind = AST_EXPR_IDENTIFIER,
+            .identifier = {.name = name}};
+     }
     else if (match(TOKEN_BKT_ROUND_LEFT, true)) {
         ignore_line_ending();
         expr = parse_assign();
@@ -652,6 +641,11 @@ static struct ast_expr parse_primary(void) {
                 .cond = cond,
                 .then_expr = then_expr,
                 .else_expr = else_expr}};
+    }
+    else if (try_parse_type(&type)) {
+        expr = (struct ast_expr) {
+            .kind = AST_EXPR_TYPE_EXPR,
+            .type_expr = {.type = copy_type(type)}};
     }
     else {
         parse_error_current_show_token("Expect expression");
@@ -1409,6 +1403,47 @@ static TypeID type_check_expr(struct ast_expr *expr) {
     } break;
     case AST_EXPR_CALL: {
         TypeID callee_type = type_check_expr(expr->call.callee);
+        if (expr->call.callee->kind == AST_EXPR_TYPE_EXPR) {
+            result_type = resolve_type(expr->call.callee->type_expr.type);
+            struct type_info *info = get_type(result_type);
+            struct lxl_string_view name = info->repr;
+            if (info->kind == KIND_RECORD) {
+                if (info->record.fields.count != expr->constructor.init_list.count) {
+                    type_error("Incorrect number of fields in initialiser list for type '"
+                               LXL_SV_FMT_SPEC"'; expected %d but got %d",
+                               LXL_SV_FMT_ARG(name), info->record.fields.count,
+                               expr->constructor.init_list.count);
+                    break;
+                }
+                struct ast_node *node = expr->constructor.init_list.head;
+                for (int i = 0; i < info->record.fields.count; ++i, node = node->next) {
+                    assert(node != NULL);
+                    TypeID expected_type = info->record.fields.items[i].type;
+                    assert(node->kind == AST_EXPR);
+                    TypeID actual_type = type_check_expr(&node->expr);
+                    if (expected_type != actual_type) {
+                        struct lxl_string_view expected_sv = get_type_sv(expected_type);
+                        struct lxl_string_view actual_sv = get_type_sv(actual_type);
+                        type_error("Expected type '"LXL_SV_FMT_SPEC "' for field %d of type '"
+                                   LXL_SV_FMT_SPEC"', but got type '"LXL_SV_FMT_SPEC"'",
+                                   LXL_SV_FMT_ARG(expected_sv),
+                                   i, LXL_SV_FMT_ARG(name),
+                                   LXL_SV_FMT_ARG(actual_sv));
+                        break;
+                    }
+                }
+            }
+            else {
+                type_error("Invalid type for constructor: '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
+                break;
+            }
+            *expr = (struct ast_expr) {
+                .kind = AST_EXPR_CONSTRUCTOR,
+                .constructor = {
+                    .type = copy_type(RESOLVED_TYPE(result_type)),
+                    .init_list = expr->call.args}};
+            break;
+        }
         struct type_info *callee_info = get_type(callee_type);
         assert(callee_info);
         if (callee_info->kind != KIND_FUNCTION) {
@@ -1464,49 +1499,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         assert(arg == NULL || callee->sig->c_variadic);
     } break;
     case AST_EXPR_CONSTRUCTOR: {
-        struct lxl_string_view name = expr->constructor.name;
-        struct symbol *symbol = lookup_symbol(&symbols, st_key_of(name));
-        if (!symbol) {
-            name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
-            break;
-        }
-        if (symbol->kind != SYMBOL_TYPE_ALIAS) {
-            name_error("Symbol '"LXL_SV_FMT_SPEC"' is not not a type", LXL_SV_FMT_ARG(name));
-            break;
-        }
-        TypeID type = resolve_type(&symbol->type_alias.type);
-        struct type_info *info = get_type(type);
-        if (info->kind == KIND_RECORD) {
-            if (info->record.fields.count != expr->constructor.init_list.count) {
-                type_error("Incorrect number of fields in initialiser list for type '"
-                           LXL_SV_FMT_SPEC"'; expected %d but got %d",
-                           LXL_SV_FMT_ARG(name), info->record.fields.count,
-                           expr->constructor.init_list.count);
-                break;
-            }
-            struct ast_node *node = expr->constructor.init_list.head;
-            for (int i = 0; i < info->record.fields.count; ++i, node = node->next) {
-                assert(node != NULL);
-                TypeID expected_type = info->record.fields.items[i].type;
-                assert(node->kind == AST_EXPR);
-                TypeID actual_type = type_check_expr(&node->expr);
-                if (expected_type != actual_type) {
-                    struct lxl_string_view expected_sv = get_type_sv(expected_type);
-                    struct lxl_string_view actual_sv = get_type_sv(actual_type);
-                    type_error("Expected type '"LXL_SV_FMT_SPEC "' for field %d of type '"
-                               LXL_SV_FMT_SPEC"', but got type '"LXL_SV_FMT_SPEC"'",
-                               LXL_SV_FMT_ARG(expected_sv),
-                               i, LXL_SV_FMT_ARG(name),
-                               LXL_SV_FMT_ARG(actual_sv));
-                    break;
-                }
-            }
-        }
-        else {
-            type_error("Invalid type for constructor: '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
-            break;
-        }
-        result_type = type;
+        UNREACHABLE();
     } break;
     case AST_EXPR_CONVERT: {
         TypeID operand_type = type_check_expr(expr->convert.operand);
@@ -1653,7 +1646,8 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         break;
     }
     case AST_EXPR_TYPE_EXPR:
-        TODO("type check type expressions");
+        resolve_type(expr->type_expr.type);
+        result_type = TYPE_TYPE_EXPR;
         break;
     case AST_EXPR_WHEN: {
         // Propagate errors.

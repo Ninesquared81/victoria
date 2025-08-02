@@ -46,7 +46,7 @@ AssignExpr = Equality ":=" Expr ;
 FieldExpr = Primary ("." IDENT)+ ;
 IntegerExpr = INTEGER_LIT ;
 WhenExpr = "when" Expr "then" Expr "else" Expr
-ConstructorExpr = IDENT "{" [(AssignExpr ",")* AssignExpr [","]] "}"
+ConstructorExpr = Type "(" [(AssignExpr ",")* AssignExpr [","]] ")"
 
 ArgList = [(Expr ",")* Expr [","]] ;
 
