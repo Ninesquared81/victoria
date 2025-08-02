@@ -419,23 +419,25 @@ static enum rw_access parse_rw_access(void) {
     if (match(TOKEN_KW_OUT, false)) return RW_WRITE_BEFORE_READ;
     return RW_READ_ONLY;
 }
+static struct ast_type parse_type(const char *fmt, ...);
 
-static struct ast_type parse_type(const char *fmt, ...) {
-    static_assert(TYPE_NO_TYPE == 0, "TYPE_NO_TYPE should be 'falsy'");
+bool try_parse_type(struct ast_type *OUT_type) {
     // Basic types.
     TypeID primitive_type = token_to_type(parser.current_token);
     if (primitive_type) {
         advance();
-        return (struct ast_type) {
+        *OUT_type =  (struct ast_type) {
             .kind = AST_TYPE_PRIMITIVE,
             .resolved_type = primitive_type};
+        return true;
     }
     // Type aliases.
     if (match(TOKEN_IDENTIFIER, false)) {
-        return (struct ast_type) {
+        *OUT_type =  (struct ast_type) {
             .kind = AST_TYPE_ALIAS,
             .alias = {
                 .name = lxl_token_value(parser.previous_token)}};
+        return true;
     }
     // Record types.
     if (match(TOKEN_KW_RECORD, false)) {
@@ -453,10 +455,11 @@ static struct ast_type parse_type(const char *fmt, ...) {
             if (!match(TOKEN_COMMA, false)) break;
         }
         consume(TOKEN_BKT_CURLY_RIGHT, false, "Expect '}' after record definition");
-        return (struct ast_type) {
+        *OUT_type =  (struct ast_type) {
             .kind = AST_TYPE_RECORD,
             .record_lit = {
                 .fields = fields}};
+        return true;
     }
     // Enum types.
     if (match(TOKEN_KW_ENUM, false)) {
@@ -485,22 +488,24 @@ static struct ast_type parse_type(const char *fmt, ...) {
             if (!match(TOKEN_COMMA, false)) break;
         }
         consume(TOKEN_BKT_CURLY_RIGHT, false, "Expect '}' after enum field list");
-        return (struct ast_type) {
+        *OUT_type =  (struct ast_type) {
             .kind = AST_TYPE_ENUM,
             .enum_lit = {
                 .underlying_type = copy_type(underlying_type),
                 .fields = fields}};
+        return true;
     }
     // Pointer types.
     if (match(TOKEN_CARET, false)) {
         enum rw_access rw = parse_rw_access();
         struct ast_type dest_type = parse_type("Expect type after '^'");
-        return (struct ast_type) {
+        *OUT_type =  (struct ast_type) {
             .kind = AST_TYPE_POINTER,
             .pointer = {
                 .kind = POINTER_PROPER,
                 .rw = rw,
                 .dest_type = copy_type(dest_type)}};
+        return true;
     }
     // Array, array-like pointer, slice.
     if (match(TOKEN_BKT_SQUARE_LEFT, false)) {
@@ -509,12 +514,13 @@ static struct ast_type parse_type(const char *fmt, ...) {
             consume(TOKEN_BKT_SQUARE_RIGHT, false, "Expect ']' after '[^' for array-like pointer type");
             enum rw_access rw = parse_rw_access();
             struct ast_type dest_type = parse_type("Expect type after '[^]'");
-            return (struct ast_type) {
+            *OUT_type =  (struct ast_type) {
                 .kind = AST_TYPE_POINTER,
                 .pointer = {
                     .kind = POINTER_ARRAY_LIKE,
                     .rw = rw,
                     .dest_type = copy_type(dest_type)}};
+            return true;
         }
         // Slice.
         if (match(TOKEN_BKT_SQUARE_RIGHT, false)) {
@@ -532,12 +538,13 @@ static struct ast_type parse_type(const char *fmt, ...) {
             rw = RW_WRITE_BEFORE_READ;
         }
         struct ast_type dest_type = parse_type("Expect array element type");
-        return (struct ast_type) {
+        *OUT_type =  (struct ast_type) {
             .kind = AST_TYPE_ARRAY,
             .array = {
                 .count = copy_expr(count),
                 .rw = rw,
                 .dest_type = copy_type(dest_type)}};
+        return true;
     }
     // Function types.
     if (match(TOKEN_KW_FUNC, false)) {
@@ -545,18 +552,27 @@ static struct ast_type parse_type(const char *fmt, ...) {
                 "Expect '(' after 'func' in fucntion type (note the name is omitted)");
         struct ast_sig *sig = ALLOCATE(perm, sizeof *sig);
         *sig  = parse_func_sig(LXL_SV_EMPTY());
-        return (struct ast_type) {
+        *OUT_type =  (struct ast_type) {
             .kind = AST_TYPE_FUNCTION,
             .function = {.sig = sig}};
     }
     // Not a type.
-    va_list vargs;
-    va_start(vargs, fmt);
-    parse_error_show_token_vargs(parser.current_token, fmt, vargs);
-    va_end(vargs);
-    return (struct ast_type) {
+    return false;
+}
+
+static struct ast_type parse_type(const char *fmt, ...) {
+    static_assert(TYPE_NO_TYPE == 0, "TYPE_NO_TYPE should be 'falsy'");
+    struct ast_type type = {
         .kind = AST_TYPE_PRIMITIVE,
         .resolved_type = TYPE_NO_TYPE};
+    if (!try_parse_type(&type)) {
+        // Not a type.
+        va_list vargs;
+        va_start(vargs, fmt);
+        parse_error_show_token_vargs(parser.current_token, fmt, vargs);
+        va_end(vargs);
+    }
+    return type;
 }
 
 static struct ast_expr parse_assign(void);
