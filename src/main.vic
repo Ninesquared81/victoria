@@ -40,8 +40,12 @@ type lxl_string_view := record {start: c_string, length: uint}
 var input_buffer: [1024]u8
 
 func main() {
-    var source := read_source(c"../bootstrap/in.vic");
+    var source := read_source(c"./bootstrap/in.vic")
     val out_file := fopen(c"out.txt", c"w")
+    if out_file {} else {
+        perror(c"Failed to open output file")
+        quit()
+    }
     print_tokens(out_file)
     fclose(out_file)
 }
@@ -52,7 +56,7 @@ func quit() -> ! {
 
 func read_source(in_filename: c_string) -> lxl_string_view {
     val fp := fopen(in_filename, c"r")
-    if (fp) {} else {
+    if fp {} else {
         perror(c"Failed to open input file")
         quit()
     }
@@ -63,5 +67,5 @@ func read_source(in_filename: c_string) -> lxl_string_view {
         quit()
     }
     fclose(fp)
-    return lxl_string_view {input_buffer to c_string, length}
+    return lxl_string_view (input_buffer to c_string, length)
 }
