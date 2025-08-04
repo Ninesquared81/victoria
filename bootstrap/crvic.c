@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     int exit_code = EXIT_SUCCESS;
-    printf("%zu:\n%s", sb.count, sb.buffer);
+    printf("Codegen complete: %zu bytes total.\n", sb.count);
     if ((size_t)fprintf(f, "%s", sb.buffer) != sb.count) {
         perror("Failed to write output file");
         exit_code = EXIT_FAILURE;
@@ -97,5 +97,6 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "fclose() failed!\n");
         exit_code = EXIT_FAILURE;
     }
+    printf("Output saved to %s\n", out_filename);
     return exit_code;
 }
