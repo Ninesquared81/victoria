@@ -41,3 +41,11 @@ the confluence of function types and pointer types).
 - [x] Record types.
 
 - [x] Enum types.
+
+### Features deemed necessary after starting compiler:
+
+- [ ] Slices.
+
+- [ ] Command line arguments (`args: []string`).
+
+- [ ] String type.
