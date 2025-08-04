@@ -21,7 +21,7 @@ enum type_primitive {
     TYPE_U16,          // Unsigned 16-bit integer.
     TYPE_U32,          // Unsigned 32-bit integer.
     TYPE_U64,          // Unsigned 64-bit integer.
-    // TYPE_STRING,       // String type.
+    TYPE_STRING,       // String type.
     TYPE_C_STRING,     // C-style string type.
 
     // NOTE: TYPE_INT and TYPE_UINT have been removed and replaced with type aliases.

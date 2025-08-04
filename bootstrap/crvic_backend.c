@@ -295,6 +295,10 @@ enum cgen_error crvic_generate_c_expr_sep_list(struct ast_list nodes, const char
 }
 
 enum cgen_error crvic_generate_c_types(int indent_step, struct string_buffer *sb) {
+    // Builtin typdefs.
+    sb_add_formatted(sb, "typedef struct {const char *start; %s length;} VIC_STRING;\n",
+                     crvic_get_c_type(TYPE_INT));
+    // User-defined types.
     struct iterator it = get_type_iterator();
     FOR_ITER(struct type_info *, info, &it) {
         enum cgen_error ret = CGEN_OK;
@@ -382,6 +386,7 @@ const char *crvic_get_c_type(TypeID type) {
         case TYPE_U32: return "uint32_t";
         case TYPE_U64: return "uint64_t";
         case TYPE_C_STRING: return "const char*";
+        case TYPE_STRING: return "VIC_STRING";
         case TYPE_PRIMITIVE_COUNT:
             UNREACHABLE();
             return NULL;

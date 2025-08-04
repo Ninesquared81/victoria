@@ -17,20 +17,21 @@
     TYPE_ENTRY_KIND(NAME, KIND_PRIMITIVE, SIZE, REPR)
 
 static struct type_info types[TYPE_TABLE_CAPACITY] = {
-    TYPE_ENTRY_KIND(TYPE_NO_TYPE, KIND_NO_KIND, 0, "<No type>"),
-    TYPE_ENTRY_PRIM(TYPE_TYPE_EXPR,     0, "<Type expression>"),
-    TYPE_ENTRY_PRIM(TYPE_ABSURD,        0, "!"),
-    TYPE_ENTRY_PRIM(TYPE_UNIT,          0, "()"),
-    TYPE_ENTRY_PRIM(TYPE_NULLPTR_TYPE,  sizeof(VIC_INT), "type_of(null)"),
-    TYPE_ENTRY_PRIM(TYPE_I8,            1, "i8"),
-    TYPE_ENTRY_PRIM(TYPE_I16,           2, "i16"),
-    TYPE_ENTRY_PRIM(TYPE_I32,           4, "i32"),
-    TYPE_ENTRY_PRIM(TYPE_I64,           8, "i64"),
-    TYPE_ENTRY_PRIM(TYPE_U8,            1, "u8"),
-    TYPE_ENTRY_PRIM(TYPE_U16,           1, "u16"),
-    TYPE_ENTRY_PRIM(TYPE_U32,           4, "u32"),
-    TYPE_ENTRY_PRIM(TYPE_U64,           8, "u64"),
-    TYPE_ENTRY_PRIM(TYPE_C_STRING,      sizeof(VIC_INT), "c_string"),
+    TYPE_ENTRY_KIND(TYPE_NO_TYPE, KIND_NO_KIND, 0,      "<No type>"),
+    TYPE_ENTRY_PRIM(TYPE_TYPE_EXPR,     0,              "<Type expression>"),
+    TYPE_ENTRY_PRIM(TYPE_ABSURD,        0,              "!"),
+    TYPE_ENTRY_PRIM(TYPE_UNIT,          0,              "()"),
+    TYPE_ENTRY_PRIM(TYPE_NULLPTR_TYPE,  VIC_PTR_SIZE,   "type_of(null)"),
+    TYPE_ENTRY_PRIM(TYPE_I8,            1,              "i8"),
+    TYPE_ENTRY_PRIM(TYPE_I16,           2,              "i16"),
+    TYPE_ENTRY_PRIM(TYPE_I32,           4,              "i32"),
+    TYPE_ENTRY_PRIM(TYPE_I64,           8,              "i64"),
+    TYPE_ENTRY_PRIM(TYPE_U8,            1,              "u8"),
+    TYPE_ENTRY_PRIM(TYPE_U16,           1,              "u16"),
+    TYPE_ENTRY_PRIM(TYPE_U32,           4,              "u32"),
+    TYPE_ENTRY_PRIM(TYPE_U64,           8,              "u64"),
+    TYPE_ENTRY_PRIM(TYPE_STRING,        VIC_PTR_SIZE,   "string"),
+    TYPE_ENTRY_PRIM(TYPE_C_STRING,      VIC_PTR_SIZE,   "c_string"),
     /* ... Other types to be filled in later ... */
 };
 
