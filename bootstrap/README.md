@@ -48,4 +48,4 @@ the confluence of function types and pointer types).
 
 - [ ] Command line arguments (`args: []string`).
 
-- [ ] String type.
+- [x] String type.
