@@ -40,6 +40,8 @@ type lxl_string_view := record {start: c_string, length: uint}
 var input_buffer: [1024]u8
 
 func main() {
+    var message := "Hello, World!\n"
+    printf(c"%s", message to c_string)
     var source := read_source(c"./bootstrap/in.vic")
     val out_file := fopen(c"out.txt", c"w")
     if out_file == null {
