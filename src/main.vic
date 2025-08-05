@@ -46,6 +46,7 @@ func main() {
         perror(c"Failed to open output file")
         quit()
     }
+    init_lexer(source)
     print_tokens(out_file)
     fclose(out_file)
 }
