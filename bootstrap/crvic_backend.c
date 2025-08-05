@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <ctype.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
@@ -234,7 +235,15 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
     case AST_EXPR_STRING:
         sb_add_string(sb, "((VIC_STRING) {\"");
         for (size_t i = 0; i < expr->string.value.length; ++i) {
-            sb_add_formatted(sb, "\\x%x", expr->string.value.start[i]);
+            char c = expr->string.value.start[i];
+            if (isprint(c) && c != '"' && c != '\\') {
+                // Printable.
+                sb_add_formatted(sb, "%c", c);
+            }
+            else {
+                // Escaped.
+                sb_add_formatted(sb, "\\x%x", c);
+            }
         }
         sb_add_formatted(sb, "\", %zd})", expr->string.value.length);
         break;
