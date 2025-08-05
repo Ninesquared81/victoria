@@ -115,9 +115,8 @@ struct lxl_lexer *init_lexer(struct lxl_string_view source) {
     lexer.nestable_comment_delims = add_delim_pairs("~#", "#~");
     // Strings.
     // C-style strings c"...".
-    // TODO: Victoria-style strings.
-    lexer.line_string_delims = add_delim_pairs("c\"", "\"");
-    lexer.line_string_types = add_types(TOKEN_LIT_STRING);
+    lexer.line_string_delims = add_delim_pairs("\"", "\"", "c\"", "\"");
+    lexer.line_string_types = add_types(TOKEN_LIT_STRING, TOKEN_LIT_STRING);
     // Numbers.
     lexer.digit_separators = "_";
     //// Ints.

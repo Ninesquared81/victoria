@@ -174,6 +174,8 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         sb_add_string(sb, "})");
         break;
     case AST_EXPR_CONVERT:
+        // TODO: extract this to a function(s).
+        assert(expr->type == expr->convert.target_type->resolved_type);
         if (expr->convert.kind == CONVERT_AS) {
             // 'as' conversion.
             sb_add_formatted(sb, "((union {%s value; %s as;}){.value = ",
@@ -184,9 +186,18 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         }
         else {
             // 'to' conversion.
-            sb_add_formatted(sb, "((%s)", crvic_get_c_type(expr->convert.target_type->resolved_type));
+            sb_add_string(sb, "(");
+            bool str2cstr = expr->convert.operand->type == TYPE_STRING && expr->type == TYPE_C_STRING;
+            if (!str2cstr) {
+                sb_add_formatted(sb, "(%s)", crvic_get_c_type(expr->convert.target_type->resolved_type));
+            }
             if ((error = crvic_generate_c_expr(expr->convert.operand, sb))) return error;
-            if (type_is_kind(expr->convert.operand->type, KIND_ARRAY)) sb_add_string(sb, "._");
+            if (type_is_kind(expr->convert.operand->type, KIND_ARRAY)) {
+                sb_add_string(sb, "._");
+            }
+            else if (str2cstr) {
+                sb_add_string(sb, ".start");
+            }
             sb_add_string(sb, ")");
         }
         break;
@@ -221,11 +232,11 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         sb_add_string(sb, "NULL");
         break;
     case AST_EXPR_STRING:
-        sb_add_string(sb, "\"");
+        sb_add_string(sb, "((VIC_STRING) {\"");
         for (size_t i = 0; i < expr->string.value.length; ++i) {
             sb_add_formatted(sb, "\\x%x", expr->string.value.start[i]);
         }
-        sb_add_string(sb, "\"");
+        sb_add_formatted(sb, "\", %zd})", expr->string.value.length);
         break;
     case AST_EXPR_TYPE_EXPR:
         return CGEN_UNEXPECTED_TYPE;

@@ -359,8 +359,9 @@ static struct lxl_string_view parse_string(struct lxl_token token) {
     AUTO_BEGIN_TEMP();
     struct sb_head sb = {.allocator = ALLOCATOR_ARD2AD(temp)};
     const char *start = token.start;
-    assert(*start == 'c');
-    ++start;
+    if (*start == 'c') {
+        ++start;
+    }
     assert(*start == '"');
     ++start;
     for (const char *p = start; p < token.end - 1; ++p) {
@@ -403,10 +404,6 @@ static struct lxl_string_view parse_string(struct lxl_token token) {
     return sv;
 }
 
-static struct lxl_string_view parse_previous_string(void) {
-    return parse_string(parser.previous_token);
-}
-
 static TypeID token_to_type(struct lxl_token token) {
     switch (token.token_type) {
         /* Symbolic types */
@@ -417,7 +414,7 @@ static TypeID token_to_type(struct lxl_token token) {
     case TOKEN_KW_I16: return TYPE_I16;
     case TOKEN_KW_I32: return TYPE_I32;
     case TOKEN_KW_I64: return TYPE_I64;
-    case TOKEN_KW_STRING: TODO("string keyword"); break;
+    case TOKEN_KW_STRING: return TYPE_STRING;
     case TOKEN_KW_U8: return TYPE_U8;
     case TOKEN_KW_U16: return TYPE_U16;
     case TOKEN_KW_U32: return TYPE_U32;
@@ -625,9 +622,19 @@ static struct ast_expr parse_primary(void) {
             .integer = {.value = parse_previous_integer()}};
     }
     else if (match(TOKEN_LIT_STRING, true)) {
+        struct lxl_token token = parser.previous_token;
         expr = (struct ast_expr) {
             .kind = AST_EXPR_STRING,
-            .string = {.value = parse_previous_string()}};
+            .string = {.value = parse_string(token)}};
+        if (token.start[0] == 'c') {
+            // C-style strings.
+            expr = (struct ast_expr) {
+                .kind = AST_EXPR_CONVERT,
+                .convert = {
+                    .operand = copy_expr(expr),
+                    .target_type = copy_type(RESOLVED_TYPE(TYPE_C_STRING)),
+                    .kind = CONVERT_TO}};
+        }
     }
     else if (match(TOKEN_IDENTIFIER, true)) {
         struct lxl_string_view name = lxl_token_value(parser.previous_token);
@@ -1692,8 +1699,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         result_type = TYPE_NULLPTR_TYPE;
         break;
     case AST_EXPR_STRING: {
-        // TODO: proper (not C-style) strings.
-        result_type = TYPE_C_STRING;
+        result_type = TYPE_STRING;
         break;
     }
     case AST_EXPR_TYPE_EXPR:
