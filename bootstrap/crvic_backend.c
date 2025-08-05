@@ -376,7 +376,7 @@ const char *crvic_get_c_op(enum ast_bin_op_kind op) {
 
 const char *crvic_get_c_cmp(enum ast_cmp_op_kind op) {
     switch (op) {
-    case AST_CMP_EQ:    return "=";
+    case AST_CMP_EQ:    return "==";
     case AST_CMP_NEQ:   return "!=";
     case AST_CMP_LT:    return "<";
     case AST_CMP_LE:    return "<=";
