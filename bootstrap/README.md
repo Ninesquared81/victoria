@@ -49,3 +49,5 @@ the confluence of function types and pointer types).
 - [x] Command line arguments (`args: []string`).
 
 - [x] String type.
+
+- [x] `count_of()`.
