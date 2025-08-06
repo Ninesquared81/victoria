@@ -804,17 +804,25 @@ static struct ast_expr parse_factor(void) {
 
 static struct ast_expr parse_term(void) {
     struct ast_expr expr = parse_factor();
-    while (match(TOKEN_PLUS, true)) {
-        struct ast_expr *lhs = new_expr();
-        struct ast_expr *rhs = new_expr();
-        *lhs = expr;
-        *rhs = parse_term();
+    for (;;) {
+        enum ast_bin_op_kind op;
+        if (match(TOKEN_PLUS, true)) {
+            op = AST_BIN_ADD;
+        }
+        else if (match(TOKEN_MINUS, true)) {
+            op = AST_BIN_SUB;
+        }
+        else {
+            break;
+        }
+        struct ast_expr *lhs = copy_expr(expr);
+        struct ast_expr *rhs = copy_expr(parse_term());
         expr = (struct ast_expr) {
             .kind = AST_EXPR_BINARY,
             .binary = {
                 .lhs = lhs,
                 .rhs = rhs,
-                .op = AST_BIN_ADD}};
+                .op = op}};
     }
     return expr;
 }

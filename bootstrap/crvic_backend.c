@@ -423,6 +423,8 @@ const char *crvic_get_c_op(enum ast_bin_op_kind op) {
         return "+";
     case AST_BIN_MUL:
         return "*";
+    case AST_BIN_SUB:
+        return "-";
     }
     assert(0 && "Unreachable");
     return NULL;
