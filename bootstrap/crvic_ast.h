@@ -86,6 +86,7 @@ enum ast_type_kind {
     AST_TYPE_FUNCTION,
     AST_TYPE_POINTER,
     AST_TYPE_RECORD,
+    AST_TYPE_SLICE,
 };
 
 struct ast_list {
@@ -160,6 +161,10 @@ struct ast_type {
         struct {
             struct ast_type_decl_list fields;
         } record_lit;
+        struct {
+            enum rw_access rw;
+            struct ast_type *dest_type;
+        } slice;
     };
 };
 

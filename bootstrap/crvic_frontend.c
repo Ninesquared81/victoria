@@ -541,7 +541,14 @@ bool try_parse_type(struct ast_type *OUT_type) {
         }
         // Slice.
         if (match(TOKEN_BKT_SQUARE_RIGHT, false)) {
-            TODO("slices");  // Do we even need them in rVic?
+            enum rw_access rw = parse_rw_access();
+            struct ast_type dest_type = parse_type("Expect type after '[]'");
+            *OUT_type = (struct ast_type) {
+                .kind = AST_TYPE_SLICE,
+                .slice = {
+                    .rw = rw,
+                    .dest_type = copy_type(dest_type)}};
+            return true;
         }
         // Array (fixed size).
         struct ast_expr count = parse_expr();
@@ -1274,6 +1281,18 @@ static TypeID resolve_function(struct ast_type *type) {
     return type->resolved_type;
 }
 
+static TypeID resolve_slice(struct ast_type *type) {
+    assert(type->kind == AST_TYPE_SLICE);
+    TypeID dest_type = resolve_type(type->slice.dest_type);
+    struct type_info slice_info = {
+        .kind = KIND_SLICE,
+        .slice = {
+            .rw = type->slice.rw,
+            .dest_type = dest_type}};
+    type->resolved_type = get_or_add_type(slice_info);
+    return type->resolved_type;
+}
+
 static TypeID resolve_type(struct ast_type *type) {
     assert(type);
     if (type->resolved_type) return type->resolved_type;
@@ -1303,6 +1322,8 @@ static TypeID resolve_type(struct ast_type *type) {
         return resolve_pointer(type);
     case AST_TYPE_RECORD:
         return resolve_record(type);
+    case AST_TYPE_SLICE:
+        return resolve_slice(type);
     }
     UNREACHABLE();
     return TYPE_NO_TYPE;
