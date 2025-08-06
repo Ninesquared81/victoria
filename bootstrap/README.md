@@ -53,3 +53,5 @@ the confluence of function types and pointer types).
 - [x] `count_of()`.
 
 - [x] `while` loops.
+
+- [ ] Binary `-` operator.
