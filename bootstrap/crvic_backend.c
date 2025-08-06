@@ -415,6 +415,7 @@ const char *crvic_get_c_type(TypeID type) {
     struct type_info *info = get_type(type);
     assert(info);
     switch (info->kind) {
+    case KIND_SLICE:
     case KIND_ARRAY:
     case KIND_FUNCTION:
     case KIND_RECORD: {
@@ -464,6 +465,7 @@ const char *crvic_get_c_zero_value(TypeID type) {
         break;
     case KIND_RECORD:
     case KIND_ARRAY:
+    case KIND_SLICE:
         return "{0}";
     case KIND_POINTER:
         return "NULL";

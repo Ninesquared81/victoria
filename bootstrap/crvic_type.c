@@ -80,6 +80,10 @@ void init_type(struct type_info *info) {
         info->size = 0;  // Functions types have no meaningful size.
         info->repr = make_function_repr(info->function);
         break;
+    case KIND_SLICE:
+        info->size = VIC_PTR_SIZE + sizeof(VIC_INT);
+        info->repr = make_slice_repr(info->slice);
+        break;
     case KIND_PRIMITIVE:
     case KIND_NO_KIND:
         UNREACHABLE();
@@ -97,6 +101,7 @@ bool types_equal(struct type_info *a, struct type_info *b) {
     case KIND_POINTER:      return pointer_types_equal(&a->pointer, &b->pointer);
     case KIND_ARRAY:        return array_types_equal(&a->array, &b->array);
     case KIND_FUNCTION:     return function_types_equal(&a->function, &b->function);
+    case KIND_SLICE:        return slice_types_equal(&a->slice, &b->slice);
     }
 }
 
@@ -119,6 +124,10 @@ bool array_types_equal(struct array_info *a, struct array_info *b) {
 
 bool function_types_equal(struct function_info *a, struct function_info *b) {
     return a->sig->ret_type == b->sig->ret_type && DA_EQ(&a->sig->params, &b->sig->params);
+}
+
+bool slice_types_equal(struct slice_info *a, struct slice_info *b) {
+    return a->rw == b->rw && a->dest_type == b->dest_type;
 }
 
 struct lxl_string_view make_record_repr(struct record_info info) {
@@ -252,6 +261,15 @@ struct lxl_string_view make_function_repr(struct function_info info) {
         sb_add_formatted(&sb, " -> "LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(ret_sv));
     }
     return sb_export(&sb, ALLOCATOR_ARD2AD(perm));
+}
+
+struct lxl_string_view make_slice_repr(struct slice_info info) {
+    const char *modifier = get_modifier(info.rw);
+    struct lxl_string_view dest_sv = get_type_sv(info.dest_type);
+    size_t repr_length = snprintf(NULL, 0, "[]%s"LXL_SV_FMT_SPEC"", modifier, LXL_SV_FMT_ARG(dest_sv));
+    char *repr = ALLOCATE(perm, repr_length + 1);
+    snprintf(repr, repr_length + 1, "[]%s"LXL_SV_FMT_SPEC"", modifier, LXL_SV_FMT_ARG(dest_sv));
+    return (struct lxl_string_view) {.start = repr, .length = repr_length};
 }
 
 size_t calculate_record_size(struct record_info info) {
