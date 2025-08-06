@@ -1,6 +1,13 @@
 CC = clang
 
-CFLAGS = -Wall -Werror -Wextra -Wimplicit-fallthrough -pedantic -g -std=c11 -D__USE_MINGW_ANSI_STDIO=1 -fsanitize=undefined -fsanitize-trap
+BASIC_FLAGS := -Wall -Werror -Wextra -Wimplicit-fallthrough -pedantic -g -std=c11 -D__USE_MINGW_ANSI_STDIO=1
+CLANG_FLAGS := -fsanitize=undefined -fsanitize-trap
+
+ifeq ($(CC),clang)
+  CFLAGS = $(BASIC_FLAGS) $(CLANG_FLAGS)
+else
+  CFLAGS = $(BASIC_FLAGS)
+endif
 
 .PHONY: all
 
