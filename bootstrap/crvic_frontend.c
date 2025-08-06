@@ -1407,8 +1407,25 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
     case AST_EXPR_INDEX: {
         TypeID array_type = type_check_expr(target->index.array);
         struct type_info *array_info = get_type(array_type);
-        assert(array_info && array_info->kind == KIND_ARRAY);
-        switch (array_info->array.rw) {
+        if (!is_array_like_type(array_type)) {
+            type_error("Only array-like types can be indexed");
+            break;
+        }
+        TypeID dest_type =
+            (array_info->kind  == KIND_ARRAY)
+            ?   array_info->array.dest_type
+            : (array_info->kind == KIND_SLICE)
+            ?   array_info->slice.dest_type
+            :   array_info->pointer.dest_type
+            ;
+        enum rw_access rw =
+            (array_info->kind  == KIND_ARRAY)
+            ?   array_info->array.rw
+            : (array_info->kind == KIND_SLICE)
+            ?   array_info->slice.rw
+            :   array_info->pointer.dest_type
+            ;
+        switch (rw) {
         case RW_READ_ONLY:
             type_error("Attempt to write to read-only array element");
             break;
@@ -1420,7 +1437,7 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
             TODO("Check 'out' array elements");
             break;
         }
-        target->type = array_info->array.dest_type;
+        target->type = dest_type;
         assert(target->type != TYPE_ABSURD);  // You cannot have an array of absurd.
     } break;
     default:
@@ -1696,10 +1713,16 @@ static TypeID type_check_expr(struct ast_expr *expr) {
     case AST_EXPR_INDEX: {
         TypeID array_type = type_check_expr(expr->index.array);
         struct type_info *array_info = get_type(array_type);
-        assert(array_info);
-        if (array_info->kind != KIND_ARRAY) {
+        TypeID dest_type =
+            (array_info->kind  == KIND_ARRAY)
+            ?   array_info->array.dest_type
+            : (array_info->kind == KIND_SLICE)
+            ?   array_info->slice.dest_type
+            :   array_info->pointer.dest_type
+            ;
+        if (!is_array_like_type(array_type)) {
             struct lxl_string_view array_type_name = get_type_sv(array_type);
-            type_error("Only array types can be indexed, not '"LXL_SV_FMT_SPEC"'",
+            type_error("Only array-like types can be indexed, not '"LXL_SV_FMT_SPEC"'",
                        LXL_SV_FMT_ARG(array_type_name));
             break;
         }
@@ -1710,7 +1733,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                        LXL_SV_FMT_ARG(index_type_name));
             break;
         }
-        result_type = array_info->array.dest_type;
+        result_type = dest_type;
     } break;
     case AST_EXPR_INTEGER:
         // TODO "untyped" literals... i.e. integer literals have an "INTEGER_LITERAL" type.

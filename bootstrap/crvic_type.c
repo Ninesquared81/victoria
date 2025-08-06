@@ -315,6 +315,14 @@ bool is_ordered_type(TypeID type) {
     return is_integer_type(type);
 }
 
+bool is_array_like_type(TypeID type) {
+    struct type_info *info = get_type(type);
+    return info->kind == KIND_ARRAY
+        || info->kind == KIND_SLICE
+        || (info->kind == KIND_POINTER && info->pointer.kind == POINTER_ARRAY_LIKE)
+        ;
+}
+
 enum signedness sign_of_type(TypeID type) {
     if (TYPE_I8 <= type && type <= TYPE_I64) return SIGN_SIGNED;
     if (TYPE_U8 <= type && type <= TYPE_U64) return SIGN_UNSIGNED;
