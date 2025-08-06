@@ -54,4 +54,4 @@ the confluence of function types and pointer types).
 
 - [x] `while` loops.
 
-- [ ] Binary `-` operator.
+- [x] Binary `-` operator.
