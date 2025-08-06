@@ -1130,12 +1130,26 @@ struct ast_stmt parse_return(void) {
         .return_ = {.expr = expr}};
 }
 
+struct ast_stmt parse_while(void) {
+    struct ast_expr *cond = copy_expr(parse_expr());
+    consume(TOKEN_BKT_CURLY_LEFT, false, "Expect '{' after condition in 'while' loop");
+    struct ast_list body = parse_block();
+    return (struct ast_stmt) {
+        .kind = AST_STMT_WHILE,
+        .while_ = {
+            .cond = cond,
+            .body = body}};
+}
+
 struct ast_stmt parse_stmt(void) {
     if (match(TOKEN_KW_IF, true)) {
         return parse_if();
     }
     if (match(TOKEN_KW_RETURN, true)) {
         return parse_return();
+    }
+    if (match(TOKEN_KW_WHILE, true)) {
+        return parse_while();
     }
     struct ast_decl decl = {0};
     if (try_parse_decl(&decl)) {
@@ -1985,6 +1999,10 @@ static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
             type_error("Expression-less return from function with non-unit return type '"LXL_SV_FMT_SPEC"'",
                        LXL_SV_FMT_ARG(expected_sv));
         }
+        return;
+    case AST_STMT_WHILE:
+        type_check_expr(stmt->while_.cond);
+        type_check_stmt_list(stmt->while_.body, ret_type);
         return;
     }
     UNREACHABLE();

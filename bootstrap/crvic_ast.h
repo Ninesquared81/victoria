@@ -43,6 +43,7 @@ enum ast_stmt_kind {
     AST_STMT_EXPR,              // Expression statement.
     AST_STMT_IF,                // If statement.
     AST_STMT_RETURN,            // Return statment.
+    AST_STMT_WHILE,             // While statement.
 };
 
 enum ast_decl_kind {
@@ -265,6 +266,10 @@ struct ast_stmt {
         struct {
             struct ast_expr *expr;  // Note: can be NULL for expression-less return.
         } return_;
+        struct {
+            struct ast_expr *cond;
+            struct ast_list body;
+        } while_;
     };
 };
 

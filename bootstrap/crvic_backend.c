@@ -84,6 +84,13 @@ enum cgen_error crvic_generate_c_stmt(struct ast_stmt *stmt, int indent, int ind
         }
         sb_add_string(sb, ";\n");
         break;
+    case AST_STMT_WHILE:
+        sb_add_string(sb, "while (");
+        if ((error = crvic_generate_c_expr(stmt->while_.cond, sb))) return error;
+        sb_add_string(sb, ") {\n");
+        if ((error = crvic_generate_c_nodes(
+                 stmt->while_.body, indent + indent_step, indent_step, sb))) return error;
+        sb_add_formatted(sb, "%*s}\n", indent, "");
     }
     return error;
 }
