@@ -46,6 +46,6 @@ the confluence of function types and pointer types).
 
 - [x] Slices.
 
-- [ ] Command line arguments (`args: []string`).
+- [x] Command line arguments (`args: []string`).
 
 - [x] String type.
