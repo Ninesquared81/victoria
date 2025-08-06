@@ -1,7 +1,7 @@
 CC = clang
 
 BASIC_FLAGS := -Wall -Werror -Wextra -Wimplicit-fallthrough -pedantic -g -std=c11 -D__USE_MINGW_ANSI_STDIO=1
-CLANG_FLAGS := -fsanitize=undefined -fsanitize-trap
+CLANG_FLAGS := -fsanitize=undefined -fsanitize-trap -target x86_64-w64-mingw32
 
 ifeq ($(CC),clang)
   CFLAGS = $(BASIC_FLAGS) $(CLANG_FLAGS)
