@@ -346,7 +346,7 @@ enum cgen_error crvic_generate_c_types(int indent_step, struct string_buffer *sb
             sb_add_string(sb, ");\n");
         }
         else if (info->kind == KIND_SLICE) {
-            sb_add_formatted(sb, "typedef struct %s %s;\nstruct %s {%s *ptr, %s len};\n",
+            sb_add_formatted(sb, "typedef struct %s %s;\nstruct %s {%s *ptr; %s len;};\n",
                              this_type_name, this_type_name, this_type_name,
                              crvic_get_c_type(info->slice.dest_type), vic_int_string);
         }
