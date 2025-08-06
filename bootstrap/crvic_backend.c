@@ -315,9 +315,9 @@ enum cgen_error crvic_generate_c_expr_sep_list(struct ast_list nodes, const char
 }
 
 enum cgen_error crvic_generate_c_types(int indent_step, struct string_buffer *sb) {
+    const char *vic_int_string = crvic_get_c_type(TYPE_INT);
     // Builtin typdefs.
-    sb_add_formatted(sb, "typedef struct {const char *start; %s length;} VIC_STRING;\n",
-                     crvic_get_c_type(TYPE_INT));
+    sb_add_formatted(sb, "typedef struct {const char *start; %s length;} VIC_STRING;\n", vic_int_string);
     // User-defined types.
     struct iterator it = get_type_iterator();
     FOR_ITER(struct type_info *, info, &it) {
@@ -344,6 +344,11 @@ enum cgen_error crvic_generate_c_types(int indent_step, struct string_buffer *sb
                 sb_add_formatted(sb, ", %s", crvic_get_c_type(sig->params.items[i].type));
             }
             sb_add_string(sb, ");\n");
+        }
+        else if (info->kind == KIND_SLICE) {
+            sb_add_formatted(sb, "typedef struct %s %s;\nstruct %s {%s *ptr, %s len};\n",
+                             this_type_name, this_type_name, this_type_name,
+                             crvic_get_c_type(info->slice.dest_type), vic_int_string);
         }
     }
     return CGEN_OK;
