@@ -58,6 +58,7 @@ func quit() -> ! {
 }
 
 func read_source(in_filename: c_string) -> lxl_string_view {
+    var x:[]int
     val fp := fopen(in_filename, c"r")
     if fp == null {
         perror(c"Failed to open input file")
