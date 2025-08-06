@@ -214,24 +214,17 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
                 sb_add_string(sb, "._");
             }
             else if (str2cstr) {
-                sb_add_string(sb, ".start");
+                sb_add_string(sb, ".ptr");
             }
             sb_add_string(sb, ")");
         }
         break;
     case AST_EXPR_COUNT_OF: {
         struct type_info *info = get_type(expr->count_of.operand->type);
+        assert(info->kind == KIND_SLICE || info->id == TYPE_STRING);
         sb_add_string(sb, "((");
         if ((error = crvic_generate_c_expr(expr->count_of.operand, sb))) return error;
-        if (info->kind == KIND_SLICE) {
-            sb_add_string(sb, ").len)");
-        }
-        else if (info->id == TYPE_STRING) {
-            sb_add_string(sb, ").length");
-        }
-        else {
-            UNREACHABLE();
-        }
+        sb_add_string(sb, ").len)");
     } break;
     case AST_EXPR_DEREF:
         sb_add_string(sb, "(*(");
@@ -366,7 +359,7 @@ enum cgen_error crvic_generate_c_expr_sep_list(struct ast_list nodes, const char
 enum cgen_error crvic_generate_c_types(int indent_step, struct string_buffer *sb) {
     const char *vic_int_string = crvic_get_c_type(TYPE_INT);
     // Builtin typdefs.
-    sb_add_formatted(sb, "typedef struct {const char *start; %s length;} VIC_STRING;\n", vic_int_string);
+    sb_add_formatted(sb, "typedef struct {const char *ptr; %s len;} VIC_STRING;\n", vic_int_string);
     // User-defined types.
     struct iterator it = get_type_iterator();
     FOR_ITER(struct type_info *, info, &it) {
