@@ -52,4 +52,4 @@ the confluence of function types and pointer types).
 
 - [x] `count_of()`.
 
-- [ ] `while` loops.
+- [x] `while` loops.
