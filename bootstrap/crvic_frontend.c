@@ -61,6 +61,13 @@ void init_frontend(struct lxl_string_view source, const char *in_filename) {
                   (struct symbol) {
                       .kind = SYMBOL_TYPE_ALIAS,
                       .type_alias = {.type = RESOLVED_TYPE(TYPE_UINT)}});
+    insert_symbol(&symbols, st_key_of(LXL_SV_FROM_STRLIT("count_of")),
+                  (struct symbol) {.kind = SYMBOL_MAGIC_FUNC});
+    insert_symbol(&symbols, st_key_of(LXL_SV_FROM_STRLIT("size_of")),
+                  (struct symbol) {.kind = SYMBOL_MAGIC_FUNC});
+    insert_symbol(&symbols, st_key_of(LXL_SV_FROM_STRLIT("type_of")),
+                  (struct symbol) {.kind = SYMBOL_MAGIC_FUNC});
+
 }
 
 static void report_location(struct lxl_token token) {
@@ -1522,6 +1529,60 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             }
             break;
         }
+        else if (expr->call.callee->kind == AST_EXPR_MAGIC_FUNC) {
+            if (!lxl_sv_equal(expr->call.callee->magic_func.name, LXL_SV_FROM_STRLIT("count_of"))) {
+                TODO("`size_of()` and `type_of()`");
+            }
+            if (expr->call.arity != 1) {
+                type_error("Expect exactly one argument to `count_of()`, not %d", expr->call.arity);
+                break;
+            }
+            struct ast_expr *operand = &expr->call.args.head->expr;
+            TypeID operand_type = type_check_expr(operand);
+            if (operand->kind == AST_EXPR_TYPE_EXPR) {
+                operand_type = resolve_type(operand->type_expr.type);
+            }
+            struct type_info *info = get_type(operand_type);
+            VIC_INT known_count = -1;  // -1 is a sentinel meaning "unknown".
+            switch (info->kind) {
+            case KIND_NO_KIND:
+                UNREACHABLE();
+                break;
+            case KIND_ENUM:
+                known_count = info->enum_.fields.count;
+                break;
+            case KIND_RECORD:
+                known_count = info->record.fields.count;
+                break;
+            case KIND_ARRAY:
+                known_count = info->array.count;
+                break;
+            case KIND_FUNCTION:
+                known_count = info->function.sig->arity;
+                break;
+            case KIND_SLICE:
+                break;  // Count is only known at runtime.
+            case KIND_PRIMITIVE:
+                assert(operand_type != TYPE_TYPE_EXPR);
+                if (operand_type == TYPE_STRING) break;
+                FALLTHROUGH;
+            case KIND_POINTER:
+                type_error("Invalid operand type for 'count_of()': '"LXL_SV_FMT_SPEC"'", info->repr);
+                break;
+            }
+            if (known_count >= 0) {
+                *expr = (struct ast_expr) {
+                    .kind = AST_EXPR_INTEGER,
+                    .integer = {.value = known_count}};
+            }
+            else {
+                *expr = (struct ast_expr) {
+                    .kind = AST_EXPR_COUNT_OF,
+                    .count_of = {.operand = operand}};
+            }
+            result_type = TYPE_INT;
+            break;
+        }
         struct type_info *callee_info = get_type(callee_type);
         assert(callee_info);
         if (callee_info->kind != KIND_FUNCTION) {
@@ -1594,9 +1655,10 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             break;
         }
     } break;
-    case AST_EXPR_CONSTRUCTOR: {
+    case AST_EXPR_CONSTRUCTOR:
+    case AST_EXPR_COUNT_OF:
         UNREACHABLE();
-    } break;
+        break;
     case AST_EXPR_CONVERT: {
         TypeID operand_type = type_check_expr(expr->convert.operand);
         (void)operand_type;
@@ -1706,6 +1768,11 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                     .type = aliased_type}};
             result_type = TYPE_TYPE_EXPR;
         }
+        else if (symbol->kind == SYMBOL_MAGIC_FUNC) {
+            *expr = (struct ast_expr) {
+                .kind = AST_EXPR_MAGIC_FUNC,
+                .magic_func = {.name = name}};
+        }
         else {
             name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a variable or type", LXL_SV_FMT_ARG(name));
         }
@@ -1738,6 +1805,9 @@ static TypeID type_check_expr(struct ast_expr *expr) {
     case AST_EXPR_INTEGER:
         // TODO "untyped" literals... i.e. integer literals have an "INTEGER_LITERAL" type.
         result_type = TYPE_INT;
+        break;
+    case AST_EXPR_MAGIC_FUNC:
+        UNREACHABLE();
         break;
     case AST_EXPR_NULL:
         result_type = TYPE_NULLPTR_TYPE;

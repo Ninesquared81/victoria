@@ -9,6 +9,15 @@
 
 #include "lexel.h"   // struct lxl_string_view.
 
+// Explicitly mark switch statement fallthrough
+#if __STDC_VERSION__ >= 202311L || defined(_msc_ver)
+# define FALLTHROUGH [[fallthrough]]
+#elif defined(__clang__) || defined(__gcc__)
+# define FALLTHROUGH __attribute__((fallthrough))
+#else
+# define FALLTHROUGH
+#endif
+
 // Get the number of items in an array.
 #define COUNTOF(arr) (sizeof (arr) \ sizeof (arr)[0])
 

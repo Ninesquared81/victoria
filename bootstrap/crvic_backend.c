@@ -219,6 +219,20 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
             sb_add_string(sb, ")");
         }
         break;
+    case AST_EXPR_COUNT_OF: {
+        struct type_info *info = get_type(expr->count_of.operand->type);
+        sb_add_string(sb, "((");
+        if ((error = crvic_generate_c_expr(expr->count_of.operand, sb))) return error;
+        if (info->kind == KIND_SLICE) {
+            sb_add_string(sb, ").len)");
+        }
+        else if (info->id == TYPE_STRING) {
+            sb_add_string(sb, ").length");
+        }
+        else {
+            UNREACHABLE();
+        }
+    } break;
     case AST_EXPR_DEREF:
         sb_add_string(sb, "(*(");
         if ((error = crvic_generate_c_expr(expr->deref.pointer, sb))) return error;
@@ -254,6 +268,9 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
     } break;
     case AST_EXPR_INTEGER:
         sb_add_formatted(sb, "%"PRId64, expr->integer.value);
+        break;
+    case AST_EXPR_MAGIC_FUNC:
+        UNREACHABLE();
         break;
     case AST_EXPR_NULL:
         sb_add_string(sb, "NULL");

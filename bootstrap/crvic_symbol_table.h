@@ -6,6 +6,7 @@
 
 enum symbol_kind {
     SYMBOL_FUNC,       // Function symbol.
+    SYMBOL_MAGIC_FUNC, // Magic function symbol (`count_of()`, `size_of()`, `type_of()`).
     SYMBOL_TYPE_ALIAS, // Type alias symbol.
     SYMBOL_VAR,        // Variable symbol.
     SYMBOL_VAL,        // Immutable value symbol.

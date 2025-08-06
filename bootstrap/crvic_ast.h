@@ -24,12 +24,14 @@ enum ast_expr_kind {
     AST_EXPR_COMPARE,           // Comparison.
     AST_EXPR_CONSTRUCTOR,       // Type constructor expression.
     AST_EXPR_CONVERT,           // Explicit type conversion.
+    AST_EXPR_COUNT_OF,          // `count_of()` magic function.
     AST_EXPR_DEREF,             // Pointer dereference ptr^.
     AST_EXPR_FIELD,             // Field access expression.
     AST_EXPR_FUNC_EXPR,         // Function expression (derived from identifier).
     AST_EXPR_IDENTIFIER,        // Identifer (variable, function, etc.) lookup expression.
     AST_EXPR_INDEX,             // Array index arr[i].
     AST_EXPR_INTEGER,           // Integer literal expression.
+    AST_EXPR_MAGIC_FUNC,        // Magic function.
     AST_EXPR_NULL,              // Literal `null`.
     AST_EXPR_STRING,            // String literal expression.
     AST_EXPR_TYPE_EXPR,         // Type expression, e.g., `int`.
@@ -206,6 +208,9 @@ struct ast_expr {
             enum type_conv_kind kind;
         } convert;
         struct {
+            struct ast_expr *operand;
+        } count_of;
+        struct {
             struct ast_expr *pointer;
         } deref;
         struct {
@@ -226,6 +231,9 @@ struct ast_expr {
         struct {
             int64_t value;
         } integer;
+        struct {
+            struct lxl_string_view name;
+        } magic_func;
         struct {
             struct lxl_string_view value;
         } string;
