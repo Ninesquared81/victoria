@@ -51,3 +51,5 @@ the confluence of function types and pointer types).
 - [x] String type.
 
 - [x] `count_of()`.
+
+- [ ] `while` loops.
