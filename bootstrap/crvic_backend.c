@@ -13,7 +13,9 @@ enum cgen_error crvic_generate_c_file(struct ast_list nodes, struct string_buffe
     int indent = 0;  // Current indenation level.
     sb_add_string(sb,
                   "#include <stdint.h>  // Fixed-width types.\n"
-                  "#include <stddef.h>  // NULL.\n");
+                  "#include <stddef.h>  // NULL.\n"
+                  "#include <string.h>  // strlen().\n"
+        );
     enum cgen_error ret = CGEN_OK;
     if ((ret = crvic_generate_c_types(indent_step, sb)) != CGEN_OK) return ret;
     for (int i = 0; i < function_count; ++i) {
@@ -113,10 +115,25 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
         // Definition.
         assert(decl->func.decl_kind == AST_FUNC_DEFN);
         if ((error = crvic_generate_c_func_header(&decl->func.sig->resolved_sig, sb))) return error;
+        struct lxl_string_view name = decl->func.sig->resolved_sig.name;
+        bool is_main = lxl_sv_equal(name, LXL_SV_FROM_STRLIT("main"));
         sb_add_string(sb, " {\n");
         assert(indent == 0 && "Cannot have nested function in C!");
+        if (is_main && decl->func.sig->resolved_sig.arity > 0) {
+            // Create local variable with name of "args" paramater (usually "args" itself).
+            struct type_decl args = decl->func.sig->resolved_sig.params.items[0];
+            // TODO: add alternative strategies for compilers/platforms that don't support VLAs (alloca()?).
+            sb_add_formatted(sb, "%*sVIC_STRING VIC_args_data__[argc];\n", indent_step, "");
+            sb_add_formatted(sb,
+                             "%*sfor (int i = 0; i < argc; ++i) {\n"
+                             "%*sVIC_args_data__[i] = (VIC_STRING){argv[i], strlen(argv[i])};\n"
+                             "%*s};\n",
+                             indent_step, "", indent_step * 2, "", indent_step, "");
+            sb_add_formatted(sb, "%*s%s "LXL_SV_FMT_SPEC" = {VIC_args_data__, argc};\n",
+                             indent_step, "", crvic_get_c_type(args.type), LXL_SV_FMT_ARG(args.name));
+        }
         if ((error = crvic_generate_c_func_body(decl->func.body, indent_step, sb))) return error;
-        if (lxl_sv_equal(decl->func.sig->resolved_sig.name, LXL_SV_FROM_STRLIT("main"))) {
+        if (is_main) {
             sb_add_formatted(sb, "%*sreturn 0;\n", indent_step, "");
         }
         sb_add_string(sb, "}\n");
@@ -273,9 +290,15 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
 
 enum cgen_error crvic_generate_c_main_header(struct func_sig *sig, struct string_buffer *sb) {
     assert(lxl_sv_equal(sig->name, LXL_SV_FROM_STRLIT("main")));
-    assert(sig->params.count == 0 && "Only allow parameter-less version for now.");
-    sb_add_string(sb, "int main(void)");
-        return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
+    if (sig->arity == 0) {
+        sb_add_string(sb, "int main(void)");
+    }
+    else {
+        struct type_info *info = get_type(sig->params.items[0].type);
+        assert(info->kind == KIND_SLICE && info->slice.dest_type == TYPE_STRING);
+        sb_add_string(sb, "int main(int argc, char *argv[])");
+    }
+    return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
 }
 
 enum cgen_error crvic_generate_c_func_header(struct func_sig *sig, struct string_buffer *sb) {
