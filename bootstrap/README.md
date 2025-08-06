@@ -44,7 +44,7 @@ the confluence of function types and pointer types).
 
 ### Features deemed necessary after starting compiler:
 
-- [ ] Slices.
+- [x] Slices.
 
 - [ ] Command line arguments (`args: []string`).
 
