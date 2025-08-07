@@ -71,7 +71,8 @@ func read_source(in_filename: c_string) -> lxl_string_view {
         perror(c"Failed to open input file")
         quit()
     }
-    var length := fread(input_buffer to [^]!, 1 to c_size_t, 1023 to c_size_t, fp) to uint
+    var length := fread(input_buffer to [^]!, 1 to c_size_t,
+                        count_of(input_buffer) - 1 to c_size_t, fp) to uint
     if ferror(fp) {
         perror(c"Failed to read input file")
         fclose(fp)
