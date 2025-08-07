@@ -65,6 +65,7 @@ enum token_type {
     // Keywords.
     TOKEN_KW_AND,
     TOKEN_KW_AS,
+    TOKEN_KW_BOOL,
     TOKEN_KW_C_STRING,
     TOKEN_KW_COMPLEX32_32,
     TOKEN_KW_COMPLEX64_64,
@@ -74,6 +75,7 @@ enum token_type {
     TOKEN_KW_EXTERNAL,
     TOKEN_KW_F32,
     TOKEN_KW_F64,
+    TOKEN_KW_FALSE,
     TOKEN_KW_FOR,
     TOKEN_KW_FUNC,
     TOKEN_KW_I8,
@@ -93,6 +95,7 @@ enum token_type {
     TOKEN_KW_STRING,
     TOKEN_KW_THEN,
     TOKEN_KW_TO,
+    TOKEN_KW_TRUE,
     TOKEN_KW_TYPE,
     TOKEN_KW_U8,
     TOKEN_KW_U16,

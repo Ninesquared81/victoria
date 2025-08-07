@@ -22,6 +22,7 @@ static struct type_info types[TYPE_TABLE_CAPACITY] = {
     TYPE_ENTRY_PRIM(TYPE_ABSURD,        0,              "!"),
     TYPE_ENTRY_PRIM(TYPE_UNIT,          0,              "()"),
     TYPE_ENTRY_PRIM(TYPE_NULLPTR_TYPE,  VIC_PTR_SIZE,   "type_of(null)"),
+    TYPE_ENTRY_PRIM(TYPE_BOOL,          1,              "bool"),
     TYPE_ENTRY_PRIM(TYPE_I8,            1,              "i8"),
     TYPE_ENTRY_PRIM(TYPE_I16,           2,              "i16"),
     TYPE_ENTRY_PRIM(TYPE_I32,           4,              "i32"),

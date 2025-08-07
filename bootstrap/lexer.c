@@ -179,6 +179,7 @@ struct lxl_lexer *init_lexer(struct lxl_string_view source) {
         &lexer.keywords, &lexer.keyword_types,
         "and",           TOKEN_KW_AND,
         "as",            TOKEN_KW_AS,
+        "bool",          TOKEN_KW_BOOL,
         "c_string",      TOKEN_KW_C_STRING,
         "complex32_32",  TOKEN_KW_COMPLEX32_32,
         "complex64_64",  TOKEN_KW_COMPLEX64_64,
@@ -188,6 +189,7 @@ struct lxl_lexer *init_lexer(struct lxl_string_view source) {
         "external",      TOKEN_KW_EXTERNAL,
         "f32",           TOKEN_KW_F32,
         "f64",           TOKEN_KW_F64,
+        "false",         TOKEN_KW_FALSE,
         "for",           TOKEN_KW_FOR,
         "func",          TOKEN_KW_FUNC,
         "i8",            TOKEN_KW_I8,
@@ -207,6 +209,7 @@ struct lxl_lexer *init_lexer(struct lxl_string_view source) {
         "string",        TOKEN_KW_STRING,
         "then",          TOKEN_KW_THEN,
         "to",            TOKEN_KW_TO,
+        "true",          TOKEN_KW_TRUE,
         "type",          TOKEN_KW_TYPE,
         "u8",            TOKEN_KW_U8,
         "u16",           TOKEN_KW_U16,
@@ -306,6 +309,7 @@ const char *token_type_string(struct lxl_token token) {
     // Keywords.
     case TOKEN_KW_AND:                 return "TOKEN_KW_AND";
     case TOKEN_KW_AS:                  return "TOKEN_KW_AS";
+    case TOKEN_KW_BOOL:                return "TOKEN_KW_BOOL";
     case TOKEN_KW_C_STRING:            return "TOKEN_KW_C_STRING";
     case TOKEN_KW_COMPLEX32_32:        return "TOKEN_KW_COMPLEX32_32";
     case TOKEN_KW_COMPLEX64_64:        return "TOKEN_KW_COMPLEX64_64";
@@ -315,6 +319,7 @@ const char *token_type_string(struct lxl_token token) {
     case TOKEN_KW_EXTERNAL:            return "TOKEN_KW_EXTERNAL";
     case TOKEN_KW_F32:                 return "TOKEN_KW_F32";
     case TOKEN_KW_F64:                 return "TOKEN_KW_F64";
+    case TOKEN_KW_FALSE:               return "TOKEN_KW_FALSE";
     case TOKEN_KW_FOR:                 return "TOKEN_KW_FOR";
     case TOKEN_KW_FUNC:                return "TOKEN_KW_FUNC";
     case TOKEN_KW_I8:                  return "TOKEN_KW_I8";
@@ -334,6 +339,7 @@ const char *token_type_string(struct lxl_token token) {
     case TOKEN_KW_STRING:              return "TOKEN_KW_STRING";
     case TOKEN_KW_THEN:                return "TOKEN_KW_THEN";
     case TOKEN_KW_TO:                  return "TOKEN_KW_TO";
+    case TOKEN_KW_TRUE:                return "TOKEN_KW_TRUE";
     case TOKEN_KW_TYPE:                return "TOKEN_KW_TYPE";
     case TOKEN_KW_U8:                  return "TOKEN_KW_U8";
     case TOKEN_KW_U16:                 return "TOKEN_KW_U16";

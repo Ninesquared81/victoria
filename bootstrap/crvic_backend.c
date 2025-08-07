@@ -10,10 +10,11 @@
 
 enum cgen_error crvic_generate_c_file(struct ast_list nodes, struct string_buffer *sb) {
     int indent_step = 4;  // Number of spaces to indent by for each indent/dedent.
-    int indent = 0;  // Current indenation level.
+    int indent = 0;  // Current indentation level.
     sb_add_string(sb,
-                  "#include <stdint.h>  // Fixed-width types.\n"
+                  "#include <stdbool.h> // bool, true, false.\n"
                   "#include <stddef.h>  // NULL.\n"
+                  "#include <stdint.h>  // Fixed-width types.\n"
                   "#include <string.h>  // strlen().\n"
         );
     enum cgen_error ret = CGEN_OK;
@@ -179,6 +180,9 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         sb_add_formatted(sb, " %s ", crvic_get_c_op(expr->binary.op));
         if ((error = crvic_generate_c_expr(expr->binary.rhs, sb))) return error;
         sb_add_string(sb, ")");
+        break;
+    case AST_EXPR_BOOLEAN:
+        sb_add_string(sb, ((expr->boolean.value) ? "true" : "false"));
         break;
     case AST_EXPR_CALL:
         if ((error = crvic_generate_c_expr(expr->call.callee, sb))) return error;
@@ -453,6 +457,7 @@ const char *crvic_get_c_type(TypeID type) {
             return "void";
         case TYPE_NULLPTR_TYPE:
             return "void*";
+        case TYPE_BOOL: return "bool";
         case TYPE_I8: return "int8_t";
         case TYPE_I16: return "int16_t";
         case TYPE_I32: return "int32_t";

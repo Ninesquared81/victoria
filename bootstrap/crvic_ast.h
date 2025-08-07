@@ -20,6 +20,7 @@ enum ast_expr_kind {
     AST_EXPR_ADDRESS_OF,        // Address-of &target.
     AST_EXPR_ASSIGN,            // Assignment expression.
     AST_EXPR_BINARY,            // Binary operation.
+    AST_EXPR_BOOLEAN,           // Boolean literal expression (`true` or `false`).
     AST_EXPR_CALL,              // Function call.
     AST_EXPR_COMPARE,           // Comparison.
     AST_EXPR_CONSTRUCTOR,       // Type constructor expression.
@@ -189,6 +190,9 @@ struct ast_expr {
             struct ast_expr *rhs;
             enum ast_bin_op_kind op;
         } binary;
+        struct {
+            bool value;
+        } boolean;
         struct {
             struct ast_expr *callee;
             int arity;  // Number of arguments at call site.

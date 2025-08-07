@@ -416,6 +416,7 @@ static TypeID token_to_type(struct lxl_token token) {
         /* Symbolic types */
     case TOKEN_BANG: return TYPE_ABSURD;
         /* Keyword type names */
+    case TOKEN_KW_BOOL: return TYPE_BOOL;
     case TOKEN_KW_C_STRING: return TYPE_C_STRING;
     case TOKEN_KW_I8: return TYPE_I8;
     case TOKEN_KW_I16: return TYPE_I16;
@@ -660,6 +661,13 @@ static struct ast_expr parse_primary(void) {
         ignore_line_ending();
         expr = parse_assign();
         consume(TOKEN_BKT_ROUND_RIGHT, false, "Expect ')' after grouped expression");
+    }
+    else if (match(TOKEN_KW_TRUE, true) || match(TOKEN_KW_FALSE, true)) {
+        bool value = parser.previous_token.token_type == TOKEN_KW_TRUE;
+        assert(value || parser.previous_token.token_type == TOKEN_KW_FALSE);
+        expr = (struct ast_expr) {
+            .kind = AST_EXPR_BOOLEAN,
+            .boolean = {.value = value}};
     }
     else if (match(TOKEN_KW_NULL, true)) {
         expr = (struct ast_expr) {
@@ -1507,6 +1515,9 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         TypeID lhs_type = type_check_expr(expr->binary.lhs);
         TypeID rhs_type = type_check_expr(expr->binary.rhs);
         result_type = convert_binary(lhs_type, rhs_type);
+    } break;
+    case AST_EXPR_BOOLEAN: {
+        result_type = TYPE_BOOL;
     } break;
     case AST_EXPR_CALL: {
         TypeID callee_type = type_check_expr(expr->call.callee);
