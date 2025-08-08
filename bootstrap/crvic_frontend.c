@@ -1430,7 +1430,11 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
         TypeID pointer_type = type_check_expr(target->deref.pointer);
         if (!pointer_type) return TYPE_NO_TYPE;
         struct type_info *pointer_info = get_type(pointer_type);
-        assert(pointer_info && pointer_info->kind == KIND_POINTER);
+        if (pointer_info->kind != KIND_POINTER) {
+            type_error("Only pointers can be dereferenced, not '"LXL_SV_FMT_SPEC"'",
+                       LXL_SV_FMT_ARG(pointer_info->repr));
+            break;
+        }
         switch (pointer_info->pointer.rw) {
         case RW_READ_ONLY:
             type_error("Attempt to write to read-only pointer");
