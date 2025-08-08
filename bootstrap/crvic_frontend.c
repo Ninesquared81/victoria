@@ -312,6 +312,7 @@ static bool match_comparison(enum ast_cmp_op_kind *OUT_op, bool strict) {
 static bool check_assignment_target(struct ast_expr expr) {
     // For now, only variable names can be assignment targets.
     return expr.kind == AST_EXPR_DEREF
+        || expr.kind == AST_EXPR_FIELD
         || expr.kind == AST_EXPR_IDENTIFIER
         || expr.kind == AST_EXPR_INDEX
         ;
@@ -1444,6 +1445,24 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
         if (target->type == TYPE_ABSURD) {
             type_error("Cannot dereference pointer to absurd type '!'");
         }
+    } break;
+    case AST_EXPR_FIELD: {
+        TypeID object_type = (target->field.target->kind == AST_EXPR_DEREF)
+            ? type_check_assignment_target(target->field.target)
+            : type_check_expr(target->field.target);
+        if (!object_type) break;
+        struct type_info *object_info = get_type(object_type);
+        if (object_info->kind != KIND_RECORD) {
+            type_error("Invalid type for '.': '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(object_info->repr));
+            break;
+        }
+        TypeID field_type = get_record_field_type(object_info->record, target->field.name);
+        if (!field_type) {
+            name_error("Unknown field '"LXL_SV_FMT_SPEC"' for '"LXL_SV_FMT_SPEC"'",
+                       LXL_SV_FMT_ARG(target->field.name), LXL_SV_FMT_ARG(object_info->repr));
+            break;
+        }
+        target->type = field_type;
     } break;
     case AST_EXPR_INDEX: {
         TypeID array_type = type_check_expr(target->index.array);
