@@ -58,6 +58,16 @@ static struct symbol_table *new_locals(struct symbol_table *parent) {
     return locals;
 }
 
+static struct symbol_table *enter_function(struct symbol_table *locals) {
+    struct symbol_table *old_symbols = symbols;
+    symbols = locals;
+    return old_symbols;
+}
+
+static void leave_function(struct symbol_table *old_symbols) {
+    symbols = old_symbols;
+}
+
 void init_frontend(struct lxl_string_view source, const char *in_filename) {
     filename = in_filename;
     parser.lexer = init_lexer(source);
@@ -966,10 +976,9 @@ static struct ast_decl parse_func_decl(void) {
             assert(parser.current_func_kind == FUNC_INTERNAL);
         }
         struct symbol_table *locals = new_locals(symbols);
-        struct symbol_table *old_symbols = symbols;
-        symbols = locals;
+        struct symbol_table *old_symbols = enter_function(locals);
         struct ast_list body = parse_block();
-        symbols = old_symbols;
+        leave_function(old_symbols);
         decl = (struct ast_decl) {
             .kind = AST_DECL_FUNC,
             .func = {
@@ -1966,7 +1975,7 @@ static void type_check_function(struct ast_decl_func *func) {
         symbol->resolved = true;
     }
     if (func->decl_kind == AST_FUNC_DECL) return;
-    // TODO: local variables.
+    struct symbol_table *old_symbols = enter_function(func->symbols);
     for (int i = 0; i < sig->params.count; ++i) {
         struct type_decl *param = &sig->params.items[i];
         struct symbol param_symbol = {
@@ -1979,6 +1988,7 @@ static void type_check_function(struct ast_decl_func *func) {
         struct ast_stmt *stmt = &node->stmt;
         type_check_stmt(stmt, sig->ret_type);
     }
+    leave_function(old_symbols);
 }
 
 static void type_check_decl(struct ast_decl *decl) {
