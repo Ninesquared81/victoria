@@ -1139,14 +1139,12 @@ struct ast_stmt parse_if(void) {
 
 struct ast_stmt parse_return(void) {
     struct ast_expr *expr = NULL;
-    if (check_line_ending() || check(TOKEN_SEMICOLON, true)) {
-        end_statement();
-    }
-    else {
+    if (!check_line_ending() && !check(TOKEN_SEMICOLON, true)) {
         // Return with expression.
         expr = new_expr();
         *expr = parse_expr();
     }
+    end_statement();
     return (struct ast_stmt) {
         .kind = AST_STMT_RETURN,
         .return_ = {.expr = expr}};
