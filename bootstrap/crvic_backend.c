@@ -276,6 +276,11 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
     case AST_EXPR_MAGIC_FUNC:
         UNREACHABLE();
         break;
+    case AST_EXPR_NOT:
+        sb_add_string(sb, "(!(");
+        if ((error = crvic_generate_c_expr(expr->not.operand, sb))) return error;
+        sb_add_string(sb, "))");
+        break;
     case AST_EXPR_NULL:
         sb_add_string(sb, "NULL");
         break;

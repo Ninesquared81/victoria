@@ -33,6 +33,7 @@ enum ast_expr_kind {
     AST_EXPR_INDEX,             // Array index arr[i].
     AST_EXPR_INTEGER,           // Integer literal expression.
     AST_EXPR_MAGIC_FUNC,        // Magic function.
+    AST_EXPR_NOT,               // Logical NOT `!x`.
     AST_EXPR_NULL,              // Literal `null`.
     AST_EXPR_STRING,            // String literal expression.
     AST_EXPR_TYPE_EXPR,         // Type expression, e.g., `int`.
@@ -240,6 +241,9 @@ struct ast_expr {
         struct {
             struct lxl_string_view name;
         } magic_func;
+        struct {
+            struct ast_expr *operand;
+        } not;
         struct {
             struct lxl_string_view value;
         } string;

@@ -781,6 +781,12 @@ static struct ast_expr parse_prefix(void) {
                 .target = copy_expr(target),
                 .rw = rw}};
     }
+    else if (match(TOKEN_BANG, true)) {
+        struct ast_expr operand = parse_suffix();
+        expr = (struct ast_expr) {
+            .kind = AST_EXPR_NOT,
+            .not = {.operand = copy_expr(operand)}};
+    }
     else if (match(TOKEN_MINUS, true)) {
         NOT_SUPPORTED_YET_PREVIOUS();
     }
@@ -1841,6 +1847,10 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         break;
     case AST_EXPR_MAGIC_FUNC:
         UNREACHABLE();
+        break;
+    case AST_EXPR_NOT:
+        type_check_expr(expr->not.operand);
+        result_type = TYPE_BOOL;
         break;
     case AST_EXPR_NULL:
         result_type = TYPE_NULLPTR_TYPE;
