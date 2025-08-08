@@ -298,6 +298,7 @@ struct ast_decl {
             enum func_link_kind link_kind;
             enum ast_func_decl_kind decl_kind;
             struct ast_list body;
+            struct symbol_table *symbols;
         } func;
         struct {
             struct ast_list decls;

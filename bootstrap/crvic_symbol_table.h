@@ -1,6 +1,10 @@
 #ifndef CRVIC_SYMBOL_TABLE_H
 #define CRVIC_SYMBOL_TABLE_H
 
+#include <stddef.h>
+
+#include "ubiqs.h"
+
 #include "crvic_ast.h"
 #include "crvic_type.h"
 
@@ -52,9 +56,12 @@ struct st_slot {
 };
 
 struct symbol_table {
+    struct symbol_table *parent;
     size_t capacity;
-    struct st_slot **slots;
+    struct st_slot *slots[];
 };
+
+struct symbol_table *new_symbol_table(struct allocatorAD allocator, size_t capacity);
 
 struct st_key st_key_of(struct lxl_string_view sv);
 

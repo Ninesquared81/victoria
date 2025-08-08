@@ -38,34 +38,45 @@ struct type_checker {
 
 static struct parser parser = {0};
 
-static struct symbol_table symbols = {0};
+static struct symbol_table *global_symbols;
+static struct symbol_table *symbols;
 
 static struct type_checker type_checker = {0};
 
 static const char *filename = NULL;
 
-#define SYMBOL_TABLE_CAPACITY 128
+#define GLOBALS_CAPACITY 256
+#define LOCALS_CAPACITY 128
+
+static struct symbol_table *new_globals(void) {
+    return new_symbol_table(ALLOCATOR_ARD2AD(perm), GLOBALS_CAPACITY);
+}
+
+static struct symbol_table *new_locals(struct symbol_table *parent) {
+    struct symbol_table *locals = new_symbol_table(ALLOCATOR_ARD2AD(perm), LOCALS_CAPACITY);
+    locals->parent = parent;
+    return locals;
+}
 
 void init_frontend(struct lxl_string_view source, const char *in_filename) {
     filename = in_filename;
     parser.lexer = init_lexer(source);
     parser.current_func_kind = FUNC_INTERNAL;
-    symbols = (struct symbol_table) {
-        .capacity = SYMBOL_TABLE_CAPACITY,
-        .slots = ALLOCATE(perm, sizeof(struct st_slot[SYMBOL_TABLE_CAPACITY]))};
-    insert_symbol(&symbols, st_key_of(LXL_SV_FROM_STRLIT("int")),
+    global_symbols = new_globals();
+    symbols = global_symbols;
+    insert_symbol(symbols, st_key_of(LXL_SV_FROM_STRLIT("int")),
                   (struct symbol) {
                       .kind = SYMBOL_TYPE_ALIAS,
                       .type_alias = {.type = RESOLVED_TYPE(TYPE_INT)}});
-    insert_symbol(&symbols, st_key_of(LXL_SV_FROM_STRLIT("uint")),
+    insert_symbol(symbols, st_key_of(LXL_SV_FROM_STRLIT("uint")),
                   (struct symbol) {
                       .kind = SYMBOL_TYPE_ALIAS,
                       .type_alias = {.type = RESOLVED_TYPE(TYPE_UINT)}});
-    insert_symbol(&symbols, st_key_of(LXL_SV_FROM_STRLIT("count_of")),
+    insert_symbol(symbols, st_key_of(LXL_SV_FROM_STRLIT("count_of")),
                   (struct symbol) {.kind = SYMBOL_MAGIC_FUNC});
-    insert_symbol(&symbols, st_key_of(LXL_SV_FROM_STRLIT("size_of")),
+    insert_symbol(symbols, st_key_of(LXL_SV_FROM_STRLIT("size_of")),
                   (struct symbol) {.kind = SYMBOL_MAGIC_FUNC});
-    insert_symbol(&symbols, st_key_of(LXL_SV_FROM_STRLIT("type_of")),
+    insert_symbol(symbols, st_key_of(LXL_SV_FROM_STRLIT("type_of")),
                   (struct symbol) {.kind = SYMBOL_MAGIC_FUNC});
 
 }
@@ -954,13 +965,19 @@ static struct ast_decl parse_func_decl(void) {
         else {
             assert(parser.current_func_kind == FUNC_INTERNAL);
         }
+        struct symbol_table *locals = new_locals(symbols);
+        struct symbol_table *old_symbols = symbols;
+        symbols = locals;
+        struct ast_list body = parse_block();
+        symbols = old_symbols;
         decl = (struct ast_decl) {
             .kind = AST_DECL_FUNC,
             .func = {
                 .sig = sig,
                 .link_kind = parser.current_func_kind,
                 .decl_kind = AST_FUNC_DEFN,
-                .body = parse_block()}};
+                .body = body,
+                .symbols = locals}};
     }
     else if (had_line_ending || match(TOKEN_SEMICOLON, true)) {
         decl = (struct ast_decl) {
@@ -974,10 +991,10 @@ static struct ast_decl parse_func_decl(void) {
         parse_error_current_show_token("Expect '{' or end of statement after function signature");
     }
     struct st_key key = st_key_of(name);
-    struct symbol *symbol = lookup_symbol(&symbols, key);
+    struct symbol *symbol = lookup_symbol(symbols, key);
     if (!symbol) {
         // New function.
-        symbol = insert_symbol(&symbols, key, (struct symbol) {
+        symbol = insert_symbol(symbols, key, (struct symbol) {
                 .kind = SYMBOL_FUNC,
                 .func = {
                     .decl = decl.func,
@@ -1050,7 +1067,7 @@ struct ast_decl parse_type_defn(void) {
             .alias = alias,
             .type = type}};
     bool insert_result =
-        insert_symbol(&symbols, st_key_of(alias),
+        insert_symbol(symbols, st_key_of(alias),
                       (struct symbol) {
                           .kind = SYMBOL_TYPE_ALIAS,
                           .type_alias = {.type = *type}});
@@ -1343,7 +1360,7 @@ static TypeID resolve_type(struct ast_type *type) {
         UNREACHABLE();  // Should have been caught above.
         break;
     case AST_TYPE_ALIAS: {
-        struct symbol *symbol = lookup_symbol(&symbols, st_key_of(type->alias.name));
+        struct symbol *symbol = lookup_symbol(symbols, st_key_of(type->alias.name));
         if (!symbol) {
             name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(type->alias.name));
             return TYPE_NO_TYPE;
@@ -1411,7 +1428,7 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
     switch (target->kind) {
     case AST_EXPR_IDENTIFIER: {
         struct lxl_string_view name = target->identifier.name;
-        struct symbol *target_symbol = lookup_symbol(&symbols, st_key_of(name));
+        struct symbol *target_symbol = lookup_symbol(symbols, st_key_of(name));
         if (!target_symbol) {
             name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
             break;
@@ -1794,7 +1811,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         break;
     case AST_EXPR_IDENTIFIER: {
         struct lxl_string_view name = expr->identifier.name;
-        struct symbol *symbol = lookup_symbol(&symbols, st_key_of(name));
+        struct symbol *symbol = lookup_symbol(symbols, st_key_of(name));
         if (!symbol) {
             name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
             break;
@@ -1919,7 +1936,7 @@ static bool compare_sigs(struct func_sig *sig1, struct func_sig *sig2) {
 static void type_check_function(struct ast_decl_func *func) {
     struct func_sig *sig = resolve_func_sig(func->sig);
     struct st_key key = st_key_of(sig->name);
-    struct symbol *symbol = lookup_symbol(&symbols, key);
+    struct symbol *symbol = lookup_symbol(symbols, key);
     // We insert the function symbol during parsing.
     assert(symbol != NULL);
     assert(symbol->kind == SYMBOL_FUNC);
@@ -1955,7 +1972,7 @@ static void type_check_function(struct ast_decl_func *func) {
         struct symbol param_symbol = {
             .kind = SYMBOL_VAL,
             .val = {.type = param->type}};
-        insert_symbol(&symbols, st_key_of(param->name), param_symbol);
+        insert_symbol(symbols, st_key_of(param->name), param_symbol);
     }
     FOR_DLLIST (struct ast_node *, node, &func->body) {
         assert(node->kind == AST_STMT);
@@ -1989,7 +2006,7 @@ static void type_check_decl(struct ast_decl *decl) {
             : (struct symbol) {
                 .kind = SYMBOL_VAL,
                 .val = {.type = var_type}};
-        if (!insert_symbol(&symbols, st_key_of(decl->var.name), symbol)) {
+        if (!insert_symbol(symbols, st_key_of(decl->var.name), symbol)) {
             name_error("Redeclaration of symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(decl->var.name));
         }
     } return;
