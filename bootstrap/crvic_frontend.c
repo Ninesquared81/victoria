@@ -1302,7 +1302,7 @@ static TypeID resolve_pointer(struct ast_type *type) {
     assert(type->kind == AST_TYPE_POINTER);
     enum pointer_kind pointer_kind = POINTER_PROPER;
     TypeID dest_type = resolve_type(type->pointer.dest_type);
-    assert(dest_type != TYPE_NO_TYPE);
+    if (!dest_type) return TYPE_NO_TYPE;
     struct type_info pointer_info = {
         .kind = KIND_POINTER,
         .pointer = {
@@ -1346,11 +1346,11 @@ static TypeID resolve_type(struct ast_type *type) {
         struct symbol *symbol = lookup_symbol(&symbols, st_key_of(type->alias.name));
         if (!symbol) {
             name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(type->alias.name));
-            break;
+            return TYPE_NO_TYPE;
         }
         if (symbol->kind != SYMBOL_TYPE_ALIAS) {
             name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a type alias", LXL_SV_FMT_ARG(type->alias.name));
-            break;
+            return TYPE_NO_TYPE;
         }
         return (type->resolved_type = resolve_type(&symbol->type_alias.type));
     }
@@ -1428,6 +1428,7 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
     } break;
     case AST_EXPR_DEREF: {
         TypeID pointer_type = type_check_expr(target->deref.pointer);
+        if (!pointer_type) return TYPE_NO_TYPE;
         struct type_info *pointer_info = get_type(pointer_type);
         assert(pointer_info && pointer_info->kind == KIND_POINTER);
         switch (pointer_info->pointer.rw) {
@@ -1965,12 +1966,12 @@ static void type_check_decl(struct ast_decl *decl) {
         assert(decl->var.value != NULL || decl->var.type != NULL);
         TypeID value_type = (decl->var.value) ? type_check_expr(decl->var.value) : TYPE_NO_TYPE;
         if (!decl->var.type) {
-            assert(value_type);
+            if (!value_type) return;
             decl->var.type = copy_type(RESOLVED_TYPE(value_type));
         }
         assert(decl->var.type);
         TypeID var_type = resolve_type(decl->var.type);
-        assert(var_type);
+        if (!var_type) return;  // Exit if type resolution failed.
         if (var_type == TYPE_ABSURD) {
             type_error("Cannot create variable of absurd type '!'");
         }
