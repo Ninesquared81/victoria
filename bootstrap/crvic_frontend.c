@@ -1469,7 +1469,8 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
             // Do nothing.
             break;
         case RW_WRITE_BEFORE_READ:
-            TODO("Check 'out' pointers");
+            // To simplify things, `out` pointers are treated as write-only.
+            // Do nothing.
             break;
         }
         target->type = pointer_info->pointer.dest_type;
@@ -1769,6 +1770,9 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         }
         if (info->pointer.dest_type == TYPE_ABSURD) {
             type_error("Cannot dereference pointer to absurd type '!'");
+        }
+        if (info->pointer.rw == RW_WRITE_BEFORE_READ) {
+            type_error("Cannot read from 'out' pointer in rVic");
         }
         result_type = info->pointer.dest_type;
     } break;
