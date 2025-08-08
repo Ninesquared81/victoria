@@ -44,7 +44,7 @@ func main(args: []string) {
     if !parse_args(args, &out opts) {
         quit()
     }
-    var source := read_source(in_filename)
+    var source := read_source(opts.in_filename to c_string)
     val out_file := fopen(c"out.txt", c"w")
     if out_file == null {
         perror(c"Failed to open output file")
