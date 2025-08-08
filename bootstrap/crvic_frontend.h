@@ -86,7 +86,6 @@ enum token_type {
     TOKEN_KW_INT,
     TOKEN_KW_LOOP,
     TOKEN_KW_MUT,
-    TOKEN_KW_NOT,
     TOKEN_KW_NULL,
     TOKEN_KW_OR,
     TOKEN_KW_OUT,
