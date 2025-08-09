@@ -27,9 +27,11 @@ IfStmt = "if" Expr BlockStmt ["else" (BlockStmt | IfStmt)] ;
 Expr = Assign ;
 
 Assign = AssignExpr | Equality ;
-Equality = Term ;
-Term = Factor (("+") Factor)* ;
-Factor = Prefix (("*") Prefix)* ;
+Equality = Or ;
+Or = And ("or" And)* ;
+And = Term ("and" Term)* ;
+Term = Factor ("+" Factor)* ;
+Factor = Prefix ("*" Prefix)* ;
 Prefix = Suffix ;
 Suffix = FieldExpr
        | Primary "(" ArgList ")"

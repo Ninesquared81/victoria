@@ -31,6 +31,7 @@ enum ast_expr_kind {
     AST_EXPR_FUNC_EXPR,         // Function expression (derived from identifier).
     AST_EXPR_IDENTIFIER,        // Identifer (variable, function, etc.) lookup expression.
     AST_EXPR_INDEX,             // Array index arr[i].
+    AST_EXPR_LOGICAL,           // Logical `and`, `or`.
     AST_EXPR_INTEGER,           // Integer literal expression.
     AST_EXPR_MAGIC_FUNC,        // Magic function.
     AST_EXPR_NOT,               // Logical NOT `!x`.
@@ -68,6 +69,11 @@ enum ast_cmp_op_kind {
     AST_CMP_LE,     // Less than or equal to `<=`.
     AST_CMP_GE,     // Greater than or equal to `>=`.
     AST_CMP_GT,     // Greater than `>`.
+};
+
+enum ast_log_op_kind {
+    AST_LOG_AND,
+    AST_LOG_OR,
 };
 
 enum ast_target_kind {
@@ -238,6 +244,11 @@ struct ast_expr {
         struct {
             int64_t value;
         } integer;
+        struct {
+            struct ast_expr *lhs;
+            struct ast_expr *rhs;
+            enum ast_log_op_kind op;
+        } logical;
         struct {
             struct lxl_string_view name;
         } magic_func;

@@ -273,6 +273,14 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
     case AST_EXPR_INTEGER:
         sb_add_formatted(sb, "%"PRId64, expr->integer.value);
         break;
+    case AST_EXPR_LOGICAL:
+        assert(expr->type == TYPE_BOOL);
+        sb_add_string(sb, "((");
+        if ((error = crvic_generate_c_expr(expr->logical.lhs, sb))) return error;
+        sb_add_formatted(sb, ")%s(", ((expr->logical.op == AST_LOG_AND) ? "&&" : "||"));
+        if ((error = crvic_generate_c_expr(expr->logical.rhs, sb))) return error;
+        sb_add_string(sb, "))");
+        break;
     case AST_EXPR_MAGIC_FUNC:
         UNREACHABLE();
         break;

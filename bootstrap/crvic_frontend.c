@@ -863,11 +863,39 @@ static struct ast_expr parse_term(void) {
     return expr;
 }
 
-static struct ast_expr parse_compare(void) {
+static struct ast_expr parse_and(void) {
     struct ast_expr expr = parse_term();
+    while (match(TOKEN_KW_AND, true)) {
+        struct ast_expr rhs = parse_term();
+        expr = (struct ast_expr) {
+            .kind = AST_EXPR_LOGICAL,
+            .logical = {
+                .lhs = copy_expr(expr),
+                .rhs = copy_expr(rhs),
+                .op = AST_LOG_AND}};
+    }
+    return expr;
+}
+
+static struct ast_expr parse_or(void) {
+    struct ast_expr expr = parse_and();
+    while (match(TOKEN_KW_OR, true)) {
+        struct ast_expr rhs = parse_and();
+        expr = (struct ast_expr) {
+            .kind = AST_EXPR_LOGICAL,
+            .logical = {
+                .lhs = copy_expr(expr),
+                .rhs = copy_expr(rhs),
+                .op = AST_LOG_OR}};
+    }
+    return expr;
+}
+
+static struct ast_expr parse_compare(void) {
+    struct ast_expr expr = parse_or();
     enum ast_cmp_op_kind op;
     if (match_comparison(&op, true)) {
-        struct ast_expr rhs = parse_term();
+        struct ast_expr rhs = parse_or();
         expr = (struct ast_expr) {
             .kind = AST_EXPR_COMPARE,
             .compare = {
@@ -1897,6 +1925,26 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         // TODO "untyped" literals... i.e. integer literals have an "INTEGER_LITERAL" type.
         result_type = TYPE_INT;
         break;
+    case AST_EXPR_LOGICAL: {
+        TypeID ltype = type_check_expr(expr->logical.lhs);
+        TypeID rtype = type_check_expr(expr->logical.rhs);
+        if (ltype != rtype) {
+            struct lxl_string_view lname = get_type_sv(ltype);
+            struct lxl_string_view rname = get_type_sv(rtype);
+            type_error("Operands of logical operators must be of the same type, not '"
+                       LXL_SV_FMT_SPEC"' and '"LXL_SV_FMT_SPEC"'",
+                       LXL_SV_FMT_ARG(lname), LXL_SV_FMT_ARG(rname));
+            break;
+        }
+        // TODO: other types (probably not in rVic).
+        if (ltype != TYPE_BOOL) {
+            struct lxl_string_view lname = get_type_sv(ltype);
+            type_error("Only booleans are allowed in logical operators in rVic, not '"
+                       LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(lname));
+            break;
+        }
+        result_type = ltype;
+    } break;
     case AST_EXPR_MAGIC_FUNC:
         UNREACHABLE();
         break;
