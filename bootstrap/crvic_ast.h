@@ -83,6 +83,7 @@ enum ast_target_kind {
 enum ast_var_kind {
     AST_VAR_VAR,  // Mutable variable.
     AST_VAR_VAL,  // Immutable value.
+    AST_VAR_CONST, // Compile time constant.
 };
 
 enum ast_func_decl_kind {

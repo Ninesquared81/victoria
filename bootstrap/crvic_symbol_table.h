@@ -9,11 +9,17 @@
 #include "crvic_type.h"
 
 enum symbol_kind {
+    SYMBOL_CONST,      // Compile time constant symbol.
     SYMBOL_FUNC,       // Function symbol.
     SYMBOL_MAGIC_FUNC, // Magic function symbol (`count_of()`, `size_of()`, `type_of()`).
     SYMBOL_TYPE_ALIAS, // Type alias symbol.
     SYMBOL_VAR,        // Variable symbol.
     SYMBOL_VAL,        // Immutable value symbol.
+};
+
+struct symbol_const {
+    TypeID type;
+    struct ast_expr *value;
 };
 
 struct symbol_func {
@@ -37,6 +43,7 @@ struct symbol {
     enum symbol_kind kind;
     bool resolved;
     union {
+        struct symbol_const const_;
         struct symbol_func func;
         struct symbol_type_alias type_alias;
         struct symbol_var var;

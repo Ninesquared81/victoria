@@ -1053,7 +1053,7 @@ static struct ast_decl parse_func_decl(void) {
     return decl;
 }
 
-struct ast_decl parse_var_decl(enum ast_var_kind kind) {
+static struct ast_decl parse_var_decl(enum ast_var_kind kind) {
     struct lxl_token var_token = parser.previous_token;
     // Sanity check:
     assert((var_token.token_type == TOKEN_KW_VAR && kind == AST_VAR_VAR) ||
@@ -1067,6 +1067,10 @@ struct ast_decl parse_var_decl(enum ast_var_kind kind) {
         if (!match(TOKEN_EQUALS, false)) {
             if (kind == AST_VAR_VAL) {
                 parse_error_show_token(var_token, "Immutable value '"LXL_SV_FMT_SPEC"' must be initialised",
+                                       LXL_SV_FMT_ARG(name));
+            }
+            else if (kind == AST_VAR_CONST) {
+                parse_error_show_token(var_token, "Constant value '"LXL_SV_FMT_SPEC"' must be initialised",
                                        LXL_SV_FMT_ARG(name));
             }
         }
@@ -1115,7 +1119,10 @@ struct ast_decl parse_type_defn(void) {
 }
 
 bool try_parse_decl(struct ast_decl *OUT_decl) {
-    if (match(TOKEN_KW_EXTERNAL, true)) {
+    if (match(TOKEN_KW_CONST, true)) {
+        *OUT_decl = parse_var_decl(AST_VAR_CONST);
+    }
+    else if (match(TOKEN_KW_EXTERNAL, true)) {
         enum func_link_kind prev_kind = parser.current_func_kind;
         parser.current_func_kind = FUNC_EXTERNAL;
         if (match(TOKEN_KW_FUNC, false)) {
@@ -1863,6 +1870,9 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         else if (symbol->kind == SYMBOL_VAL) {
             result_type = symbol->val.type;
         }
+        else if (symbol->kind == SYMBOL_CONST) {
+            TODO("Type check consts");
+        }
         else if (symbol->kind == SYMBOL_FUNC) {
             if (!symbol->resolved) {
                 resolve_func_sig(symbol->func.decl.sig);
@@ -2061,13 +2071,27 @@ static void type_check_decl(struct ast_decl *decl) {
         if (value_type && !check_assignable(var_type, value_type)) {
             type_error("Mismatched types in variable definition");
         }
-        struct symbol symbol = (decl->var.kind == AST_VAR_VAR)
-            ? (struct symbol) {
+        struct symbol symbol;
+        switch (decl->var.kind) {
+        case AST_VAR_VAR:
+            symbol = (struct symbol) {
                 .kind = SYMBOL_VAR,
-                .var = {.type = var_type}}
-            : (struct symbol) {
+                .var = {.type = var_type}};
+            break;
+        case AST_VAR_VAL:
+            symbol = (struct symbol) {
                 .kind = SYMBOL_VAL,
                 .val = {.type = var_type}};
+            break;
+        case AST_VAR_CONST:
+            assert(decl->var.value);
+            symbol = (struct symbol) {
+                .kind = SYMBOL_CONST,
+                .const_ = {
+                    .type = var_type,
+                    .value = decl->var.value}};
+            break;
+        }
         if (!insert_symbol(symbols, st_key_of(decl->var.name), symbol)) {
             name_error("Redeclaration of symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(decl->var.name));
         }
