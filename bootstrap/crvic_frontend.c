@@ -1057,7 +1057,8 @@ static struct ast_decl parse_var_decl(enum ast_var_kind kind) {
     struct lxl_token var_token = parser.previous_token;
     // Sanity check:
     assert((var_token.token_type == TOKEN_KW_VAR && kind == AST_VAR_VAR) ||
-           (var_token.token_type == TOKEN_KW_VAL && kind == AST_VAR_VAL));
+           (var_token.token_type == TOKEN_KW_VAL && kind == AST_VAR_VAL) ||
+           (var_token.token_type == TOKEN_KW_CONST && kind == AST_VAR_CONST));
     struct lxl_token name_token = consume(TOKEN_IDENTIFIER, false, "Expect variable name after 'var'");
     struct lxl_string_view name = lxl_token_value(name_token);
     struct ast_type *type = NULL;
@@ -1264,6 +1265,9 @@ struct ast_list parse(void) {
     return nodes;
 }
 
+static TypeID type_check_expr(struct ast_expr *expr);
+static TypeID resolve_type(struct ast_type *type);
+
 VIC_INT fold_integer_constant(struct ast_expr *expr, const char *fmt, ...) {
     if (expr->kind == AST_EXPR_INTEGER) return expr->integer.value;
     TODO("Other constant expressions");
@@ -1274,9 +1278,6 @@ VIC_INT fold_integer_constant(struct ast_expr *expr, const char *fmt, ...) {
     va_end(vargs);
     return 0;
 }
-
-static TypeID type_check_expr(struct ast_expr *expr);
-static TypeID resolve_type(struct ast_type *type);
 
 static TypeID resolve_array(struct ast_type *type) {
     assert(type->kind == AST_TYPE_ARRAY);
@@ -1871,7 +1872,16 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             result_type = symbol->val.type;
         }
         else if (symbol->kind == SYMBOL_CONST) {
-            TODO("Type check consts");
+            if (!is_integer_type(symbol->val.type)) {
+                // TODO: other types for consts.
+                type_error("Consts can only be of integer type");
+                break;
+            }
+            *expr = (struct ast_expr) {
+                .kind = AST_EXPR_INTEGER,
+                .integer = {
+                    .value = fold_integer_constant(symbol->const_.value, "Expect integer constant")}};
+            result_type = symbol->const_.type;
         }
         else if (symbol->kind == SYMBOL_FUNC) {
             if (!symbol->resolved) {
