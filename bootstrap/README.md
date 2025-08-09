@@ -59,3 +59,5 @@ the confluence of function types and pointer types).
 - [x] Logical NOT operator `!`.
 
 - [x] Logical operators `and`, `or`.
+
+- [ ] Compile time constant bindings ("`const`s")
