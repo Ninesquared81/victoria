@@ -55,3 +55,7 @@ the confluence of function types and pointer types).
 - [x] `while` loops.
 
 - [x] Binary `-` operator.
+
+- [x] Logical NOT operator `!`.
+
+- [x] Logical operators `and`, `or`.
