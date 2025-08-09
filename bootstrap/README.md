@@ -1,4 +1,4 @@
-# bootsrap
+# bootstrap
 
 This directory contains all the files necessary to bootstrap the compiler.
 
