@@ -95,7 +95,7 @@ func read_source(in_filename: c_string) -> lxl_string_view {
 }
 
 func read_entire_file(fp: ^FILE) -> lxl_string_view {
-    val CHUNK_SIZE := 8192 to c_size_t  # Would be a const if we had them.
+    const CHUNK_SIZE := 8192 to c_size_t
     var size := 0 to c_size_t
     var count := 0 to c_size_t
     var buffer: [^]! = null
