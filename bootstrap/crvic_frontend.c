@@ -609,6 +609,7 @@ bool try_parse_type(struct ast_type *OUT_type) {
         *OUT_type =  (struct ast_type) {
             .kind = AST_TYPE_FUNCTION,
             .function = {.sig = sig}};
+        return true;
     }
     // Not a type.
     return false;
