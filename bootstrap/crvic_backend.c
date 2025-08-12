@@ -104,10 +104,12 @@ enum cgen_error crvic_generate_c_stmt(struct ast_stmt *stmt, int indent, int ind
 enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int indent_step,
                                       struct string_buffer *sb) {
     if (decl->kind == AST_DECL_TYPE_DEFN) return CGEN_OK;  // No codegen for type definitions.
+    if (decl->kind == AST_DECL_VAR && decl->var.kind == AST_VAR_CONST) return CGEN_OK;
     sb_add_formatted(sb, "%*s", indent, "");
     enum cgen_error error = CGEN_OK;
     switch (decl->kind) {
     case AST_DECL_VAR:
+        assert(decl->var.kind != AST_VAR_CONST);
         sb_add_formatted(sb, "%s "LXL_SV_FMT_SPEC" = ",
                          crvic_get_c_type(decl->var.type->resolved_type),
                          LXL_SV_FMT_ARG(decl->var.name));
@@ -475,6 +477,8 @@ const char *crvic_get_c_type(TypeID type) {
             return "void";
         case TYPE_NULLPTR_TYPE:
             return "void*";
+        case TYPE_CONST_BOOL: return "bool";
+        case TYPE_CONST_INT: return crvic_get_c_type(TYPE_INT);
         case TYPE_BOOL: return "bool";
         case TYPE_I8: return "int8_t";
         case TYPE_I16: return "int16_t";

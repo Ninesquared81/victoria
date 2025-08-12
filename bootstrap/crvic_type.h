@@ -13,6 +13,8 @@ enum type_primitive {
     TYPE_ABSURD,       // Absurd type `!`. Used to denote expressions that do not return.
     TYPE_UNIT,         // Unit type `()`. Used to denote an expression with no meaningful value.
     TYPE_NULLPTR_TYPE, // `type_of(null)`.
+    TYPE_CONST_BOOL,   // Constant (compile-time) boolean, assignable to bool.
+    TYPE_CONST_INT,    // Constant (compile-time) integer, assignable to any integer type.
     TYPE_BOOL,         // Boolean type (true/false).
     TYPE_I8,           // Signed 8-bit integer.
     TYPE_I16,          // Signed 16-bit integer.

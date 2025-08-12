@@ -22,6 +22,8 @@ static struct type_info types[TYPE_TABLE_CAPACITY] = {
     TYPE_ENTRY_PRIM(TYPE_ABSURD,        0,              "!"),
     TYPE_ENTRY_PRIM(TYPE_UNIT,          0,              "()"),
     TYPE_ENTRY_PRIM(TYPE_NULLPTR_TYPE,  VIC_PTR_SIZE,   "type_of(null)"),
+    TYPE_ENTRY_PRIM(TYPE_CONST_BOOL,    1,              "<Constant bool>"),
+    TYPE_ENTRY_PRIM(TYPE_CONST_INT,     8,              "<Constant int>"),
     TYPE_ENTRY_PRIM(TYPE_BOOL,          1,              "bool"),
     TYPE_ENTRY_PRIM(TYPE_I8,            1,              "i8"),
     TYPE_ENTRY_PRIM(TYPE_I16,           2,              "i16"),
@@ -306,7 +308,7 @@ bool type_is_kind(TypeID type, enum kind kind) {
 
 bool is_integer_type(TypeID type) {
     static_assert(TYPE_I8 < TYPE_U8, "Signed types assumed before unsigned");
-    return TYPE_I8 <= type && type <= TYPE_U64;
+    return type == TYPE_CONST_INT || (TYPE_I8 <= type && type <= TYPE_U64);
 }
 
 bool is_ordered_type(TypeID type) {
@@ -343,7 +345,11 @@ size_t get_type_size(TypeID type) {
 }
 
 TypeID max_type_rank(TypeID type1, TypeID type2) {
+    if (!is_integer_type(type1) && !is_integer_type(type2)) return TYPE_NO_TYPE;
     assert(type1 < TYPE_PRIMITIVE_COUNT && type2 < TYPE_PRIMITIVE_COUNT);
+    if (type1 == TYPE_CONST_INT && type2 == TYPE_CONST_INT) return TYPE_CONST_INT;
+    if (type1 == TYPE_CONST_INT) type1 = type2;
+    if (type2 == TYPE_CONST_INT) type2 = type1;
     static TypeID ranks[TYPE_PRIMITIVE_COUNT][TYPE_PRIMITIVE_COUNT] = {
         [TYPE_I8][TYPE_I8]   = TYPE_I8,
         [TYPE_I8][TYPE_I16]  = TYPE_I16,

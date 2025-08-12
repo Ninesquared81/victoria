@@ -1452,6 +1452,8 @@ static TypeID convert_binary(TypeID lhs_type, TypeID rhs_type) {
 
 static bool check_assignable(TypeID ltype, TypeID rtype) {
     if (ltype == rtype) return true;
+    if (is_integer_type(ltype) && rtype == TYPE_CONST_INT) return true;
+    if (ltype == TYPE_BOOL && rtype == TYPE_CONST_BOOL) return true;
     struct type_info *linfo = get_type(ltype);
     struct type_info *rinfo = get_type(rtype);
     assert(linfo && rinfo);
@@ -1608,7 +1610,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         result_type = convert_binary(lhs_type, rhs_type);
     } break;
     case AST_EXPR_BOOLEAN: {
-        result_type = TYPE_BOOL;
+        result_type = TYPE_CONST_BOOL;
     } break;
     case AST_EXPR_CALL: {
         TypeID callee_type = type_check_expr(expr->call.callee);
@@ -1942,8 +1944,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         result_type = dest_type;
     } break;
     case AST_EXPR_INTEGER:
-        // TODO "untyped" literals... i.e. integer literals have an "INTEGER_LITERAL" type.
-        result_type = TYPE_INT;
+        result_type = TYPE_CONST_INT;
         break;
     case AST_EXPR_LOGICAL: {
         TypeID ltype = type_check_expr(expr->logical.lhs);
@@ -2070,6 +2071,10 @@ static void type_check_decl(struct ast_decl *decl) {
         TypeID value_type = (decl->var.value) ? type_check_expr(decl->var.value) : TYPE_NO_TYPE;
         if (!decl->var.type) {
             if (!value_type) return;
+            if (value_type == TYPE_CONST_INT) {
+                // Infer `int` type.
+                value_type = TYPE_INT;
+            }
             decl->var.type = copy_type(RESOLVED_TYPE(value_type));
         }
         assert(decl->var.type);
@@ -2156,7 +2161,7 @@ static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
     case AST_STMT_RETURN:
         if (stmt->return_.expr) {
             TypeID return_expr_type = type_check_expr(stmt->return_.expr);
-            if (return_expr_type != ret_type) {
+            if (!check_assignable(ret_type, return_expr_type)) {
                 struct lxl_string_view expected_sv = get_type_sv(ret_type);
                 struct lxl_string_view actual_sv = get_type_sv(return_expr_type);
                 type_error("Expected return type '"LXL_SV_FMT_SPEC"' but got '"LXL_SV_FMT_SPEC"'",
