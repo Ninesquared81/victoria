@@ -42,6 +42,7 @@ enum ast_expr_kind {
 };
 
 enum ast_stmt_kind {
+    AST_STMT_BLOCK,             // Block statement.
     AST_STMT_DECL,              // Declaration statement.
     AST_STMT_EXPR,              // Expression statement.
     AST_STMT_IF,                // If statement.
@@ -273,6 +274,10 @@ struct ast_expr {
 struct ast_stmt {
     enum ast_stmt_kind kind;
     union {
+        struct ast_stmt_block {
+            struct ast_list stmts;
+            struct symbol_table *symbols;
+        } block;
         struct {
             struct ast_decl *decl;
         } decl;
@@ -281,15 +286,15 @@ struct ast_stmt {
         } expr;
         struct {
             struct ast_expr *cond;
-            struct ast_list then_clause;
-            struct ast_list else_clause;
+            struct ast_stmt_block then_clause;
+            struct ast_stmt *else_clause;  // NOTE: This is either a block stmt, and if stmt, or NULL.
         } if_;
         struct {
             struct ast_expr *expr;  // Note: can be NULL for expression-less return.
         } return_;
         struct {
             struct ast_expr *cond;
-            struct ast_list body;
+            struct ast_stmt_block body;
         } while_;
     };
 };
@@ -309,7 +314,7 @@ struct ast_decl {
             struct ast_decl_func *prev_decl;
             enum func_link_kind link_kind;
             enum ast_func_decl_kind decl_kind;
-            struct ast_list body;
+            struct ast_stmt_block body;
             struct symbol_table *symbols;
         } func;
         struct {
@@ -340,5 +345,7 @@ struct ast_node {
 #define TYPE_NODE(TYPE) ((struct ast_node) {.kind = AST_TYPE, .type = TYPE})
 
 #define RESOLVED_TYPE(type_id) ((struct ast_type) {.resolved_type = type_id})
+
+#define BLOCK_STMT(BLOCK) ((struct ast_stmt) {.kind = AST_STMT_BLOCK, .block = BLOCK})
 
 #endif

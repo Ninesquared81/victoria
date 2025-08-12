@@ -57,6 +57,11 @@ enum cgen_error crvic_generate_c_stmt(struct ast_stmt *stmt, int indent, int ind
     }
     enum cgen_error error = CGEN_OK;
     switch (stmt->kind) {
+    case AST_STMT_BLOCK:
+        sb_add_string(sb, "{\n");
+        error = crvic_generate_c_nodes(stmt->block.stmts, indent + indent_step, indent_step, sb);
+        sb_add_formatted(sb, "%*s}\n", indent, "");
+        break;
     case AST_STMT_DECL:
         error = crvic_generate_c_decl(stmt->decl.decl, indent, indent_step, sb);
         break;
@@ -69,12 +74,12 @@ enum cgen_error crvic_generate_c_stmt(struct ast_stmt *stmt, int indent, int ind
         if ((error = crvic_generate_c_expr(stmt->if_.cond, sb))) return error;
         sb_add_string(sb, ") {\n");
         if ((error = crvic_generate_c_nodes(
-                 stmt->if_.then_clause, indent + indent_step, indent_step, sb))) return error;
+                 stmt->if_.then_clause.stmts, indent + indent_step, indent_step, sb))) return error;
         sb_add_formatted(sb, "%*s}\n", indent, "");
-        if (DLLIST_IS_EMPTY(&stmt->if_.else_clause)) break;  // No else clause.
+        if (!stmt->if_.else_clause) break;  // No else clause.
         sb_add_formatted(sb, "%*selse {\n", indent, "");
-        if ((error = crvic_generate_c_nodes(
-                 stmt->if_.else_clause, indent + indent_step, indent_step, sb))) return error;
+        if ((error = crvic_generate_c_stmt(stmt->if_.else_clause, indent + indent_step,
+                                           indent_step, sb))) return error;
         sb_add_formatted(sb, "%*s}\n", indent, "");
         break;
     case AST_STMT_RETURN:
@@ -90,7 +95,7 @@ enum cgen_error crvic_generate_c_stmt(struct ast_stmt *stmt, int indent, int ind
         if ((error = crvic_generate_c_expr(stmt->while_.cond, sb))) return error;
         sb_add_string(sb, ") {\n");
         if ((error = crvic_generate_c_nodes(
-                 stmt->while_.body, indent + indent_step, indent_step, sb))) return error;
+                 stmt->while_.body.stmts, indent + indent_step, indent_step, sb))) return error;
         sb_add_formatted(sb, "%*s}\n", indent, "");
     }
     return error;
@@ -140,7 +145,7 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
             sb_add_formatted(sb, "%*s%s "LXL_SV_FMT_SPEC" = {VIC_args_data__, argc};\n",
                              indent_step, "", crvic_get_c_type(args.type), LXL_SV_FMT_ARG(args.name));
         }
-        if ((error = crvic_generate_c_func_body(decl->func.body, indent_step, sb))) return error;
+        if ((error = crvic_generate_c_func_body(decl->func.body.stmts, indent_step, sb))) return error;
         if (is_main) {
             sb_add_formatted(sb, "%*sreturn 0;\n", indent_step, "");
         }

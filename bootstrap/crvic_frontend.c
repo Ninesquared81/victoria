@@ -242,13 +242,11 @@ static struct ast_expr *new_expr(void) {
     return expr;
 }
 
-/*
 static struct ast_stmt *new_stmt(void) {
     struct ast_stmt *stmt = ALLOCATE(perm, sizeof *stmt);
     assert(stmt != NULL && "We're gonna need a bigger region!");
     return stmt;
 }
-//*/
 
 static struct ast_decl *new_decl(void) {
     struct ast_decl *decl = ALLOCATE(perm, sizeof *decl);
@@ -274,13 +272,11 @@ static struct ast_expr *copy_expr(struct ast_expr expr) {
     return new;
 }
 
-/*
 static struct ast_stmt *copy_stmt(struct ast_stmt stmt) {
     struct ast_stmt *new = new_stmt();
     *new = stmt;
     return new;
 }
-//*/
 
 static struct ast_decl *copy_decl(struct ast_decl decl) {
     struct ast_decl *new = new_decl();
@@ -930,17 +926,22 @@ static struct ast_expr parse_expr(void) {
     return parse_assign();
 }
 
-static struct ast_list parse_block(void) {
+static struct ast_stmt_block parse_block(void) {
+    struct ast_stmt_block block = {
+        .stmts = {0},
+        .symbols = new_locals(symbols)};
+    // The name "enter_function" is a misnomer.
+    struct symbol_table *old_symbols = enter_function(block.symbols);
     ignore_line_ending();  // Ignore LF after '{'.
-    struct ast_list stmts = {0};
     while (!match(TOKEN_BKT_CURLY_RIGHT, false)) {
         ensure_not_at_end("Unclosed block statement");
         struct ast_stmt stmt = parse_stmt();
         struct ast_node *node = copy_node(STMT_NODE(stmt));
-        DLLIST_APPEND(&stmts, node);
+        DLLIST_APPEND(&block.stmts, node);
     }
     ignore_line_ending();  // Ignore LF after '}'.
-    return stmts;
+    leave_function(old_symbols);
+    return block;
 }
 
 static struct ast_sig parse_func_sig(struct lxl_string_view name) {
@@ -1006,7 +1007,7 @@ static struct ast_decl parse_func_decl(void) {
         }
         struct symbol_table *locals = new_locals(symbols);
         struct symbol_table *old_symbols = enter_function(locals);
-        struct ast_list body = parse_block();
+        struct ast_stmt_block body = parse_block();
         leave_function(old_symbols);
         decl = (struct ast_decl) {
             .kind = AST_DECL_FUNC,
@@ -1179,18 +1180,16 @@ struct ast_stmt parse_if(void) {
     struct ast_expr *cond = new_expr();
     *cond = parse_expr();
     consume(TOKEN_BKT_CURLY_LEFT, false, "Expect '{' after 'if' condition");
-    struct ast_list then_clause = parse_block();
-    struct ast_list else_clause = {0};
+    struct ast_stmt_block then_clause = parse_block();
+    struct ast_stmt *else_clause = NULL;
     if (match(TOKEN_KW_ELSE, true)) {
         ignore_line_ending();
         if (match(TOKEN_BKT_CURLY_LEFT, false)) {
-            else_clause = parse_block();
+            else_clause = copy_stmt(BLOCK_STMT(parse_block()));
         }
         else {
             consume(TOKEN_KW_IF, false, "Expect '{' or 'if' after 'else'");
-            struct ast_node *elif_clause = new_node();
-            *elif_clause = STMT_NODE(parse_if());
-            DLLIST_APPEND(&else_clause, elif_clause);
+            else_clause = copy_stmt(parse_if());
         }
     }
     return (struct ast_stmt) {
@@ -1217,7 +1216,7 @@ struct ast_stmt parse_return(void) {
 struct ast_stmt parse_while(void) {
     struct ast_expr *cond = copy_expr(parse_expr());
     consume(TOKEN_BKT_CURLY_LEFT, false, "Expect '{' after condition in 'while' loop");
-    struct ast_list body = parse_block();
+    struct ast_stmt_block body = parse_block();
     return (struct ast_stmt) {
         .kind = AST_STMT_WHILE,
         .while_ = {
@@ -2056,7 +2055,7 @@ static void type_check_function(struct ast_decl_func *func) {
             .val = {.type = param->type}};
         insert_symbol(symbols, st_key_of(param->name), param_symbol);
     }
-    FOR_DLLIST (struct ast_node *, node, &func->body) {
+    FOR_DLLIST (struct ast_node *, node, &func->body.stmts) {
         assert(node->kind == AST_STMT);
         struct ast_stmt *stmt = &node->stmt;
         type_check_stmt(stmt, sig->ret_type);
@@ -2123,18 +2122,23 @@ static void type_check_decl(struct ast_decl *decl) {
     UNREACHABLE();
 }
 
-static void type_check_stmt_list(struct ast_list stmts, TypeID ret_type) {
-    FOR_DLLIST (struct ast_node *, node, &stmts) {
+static void type_check_block(struct ast_stmt_block block, TypeID ret_type) {
+    struct symbol_table *old_symbols = enter_function(block.symbols);
+    FOR_DLLIST (struct ast_node *, node, &block.stmts) {
         switch (node->kind) {
         case AST_EXPR: case AST_TYPE: UNREACHABLE(); break;
         case AST_STMT: type_check_stmt(&node->stmt, ret_type); break;
         case AST_DECL: type_check_decl(&node->decl); break;
         }
     }
+    leave_function(old_symbols);
 }
 
 static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
     switch (stmt->kind) {
+    case AST_STMT_BLOCK:
+        type_check_block(stmt->block, ret_type);
+        break;
     case AST_STMT_DECL:
         type_check_decl(stmt->decl.decl);
         return;
@@ -2143,8 +2147,11 @@ static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
         return;
     case AST_STMT_IF:
         type_check_expr(stmt->if_.cond);
-        type_check_stmt_list(stmt->if_.then_clause, ret_type);
-        type_check_stmt_list(stmt->if_.else_clause, ret_type);
+        type_check_block(stmt->if_.then_clause, ret_type);
+        if (stmt->if_.else_clause) {
+            // Should the NULL check be moved to the top of this function?
+            type_check_stmt(stmt->if_.else_clause, ret_type);
+        }
         return;
     case AST_STMT_RETURN:
         if (stmt->return_.expr) {
@@ -2167,7 +2174,7 @@ static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
         return;
     case AST_STMT_WHILE:
         type_check_expr(stmt->while_.cond);
-        type_check_stmt_list(stmt->while_.body, ret_type);
+        type_check_block(stmt->while_.body, ret_type);
         return;
     }
     UNREACHABLE();
