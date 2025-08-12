@@ -95,9 +95,9 @@ func read_source(in_filename: c_string) -> lxl_string_view {
 }
 
 func read_entire_file(fp: ^FILE) -> lxl_string_view {
-    const CHUNK_SIZE := 8192 to c_size_t
-    var size := 0 to c_size_t
-    var count := 0 to c_size_t
+    const CHUNK_SIZE: c_size_t = 8192
+    var size: c_size_t
+    var count: c_size_t
     var buffer: [^]! = null
     while !ferror(fp) and !feof(fp) {
         size := size + CHUNK_SIZE
