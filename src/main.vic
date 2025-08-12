@@ -57,7 +57,7 @@ func main(args: []string) {
 }
 
 func quit() -> ! {
-    exit(1 as c_int)
+    exit(1)
 }
 
 type Options := record {

@@ -1637,7 +1637,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                     TypeID expected_type = info->record.fields.items[i].type;
                     assert(node->kind == AST_EXPR);
                     TypeID actual_type = type_check_expr(&node->expr);
-                    if (expected_type != actual_type) {
+                    if (!check_assignable(expected_type, actual_type)) {
                         struct lxl_string_view expected_sv = get_type_sv(expected_type);
                         struct lxl_string_view actual_sv = get_type_sv(actual_type);
                         type_error("Expected type '"LXL_SV_FMT_SPEC "' for field %d of type '"
@@ -1747,7 +1747,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             assert(arg->kind == AST_EXPR);
             TypeID arg_type = type_check_expr(&arg->expr);
             if (arg_type == TYPE_NO_TYPE) continue;  // Skip unknown type.
-            if (arg_type != param->type) {
+            if (!check_assignable(param->type, arg_type)) {
                 struct lxl_string_view param_type_name = get_type_sv(param->type);
                 struct lxl_string_view arg_type_name = get_type_sv(arg_type);
                 type_error("Expected type '"LXL_SV_FMT_SPEC"' for parameter '"LXL_SV_FMT_SPEC"' "
