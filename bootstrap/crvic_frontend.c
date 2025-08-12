@@ -38,8 +38,8 @@ struct type_checker {
 
 static struct parser parser = {0};
 
-static struct symbol_table *global_symbols;
-static struct symbol_table *symbols;
+static struct symbol_table *global_symbols = NULL;
+static struct symbol_table *symbols = NULL;
 
 static struct type_checker type_checker = {0};
 
