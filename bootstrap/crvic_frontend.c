@@ -1451,11 +1451,11 @@ static TypeID convert_binary(TypeID lhs_type, TypeID rhs_type) {
 }
 
 static bool check_assignable_rw_access(enum rw_access lrw, enum rw_access rrw) {
-    // ^mut T == ^mut T  // ok
-    // ^out T == ^out T  // ok
-    // ^out T == ^mut T  // ok
-    // ^T     == ^T      // ok
-    // ^T     == ^mut T  // ok
+    // ^mut T := ^mut T  // ok
+    // ^out T := ^out T  // ok
+    // ^out T := ^mut T  // ok
+    // ^T     := ^T      // ok
+    // ^T     := ^mut T  // ok
     // anything else disallowed
     return lrw == rrw || rrw == RW_READ_WRITE;
 }
