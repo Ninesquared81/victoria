@@ -1,5 +1,5 @@
-func puts(c: @u8) -> s32 := external
+func puts(c: c_string) -> s32 := external
 
 func main() {
-    puts("Hello, World" as @u8)
+    puts(c"Hello, World")
 }
