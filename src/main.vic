@@ -5,14 +5,14 @@ external {
     # C stdlib
     # stdlib.h
     func exit(code: c_int) -> !
-    func realloc(ptr: [^]!, size: c_size_t) -> [^]!
-    func free(ptr: [^]!)
+    func realloc(ptr: [^]mut!, size: c_size_t) -> [^]mut!
+    func free(ptr: [^]mut!)
     # stdio.h
-    func fopen(file: c_string, mode: c_string) -> ^FILE
-    func fclose(fp: ^FILE) -> c_int
-    func fread(buf: [^]!, size: c_size_t, count: c_size_t, fp: ^FILE) -> c_size_t
-    func ferror(fp: ^FILE) -> c_int
-    func feof(fp: ^FILE) -> c_int
+    func fopen(file: c_string, mode: c_string) -> ^mut FILE
+    func fclose(fp: ^mut FILE) -> c_int
+    func fread(buf: [^]mut!, size: c_size_t, count: c_size_t, fp: ^mut FILE) -> c_size_t
+    func ferror(fp: ^mut FILE) -> c_int
+    func feof(fp: ^mut FILE) -> c_int
     func perror(prefix: c_string)
     func printf(fmt: c_string, ..!) -> c_int
 
@@ -22,7 +22,7 @@ external {
     # lexer.c
     func init_lexer(source: lxl_string_view) -> ^lxl_lexer
     func next_token() -> lxl_token
-    func print_tokens(f: ^FILE)
+    func print_tokens(f: ^mut FILE)
 }
 
 # Opaque types.
@@ -71,7 +71,7 @@ func parse_args(args: []string, opts: ^out Options) -> bool {
         return false
     }
     if count_of(args) > 2 {
-        printf(c"WARNING: Too many arguments. Extra arguments will be ignored.\n");
+        printf(c"WARNING: Too many arguments. Extra arguments will be ignored.\n")
         print_usage(args[0])
     }
     opts^.in_filename := args[1]
@@ -79,11 +79,11 @@ func parse_args(args: []string, opts: ^out Options) -> bool {
 }
 
 func print_usage(prog_name: string) {
-    printf(c"Usage: %s filename\n", prog_name to c_string);
+    printf(c"Usage: %s filename\n", prog_name to c_string)
 }
 
 func read_source(in_filename: c_string) -> lxl_string_view {
-    var x:[]int
+    var x: []int
     val fp := fopen(in_filename, c"r")
     if fp == null {
         perror(c"Failed to open input file")
@@ -94,20 +94,20 @@ func read_source(in_filename: c_string) -> lxl_string_view {
     return source
 }
 
-func read_entire_file(fp: ^FILE) -> lxl_string_view {
+func read_entire_file(fp: ^mut FILE) -> lxl_string_view {
     const CHUNK_SIZE: c_size_t = 8192
     var size: c_size_t
     var count: c_size_t
-    var buffer: [^]! = null
+    var buffer: [^]mut! = null
     while !ferror(fp) and !feof(fp) {
         size := size + CHUNK_SIZE
         val tmp := realloc(buffer, size)
         if !tmp {
-            printf(c"realloc() failed\n");
+            printf(c"realloc() failed\n")
             quit()
         }
         buffer := tmp
-        count := count + fread(buffer, 1 to c_size_t, CHUNK_SIZE, fp)
+        count := count + fread(buffer, 1, CHUNK_SIZE, fp)
     }
     if (ferror(fp)) {
         perror(null to c_string)
