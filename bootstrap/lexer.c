@@ -216,6 +216,7 @@ struct lxl_lexer *init_lexer(struct lxl_string_view source) {
         "u64",           TOKEN_KW_U64,
         "uint",          TOKEN_KW_UINT,
         "uninit",        TOKEN_KW_UNINIT,
+        "union",         TOKEN_KW_UNION,
         "val",           TOKEN_KW_VAL,
         "var",           TOKEN_KW_VAR,
         "when",          TOKEN_KW_WHEN,
@@ -345,6 +346,7 @@ const char *token_type_string(struct lxl_token token) {
     case TOKEN_KW_U64:                 return "TOKEN_KW_U64";
     case TOKEN_KW_UINT:                return "TOKEN_KW_UINT";
     case TOKEN_KW_UNINIT:              return "TOKEN_KW_UNINIT";
+    case TOKEN_KW_UNION:               return "TOKEN_KW_UNION";
     case TOKEN_KW_VAL:                 return "TOKEN_KW_VAL";
     case TOKEN_KW_VAR:                 return "TOKEN_KW_VAR";
     case TOKEN_KW_WHEN:                return "TOKEN_KW_WHEN";

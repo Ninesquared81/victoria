@@ -102,6 +102,7 @@ enum token_type {
     TOKEN_KW_U64,
     TOKEN_KW_UINT,
     TOKEN_KW_UNINIT,
+    TOKEN_KW_UNION,
     TOKEN_KW_VAL,
     TOKEN_KW_VAR,
     TOKEN_KW_WHEN,

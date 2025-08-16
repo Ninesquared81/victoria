@@ -34,8 +34,8 @@
 (defconst victoria-keywords
   '("and" "as" "const" "else" "enum" "external"
     "for" "func" "if" "loop" "mut" "or" "out"
-    "record" "return" "then" "to" "type" "val" "var"
-    "when" "while")
+    "record" "return" "then" "to" "type" "union"
+    "val" "var" "when" "while")
   "Victoria keywords (except types and constants)")
 
 (defconst victoria-types
