@@ -60,4 +60,4 @@ the confluence of function types and pointer types).
 
 - [x] Logical operators `and`, `or`.
 
-- [ ] Compile time constant bindings ("`const`s")
+- [x] Compile time constant bindings ("`const`s").
