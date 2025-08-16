@@ -199,10 +199,12 @@ struct lxl_lexer *init_lexer(struct lxl_string_view source) {
         "if",            TOKEN_KW_IF,
         "int",           TOKEN_KW_INT,
         "loop",          TOKEN_KW_LOOP,
+        "module",        TOKEN_KW_MODULE,
         "mut",           TOKEN_KW_MUT,
         "null",          TOKEN_KW_NULL,
         "or",            TOKEN_KW_OR,
         "out",           TOKEN_KW_OUT,
+        "package",       TOKEN_KW_PACKAGE,
         "record",        TOKEN_KW_RECORD,
         "return",        TOKEN_KW_RETURN,
         "string",        TOKEN_KW_STRING,
@@ -329,10 +331,12 @@ const char *token_type_string(struct lxl_token token) {
     case TOKEN_KW_IF:                  return "TOKEN_KW_IF";
     case TOKEN_KW_INT:                 return "TOKEN_KW_INT";
     case TOKEN_KW_LOOP:                return "TOKEN_KW_LOOP";
+    case TOKEN_KW_MODULE:              return "TOKEN_KW_MODULE";
     case TOKEN_KW_MUT:                 return "TOKEN_KW_MUT";
     case TOKEN_KW_NULL:                return "TOKEN_KW_NULL";
     case TOKEN_KW_OR:                  return "TOKEN_KW_OR";
     case TOKEN_KW_OUT:                 return "TOKEN_KW_OUT";
+    case TOKEN_KW_PACKAGE:             return "TOKEN_KW_PACKAGE";
     case TOKEN_KW_RECORD:              return "TOKEN_KW_RECORD";
     case TOKEN_KW_RETURN:              return "TOKEN_KW_RETURN";
     case TOKEN_KW_STRING:              return "TOKEN_KW_STRING";
