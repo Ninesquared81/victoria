@@ -61,3 +61,5 @@ the confluence of function types and pointer types).
 - [x] Logical operators `and`, `or`.
 
 - [x] Compile time constant bindings ("`const`s").
+
+- [ ] Package/module system (`.pkg_local_symbol`).
