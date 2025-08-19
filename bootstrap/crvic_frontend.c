@@ -63,7 +63,8 @@ struct symbol_table *new_locals(struct symbol_table *parent) {
 
 static bool check_or_add_package(struct lxl_string_view name) {
     if (package.name.start == NULL) {
-        assert(package.modules.count == 0);
+        // NOTE: the module count will be at least 1 because we add the current file as the first module.
+        assert(package.modules.count == 1);
         package.name = name;
         return true;
     }
