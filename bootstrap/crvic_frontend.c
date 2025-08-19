@@ -1185,6 +1185,12 @@ bool try_parse_decl(struct ast_decl *OUT_decl) {
     else if (match(TOKEN_KW_FUNC, true)) {
         *OUT_decl = parse_func_decl();
     }
+    else if (match(TOKEN_KW_PACKAGE, true)) {
+        struct lxl_token name_token = consume(TOKEN_IDENTIFIER, false, "Expect identifier after 'package'");
+        *OUT_decl = (struct ast_decl) {
+            .kind = AST_DECL_PACKAGE,
+            .package = {.name = lxl_token_value(name_token)}};
+    }
     else if (match(TOKEN_KW_TYPE, true)) {
         *OUT_decl = parse_type_defn();
     }
