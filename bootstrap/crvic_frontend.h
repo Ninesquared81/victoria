@@ -2,9 +2,8 @@
 #define CRVIC_FRONTEND_H
 
 #include <stdio.h>
-#include "lexel.h"  // struct lxl_token, LXL_TOKENS_END, LXL_LINE_ENDING.
 
-#include "region.h"
+#include "lexel.h"  // struct lxl_token, LXL_TOKENS_END, LXL_LINE_ENDING.
 
 enum token_type {
     // Literals.
@@ -113,6 +112,8 @@ enum token_type {
 
 // General.
 void init_frontend(struct lxl_string_view source, const char *in_filename);
+struct symbol_table *new_globals(void);
+struct symbol_table *new_locals(struct symbol_table *parent);
 
 // Lexer.
 struct lxl_lexer *init_lexer(struct lxl_string_view source);

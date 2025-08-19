@@ -162,6 +162,9 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
     case AST_DECL_TYPE_DEFN:
         UNREACHABLE();
         break;
+    case AST_DECL_PACKAGE:
+        // Do nothing.
+        break;
     }
     return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
 }

@@ -315,4 +315,17 @@ static inline struct lxl_string_view sb_to_sv(struct sb_head *sb, struct allocat
     return (struct lxl_string_view) {.start = start, .length = length};
 }
 
+static inline struct lxl_string_view remove_filename_extension(struct lxl_string_view filename) {
+    for (int i = filename.length - 1; i >= 0; --i) {
+        if (filename.start[i] == '.') {
+            // Note: i is one past the end of the name.
+            return (struct lxl_string_view) {
+                .start = filename.start,
+                .length = i};
+        }
+    }
+    // No extension; return entire name.
+    return filename;
+}
+
 #endif  // UBIQS_H

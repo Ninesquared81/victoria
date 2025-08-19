@@ -55,6 +55,7 @@ enum ast_decl_kind {
     AST_DECL_FUNC,              // Function definition/declaration.
     AST_DECL_EXTERNAL_BLOCK,    // Block of external function declarations.
     AST_DECL_TYPE_DEFN,         // Type (alias) definition.
+    AST_DECL_PACKAGE,           // Package declaration.
 };
 
 enum ast_bin_op_kind {
@@ -324,6 +325,9 @@ struct ast_decl {
             struct lxl_string_view alias;
             struct ast_type *type;
         } type_defn;
+        struct {
+            struct lxl_string_view name;
+        } package;
     };
 };
 

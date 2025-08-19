@@ -12,6 +12,7 @@
 
 #include "crvic_ast.h"
 #include "crvic_frontend.h"
+#include "crvic_package.h"
 #include "crvic_resources.h"
 #include "crvic_symbol_table.h"
 #include "crvic_type.h"
@@ -38,7 +39,9 @@ struct type_checker {
 
 static struct parser parser = {0};
 
-static struct symbol_table *global_symbols = NULL;
+static struct package package = {0};
+
+static struct module *module = NULL;
 static struct symbol_table *symbols = NULL;
 
 static struct type_checker type_checker = {0};
@@ -48,14 +51,23 @@ static const char *filename = NULL;
 #define GLOBALS_CAPACITY 256
 #define LOCALS_CAPACITY 128
 
-static struct symbol_table *new_globals(void) {
+struct symbol_table *new_globals(void) {
     return new_symbol_table(ALLOCATOR_ARD2AD(perm), GLOBALS_CAPACITY);
 }
 
-static struct symbol_table *new_locals(struct symbol_table *parent) {
+struct symbol_table *new_locals(struct symbol_table *parent) {
     struct symbol_table *locals = new_symbol_table(ALLOCATOR_ARD2AD(perm), LOCALS_CAPACITY);
     locals->parent = parent;
     return locals;
+}
+
+static bool check_or_add_package(struct lxl_string_view name) {
+    if (package.name.start == NULL) {
+        assert(package.modules.count == 0);
+        package.name = name;
+        return true;
+    }
+    return lxl_sv_equal(name, package.name);
 }
 
 static struct symbol_table *enter_function(struct symbol_table *locals) {
@@ -72,8 +84,8 @@ void init_frontend(struct lxl_string_view source, const char *in_filename) {
     filename = in_filename;
     parser.lexer = init_lexer(source);
     parser.current_func_kind = FUNC_INTERNAL;
-    global_symbols = new_globals();
-    symbols = global_symbols;
+    module = add_new_module(&package, remove_filename_extension(lxl_sv_from_string(in_filename)));
+    symbols = module->globals;
     insert_symbol(symbols, st_key_of(LXL_SV_FROM_STRLIT("int")),
                   (struct symbol) {
                       .kind = SYMBOL_TYPE_ALIAS,
@@ -107,6 +119,19 @@ static void print_line_with_token(struct lxl_token token) {
     assert(start < end);
     struct lxl_string_view line = lxl_sv_from_startend(start, end);
     fprintf(stderr, ""LXL_SV_FMT_SPEC"\n", LXL_SV_FMT_ARG(line));
+}
+
+static void parse_error_no_token_vargs(const char *restrict fmt, va_list vargs) {
+    fprintf(stderr, "Parse Error: ");
+    vfprintf(stderr, fmt, vargs);
+    fprintf(stderr, ".\n");
+}
+
+static void parse_error_no_token(const char *restrict fmt, ...) {
+    va_list vargs;
+    va_start(vargs, fmt);
+    parse_error_no_token_vargs(fmt, vargs);
+    va_end(vargs);
 }
 
 static void parse_error_show_token_vargs(struct lxl_token token, const char *restrict fmt, va_list vargs) {
@@ -2138,6 +2163,10 @@ static void type_check_decl(struct ast_decl *decl) {
     case AST_DECL_TYPE_DEFN:
         /* No type checking. */
         return;
+    case AST_DECL_PACKAGE:
+        // This is a syntax error, but we only catch it after parsing.
+        parse_error_no_token("Package declaration is only allowed at the beginning of a file module");
+        return;
     }
     UNREACHABLE();
 }
@@ -2201,7 +2230,22 @@ static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
 }
 
 bool type_check(struct ast_list *nodes) {
-    FOR_DLLIST (struct ast_node *, node, nodes) {
+    if (nodes->count == 0) return true;
+    struct ast_list rest = *nodes;
+    struct ast_node *first = nodes->head;
+    assert(first);
+    if (first->kind == AST_DECL && first->decl.kind == AST_DECL_PACKAGE) {
+        if (!check_or_add_package(first->decl.package.name)) {
+            parse_error_no_token("At most one package is allowed; compiling '"LXL_SV_FMT_SPEC"'"
+                                 " but found declaration for package '"LXL_SV_FMT_SPEC"'",
+                                 LXL_SV_FMT_ARG(package.name), LXL_SV_FMT_ARG(first->decl.package.name));
+        }
+        rest = (struct ast_list) {
+            .head = nodes->head->next,
+            .tail = nodes->tail,
+            .count = nodes->count - 1};
+    }
+    FOR_DLLIST (struct ast_node *, node, &rest) {
         switch (node->kind) {
         case AST_EXPR:
         case AST_TYPE:
