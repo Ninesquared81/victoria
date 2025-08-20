@@ -31,7 +31,7 @@ struct cmdargs {
 };
 
 void print_usage(FILE *fp, const char *prog_name) {
-    fprintf(fp, "Usage: %s [-h] file ...\n", prog_name);
+    fprintf(fp, "Usage: %s [options] file ...\n", prog_name);
 }
 
 void print_help(FILE *fp, const char *prog_name) {
