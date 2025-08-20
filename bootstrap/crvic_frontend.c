@@ -29,6 +29,7 @@ struct parser {
     struct lxl_token current_token, previous_token;
     struct lxl_lexer *lexer;
     bool panic_mode;
+    bool had_error;
     VIC_INT enum_counter;
     enum func_link_kind current_func_kind;
 };
@@ -50,6 +51,10 @@ static const char *filename = NULL;
 
 #define GLOBALS_CAPACITY 256
 #define LOCALS_CAPACITY 128
+
+struct package *get_package(void) {
+    return &package;
+}
 
 struct symbol_table *new_globals(void) {
     return new_symbol_table(ALLOCATOR_ARD2AD(perm), GLOBALS_CAPACITY);
@@ -126,6 +131,8 @@ static void parse_error_no_token_vargs(const char *restrict fmt, va_list vargs) 
     fprintf(stderr, "Parse Error: ");
     vfprintf(stderr, fmt, vargs);
     fprintf(stderr, ".\n");
+    parser.panic_mode = true;
+    parser.had_error = true;
 }
 
 static void parse_error_no_token(const char *restrict fmt, ...) {
@@ -145,7 +152,8 @@ static void parse_error_show_token_vargs(struct lxl_token token, const char *res
     fprintf(stderr, "On this line:\n");
     print_line_with_token(token);
     parser.panic_mode = true;
-    exit(1);
+    parser.had_error = true;
+    exit(1);  // TODO: remove this
 }
 
 static void parse_error_show_token(struct lxl_token token, const char *restrict fmt, ...) {
@@ -191,6 +199,7 @@ void name_error(const char *msg, ...) {
     va_end(vargs);
     fprintf(stderr, ".\n");
     parser.panic_mode = true;
+    parser.had_error = true;
     type_checker.had_error = true;
 }
 
@@ -1281,20 +1290,20 @@ struct ast_stmt parse_stmt(void) {
         .expr = {.expr = copy_expr(expr)}};
 }
 
-struct ast_list parse(void) {
-    struct ast_list nodes = {0};
+bool parse(void) {
+    assert(module->decls.count == 0);
     advance();  // Prime parser with first token;
     for (; ignore_line_ending(), !parser_is_finished();) {
         struct ast_decl decl = {0};
         if (try_parse_decl(&decl)) {
             struct ast_node *node = copy_node(DECL_NODE(decl));
-            DLLIST_APPEND(&nodes, node);
+            DLLIST_APPEND(&module->decls, node);
         }
         else {
             parse_error_current_show_token("Unexpected token at module top level");
         }
     }
-    return nodes;
+    return !parser.had_error;
 }
 
 static TypeID type_check_expr(struct ast_expr *expr);
@@ -1472,10 +1481,16 @@ static bool expect_integer_type(TypeID type) {
     return false;
 }
 
+static bool check_signs(TypeID ltype, TypeID rtype) {
+    if (!is_integer_type(ltype) || !is_integer_type(rtype)) return false;
+    if (sign_of_type(ltype) == sign_of_type(rtype)) return true;
+    return ltype == TYPE_CONST_INT || rtype == TYPE_CONST_INT;
+}
+
 static TypeID convert_binary(TypeID lhs_type, TypeID rhs_type) {
     if (!expect_integer_type(lhs_type)) return TYPE_NO_TYPE;
     if (!expect_integer_type(rhs_type)) return TYPE_NO_TYPE;
-    if (sign_of_type(lhs_type) == sign_of_type(rhs_type)) {
+    if (check_signs(lhs_type, rhs_type)) {
         return max_type_rank(lhs_type, rhs_type);
     }
     type_error("Cannot mix signed and unsigned here");
@@ -1654,6 +1669,13 @@ static TypeID type_check_expr(struct ast_expr *expr) {
     case AST_EXPR_BINARY: {
         TypeID lhs_type = type_check_expr(expr->binary.lhs);
         TypeID rhs_type = type_check_expr(expr->binary.rhs);
+        if (!check_assignable(lhs_type, rhs_type) && !check_assignable(rhs_type, lhs_type)) {
+            struct lxl_string_view lname = get_type_sv(lhs_type);
+            struct lxl_string_view rname = get_type_sv(rhs_type);
+            type_error("Incopatible types for binary operator: '"LXL_SV_FMT_SPEC"'"
+                       " and '"LXL_SV_FMT_SPEC"'",
+                       LXL_SV_FMT_ARG(lname), LXL_SV_FMT_ARG(rname));
+        }
         result_type = convert_binary(lhs_type, rhs_type);
     } break;
     case AST_EXPR_BOOLEAN: {
@@ -2236,10 +2258,10 @@ static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
     UNREACHABLE();
 }
 
-bool type_check(struct ast_list *nodes) {
-    if (nodes->count == 0) return true;
-    struct ast_list rest = *nodes;
-    struct ast_node *first = nodes->head;
+static void type_check_module(struct module *module) {
+    if (module->decls.count == 0) return;
+    struct ast_list rest = module->decls;
+    struct ast_node *first = module->decls.head;
     assert(first);
     if (first->kind == AST_DECL && first->decl.kind == AST_DECL_PACKAGE) {
         if (!check_or_add_package(first->decl.package.name)) {
@@ -2248,9 +2270,9 @@ bool type_check(struct ast_list *nodes) {
                                  LXL_SV_FMT_ARG(package.name), LXL_SV_FMT_ARG(first->decl.package.name));
         }
         rest = (struct ast_list) {
-            .head = nodes->head->next,
-            .tail = nodes->tail,
-            .count = nodes->count - 1};
+            .head = module->decls.head->next,
+            .tail = module->decls.tail,
+            .count = module->decls.count - 1};
     }
     FOR_DLLIST (struct ast_node *, node, &rest) {
         switch (node->kind) {
@@ -2266,6 +2288,12 @@ bool type_check(struct ast_list *nodes) {
             type_check_decl(&node->decl);
             break;
         }
+    }
+}
+
+bool type_check(void) {
+    FOR_DLLIST (struct module *, module, &package.modules) {
+        type_check_module(module);
     }
     return !type_checker.had_error;
 }

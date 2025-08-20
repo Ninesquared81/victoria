@@ -2,6 +2,7 @@
 #define CRVIC_BACKEND
 
 #include "crvic_ast.h"
+#include "crvic_package.h"
 #include "crvic_string_buffer.h"  // struct string_buffer.
 #include "crvic_type.h"  // TypeID.
 
@@ -14,7 +15,7 @@ enum cgen_error {
     CGEN_IO_ERROR,
 };
 
-enum cgen_error crvic_generate_c_file(struct ast_list nodes, struct string_buffer *sb);
+enum cgen_error crvic_generate_c_file(struct package *package, struct string_buffer *sb);
 enum cgen_error crvic_generate_c_nodes(struct ast_list nodes, int indent, int indent_step,
                                        struct string_buffer *sb);
 

@@ -114,6 +114,7 @@ enum token_type {
 void init_frontend(struct lxl_string_view source, const char *in_filename);
 struct symbol_table *new_globals(void);
 struct symbol_table *new_locals(struct symbol_table *parent);
+struct package *get_package(void);
 
 // Lexer.
 struct lxl_lexer *init_lexer(struct lxl_string_view source);
@@ -124,9 +125,9 @@ void print_token(struct lxl_token token, FILE *f);
 void print_tokens(FILE *f);
 
 // Parser.
-struct ast_list parse(void);   // NOTE: call `init_parser()` first!
+bool parse(void);   // NOTE: call `init_parser()` first!
 
 // Type Checker.
-bool type_check(struct ast_list *nodes);
+bool type_check(void);
 
 #endif

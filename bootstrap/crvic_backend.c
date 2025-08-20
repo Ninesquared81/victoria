@@ -8,7 +8,7 @@
 #include "crvic_resources.h"
 #include "crvic_type.h"
 
-enum cgen_error crvic_generate_c_file(struct ast_list nodes, struct string_buffer *sb) {
+enum cgen_error crvic_generate_c_file(struct package *package, struct string_buffer *sb) {
     int indent_step = 4;  // Number of spaces to indent by for each indent/dedent.
     int indent = 0;  // Current indentation level.
     sb_add_string(sb,
@@ -24,7 +24,9 @@ enum cgen_error crvic_generate_c_file(struct ast_list nodes, struct string_buffe
         if ((ret = crvic_generate_c_func_header(functions[i]->sig, sb))) return ret;
         sb_add_string(sb, ";\n");
     }
-    if ((ret = crvic_generate_c_nodes(nodes, indent, indent_step, sb)) != CGEN_OK) return ret;
+    FOR_DLLIST (struct module *, module, &package->modules) {
+        if ((ret = crvic_generate_c_nodes(module->decls, indent, indent_step, sb)) != CGEN_OK) return ret;
+    }
     return CGEN_OK;
 }
 
