@@ -10,35 +10,36 @@
 #include "crvic_type.h"  // TypeID.
 
 enum ast_node_kind {
-    AST_EXPR,  // Expression.
-    AST_STMT,  // Statement.
-    AST_DECL,  // Declaration/definition.
-    AST_TYPE,  // Type.
+    AST_EXPR,   // Expression.
+    AST_STMT,   // Statement.
+    AST_DECL,   // Declaration/definition.
+    AST_TYPE,   // Type.
 };
 
 enum ast_expr_kind {
-    AST_EXPR_ADDRESS_OF,        // Address-of &target.
-    AST_EXPR_ASSIGN,            // Assignment expression.
-    AST_EXPR_BINARY,            // Binary operation.
-    AST_EXPR_BOOLEAN,           // Boolean literal expression (`true` or `false`).
-    AST_EXPR_CALL,              // Function call.
-    AST_EXPR_COMPARE,           // Comparison.
-    AST_EXPR_CONSTRUCTOR,       // Type constructor expression.
-    AST_EXPR_CONVERT,           // Explicit type conversion.
-    AST_EXPR_COUNT_OF,          // `count_of()` magic function.
-    AST_EXPR_DEREF,             // Pointer dereference ptr^.
-    AST_EXPR_FIELD,             // Field access expression.
-    AST_EXPR_FUNC_EXPR,         // Function expression (derived from identifier).
-    AST_EXPR_IDENTIFIER,        // Identifer (variable, function, etc.) lookup expression.
-    AST_EXPR_INDEX,             // Array index arr[i].
-    AST_EXPR_LOGICAL,           // Logical `and`, `or`.
-    AST_EXPR_INTEGER,           // Integer literal expression.
-    AST_EXPR_MAGIC_FUNC,        // Magic function.
-    AST_EXPR_NOT,               // Logical NOT `!x`.
-    AST_EXPR_NULL,              // Literal `null`.
-    AST_EXPR_STRING,            // String literal expression.
-    AST_EXPR_TYPE_EXPR,         // Type expression, e.g., `int`.
-    AST_EXPR_WHEN,              // When (conditional) expression.
+    AST_EXPR_ADDRESS_OF,            // Address-of &target.
+    AST_EXPR_ASSIGN,                // Assignment expression.
+    AST_EXPR_BINARY,                // Binary operation.
+    AST_EXPR_BOOLEAN,               // Boolean literal expression (`true` or `false`).
+    AST_EXPR_CALL,                  // Function call.
+    AST_EXPR_COMPARE,               // Comparison.
+    AST_EXPR_CONSTRUCTOR,           // Type constructor expression.
+    AST_EXPR_CONVERT,               // Explicit type conversion.
+    AST_EXPR_COUNT_OF,              // `count_of()` magic function.
+    AST_EXPR_DEREF,                 // Pointer dereference ptr^.
+    AST_EXPR_FIELD,                 // Field access expression.
+    AST_EXPR_FUNC_EXPR,             // Function expression (derived from identifier).
+    AST_EXPR_IDENTIFIER,            // Identifer (variable, function, etc.) lookup expression.
+    AST_EXPR_INDEX,                 // Array index arr[i].
+    AST_EXPR_LOGICAL,               // Logical `and`, `or`.
+    AST_EXPR_INTEGER,               // Integer literal expression.
+    AST_EXPR_MODULE_IDENTIFIER,     // Identifier lookup in different module in package.
+    AST_EXPR_MAGIC_FUNC,            // Magic function.
+    AST_EXPR_NOT,                   // Logical NOT `!x`.
+    AST_EXPR_NULL,                  // Literal `null`.
+    AST_EXPR_STRING,                // String literal expression.
+    AST_EXPR_TYPE_EXPR,             // Type expression, e.g., `int`.
+    AST_EXPR_WHEN,                  // When (conditional) expression.
 };
 
 enum ast_stmt_kind {
@@ -59,9 +60,9 @@ enum ast_decl_kind {
 };
 
 enum ast_bin_op_kind {
-    AST_BIN_ADD,  // Addition operator `+`.
-    AST_BIN_MUL,  // Multiplication operator `*`.
-    AST_BIN_SUB,  // Subtraction operator `-`.
+    AST_BIN_ADD,    // Addition operator `+`.
+    AST_BIN_MUL,    // Multiplication operator `*`.
+    AST_BIN_SUB,    // Subtraction operator `-`.
 };
 
 enum ast_cmp_op_kind {
@@ -83,9 +84,9 @@ enum ast_target_kind {
 };
 
 enum ast_var_kind {
-    AST_VAR_VAR,  // Mutable variable.
-    AST_VAR_VAL,  // Immutable value.
-    AST_VAR_CONST, // Compile time constant.
+    AST_VAR_VAR,    // Mutable variable.
+    AST_VAR_VAL,    // Immutable value.
+    AST_VAR_CONST,  // Compile time constant.
 };
 
 enum ast_func_decl_kind {
@@ -257,6 +258,11 @@ struct ast_expr {
         struct {
             struct lxl_string_view name;
         } magic_func;
+        struct {
+            struct lxl_string_view module_name;
+            struct ast_expr *identifier;
+            struct module *module;          // Pointer to module filled in at type checking.
+        } module_identifier;
         struct {
             struct ast_expr *operand;
         } not;

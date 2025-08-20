@@ -84,6 +84,18 @@ static void leave_function(struct symbol_table *old_symbols) {
     symbols = old_symbols;
 }
 
+static struct module *enter_module(struct module *new_module) {
+    struct module *old_module = module;
+    module = new_module;
+    enter_function(new_module->globals);
+    return old_module;
+}
+
+static void leave_module(struct module *old_module) {
+    leave_function(old_module->globals);
+    module = old_module;
+}
+
 void init_frontend(struct lxl_string_view source, const char *in_filename) {
     filename = in_filename;
     parser.lexer = init_lexer(source);
@@ -713,11 +725,25 @@ static struct ast_expr parse_primary(void) {
             .anchor = parser.previous_token,
             .kind = AST_EXPR_IDENTIFIER,
             .identifier = {.name = name}};
-     }
+    }
     else if (match(TOKEN_BKT_ROUND_LEFT, true)) {
         ignore_line_ending();
         expr = parse_assign();
         consume(TOKEN_BKT_ROUND_RIGHT, false, "Expect ')' after grouped expression");
+    }
+    else if (match(TOKEN_DOT, true)) {
+        struct lxl_token module_name = consume(TOKEN_IDENTIFIER, false, "Expect module name after '.'");
+        consume(TOKEN_DOT, false, "Expect '.' after module name");
+        struct ast_expr identifier = parse_primary();
+        if (identifier.kind != AST_EXPR_IDENTIFIER) {
+            parse_error_show_token(identifier.anchor, "Expect module member after '.'");
+        }
+        expr = (struct ast_expr) {
+            .anchor = module_name,
+            .kind = AST_EXPR_MODULE_IDENTIFIER,
+            .module_identifier = {
+                .module_name = lxl_token_value(module_name),
+                .identifier = copy_expr(identifier)}};
     }
     else if (match(TOKEN_KW_TRUE, true) || match(TOKEN_KW_FALSE, true)) {
         bool value = parser.previous_token.token_type == TOKEN_KW_TRUE;
@@ -2091,6 +2117,18 @@ static TypeID type_check_expr(struct ast_expr *expr) {
     case AST_EXPR_MAGIC_FUNC:
         UNREACHABLE();
         break;
+    case AST_EXPR_MODULE_IDENTIFIER: {
+        struct lxl_string_view name = expr->module_identifier.module_name;
+        struct module *module = find_module(&package, name);
+        if (!module) {
+            name_error("Unknown module '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
+            break;
+        }
+        expr->module_identifier.module = module;
+        struct module *old_module = enter_module(module);
+        result_type = type_check_expr(expr->module_identifier.identifier);
+        leave_module(old_module);
+    } break;
     case AST_EXPR_NOT:
         type_check_expr(expr->not.operand);
         result_type = TYPE_BOOL;
@@ -2311,8 +2349,8 @@ static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
     UNREACHABLE();
 }
 
-static void type_check_module(struct module *module) {
-    symbols = module->globals;
+static void type_check_module(struct module *new_module) {
+    struct module *old_module = enter_module(new_module);
     if (module->decls.count == 0) return;
     struct ast_list rest = module->decls;
     struct ast_node *first = module->decls.head;
@@ -2343,11 +2381,12 @@ static void type_check_module(struct module *module) {
             break;
         }
     }
+    leave_module(old_module);
 }
 
 bool type_check(void) {
-    FOR_DLLIST (struct module *, module, &package.modules) {
-        type_check_module(module);
+    FOR_DLLIST (struct module *, new_module, &package.modules) {
+        type_check_module(new_module);
     }
     return !type_checker.had_error;
 }

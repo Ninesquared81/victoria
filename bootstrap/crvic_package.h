@@ -24,5 +24,6 @@ struct package {
 };
 
 struct module *add_new_module(struct package *package, struct lxl_string_view name);
+struct module *find_module(struct package *package, struct lxl_string_view name);
 
 #endif

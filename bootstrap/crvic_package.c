@@ -12,3 +12,13 @@ struct module *add_new_module(struct package *package, struct lxl_string_view na
     DLLIST_APPEND(&package->modules, module);
     return module;
 }
+
+struct module *find_module(struct package *package, struct lxl_string_view name) {
+    FOR_DLLIST (struct module *, module, &package->modules) {
+        if (lxl_sv_equal(name, module->name)) {
+            return module;
+        }
+    }
+    // Not found.
+    return NULL;
+}
