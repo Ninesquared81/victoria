@@ -149,6 +149,7 @@ struct ast_sig {
 };
 
 struct ast_type {
+    struct lxl_token anchor;
     enum ast_type_kind kind;
     TypeID resolved_type;
     union {
@@ -184,6 +185,7 @@ struct ast_type {
 };
 
 struct ast_expr {
+    struct lxl_token anchor;
     enum ast_expr_kind kind;
     TypeID type;
     union {
@@ -273,6 +275,7 @@ struct ast_expr {
 };
 
 struct ast_stmt {
+    struct lxl_token anchor;
     enum ast_stmt_kind kind;
     union {
         struct ast_stmt_block {
@@ -301,6 +304,7 @@ struct ast_stmt {
 };
 
 struct ast_decl {
+    struct lxl_token anchor;
     enum ast_decl_kind kind;
     union {
         struct {
@@ -350,6 +354,7 @@ struct ast_node {
 
 #define RESOLVED_TYPE(type_id) ((struct ast_type) {.resolved_type = type_id})
 
-#define BLOCK_STMT(BLOCK) ((struct ast_stmt) {.kind = AST_STMT_BLOCK, .block = BLOCK})
+#define BLOCK_STMT(ANCHOR, BLOCK)                                   \
+    ((struct ast_stmt) {.anchor = ANCHOR, .kind = AST_STMT_BLOCK, .block = BLOCK})
 
 #endif
