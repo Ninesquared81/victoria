@@ -2257,6 +2257,7 @@ static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
 }
 
 static void type_check_module(struct module *module) {
+    symbols = module->globals;
     if (module->decls.count == 0) return;
     struct ast_list rest = module->decls;
     struct ast_node *first = module->decls.head;
