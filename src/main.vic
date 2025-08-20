@@ -1,3 +1,5 @@
+package victoria
+
 type c_int := i32
 type c_size_t := uint
 
