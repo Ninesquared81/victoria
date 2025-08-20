@@ -6,7 +6,7 @@ CRVIC = bootstrap/crvic.exe
 
 BIN_DIR = bin
 VIC = $(BIN_DIR)/vic.exe
-VIC_C = src/main.c
+VIC_C = src/vic.c
 VIC_SRCS = $(wildcard src/*.vic)
 LEXER = bootstrap/lexer.c
 
