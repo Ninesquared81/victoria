@@ -23,7 +23,7 @@ enum cgen_error crvic_generate_c_file(struct package *package, struct string_buf
     DO_OR_ERROR(ret, crvic_generate_c_types(indent_step, sb));
     for (int i = 0; i < function_count; ++i) {
         // Forward-declare all functions.
-        DO_OR_ERROR(ret, crvic_generate_c_func_header(functions[i]->sig, sb));
+        DO_OR_ERROR(ret, crvic_generate_c_func_header(&functions[i]->decl, sb));
         sb_add_string(sb, ";\n");
     }
     FOR_DLLIST (, module, &package->modules) {
@@ -133,7 +133,7 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
         if (decl->func.decl_kind == AST_FUNC_DECL) break;  // Declaration; function already forward-declared.
         // Definition.
         assert(decl->func.decl_kind == AST_FUNC_DEFN);
-        DO_OR_ERROR(error, crvic_generate_c_func_header(&decl->func.sig->resolved_sig, sb));
+        DO_OR_ERROR(error, crvic_generate_c_func_header(&decl->func, sb));
         struct lxl_string_view name = decl->func.sig->resolved_sig.name;
         bool is_main = lxl_sv_equal(name, LXL_SV_FROM_STRLIT("main"));
         sb_add_string(sb, " {\n");
@@ -264,7 +264,7 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         sb_add_formatted(sb, ""LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(expr->func_expr.name));
         break;
     case AST_EXPR_IDENTIFIER:
-        DO_OR_ERROR(error, crvic_generate_c_identifier(module, expr, sb));
+        DO_OR_ERROR(error, crvic_generate_c_identifier(module, expr->identifier.name, true, sb));
         break;
     case AST_EXPR_INDEX: {
         // TODO: bounds checking.
@@ -301,7 +301,7 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
     case AST_EXPR_MODULE_IDENTIFIER: {
         struct module *module = expr->module_identifier.module;
         struct ast_expr *identifier = expr->module_identifier.identifier;
-        DO_OR_ERROR(error, crvic_generate_c_identifier(module, identifier, sb));
+        DO_OR_ERROR(error, crvic_generate_c_identifier(module, identifier->identifier.name, true, sb));
     } break;
     case AST_EXPR_NOT:
         sb_add_string(sb, "(!(");
@@ -354,15 +354,12 @@ enum cgen_error crvic_generate_c_main_header(struct func_sig *sig, struct string
     return (!sb->had_error) ? CGEN_OK : CGEN_IO_ERROR;
 }
 
-enum cgen_error crvic_generate_c_func_header(struct func_sig *sig, struct string_buffer *sb) {
+enum cgen_error crvic_generate_c_func_header(struct ast_decl_func *func, struct string_buffer *sb) {
+    struct func_sig *sig = &func->sig->resolved_sig;
     if (lxl_sv_equal(sig->name, LXL_SV_FROM_STRLIT("main"))) return crvic_generate_c_main_header(sig, sb);
     sb_add_string(sb, crvic_get_c_type(sig->ret_type));
-    struct ast_expr identifier = {
-        .kind = AST_EXPR_IDENTIFIER,
-        .identifier = {
-            .name = sig->name}};
     enum cgen_error error = CGEN_OK;
-    DO_OR_ERROR(error, crvic_generate_c_identifier(module, &identifier, sb));
+    DO_OR_ERROR(error, crvic_generate_c_identifier(module, sig->name, func->link_kind == FUNC_INTERNAL, sb));
     if (sig->params.count >= 1) {
         struct type_decl param = sig->params.items[0];
         sb_add_formatted(sb, "%s "LXL_SV_FMT_SPEC"",
@@ -457,12 +454,15 @@ enum cgen_error crvic_generate_c_record_defn(struct type_info info, int indent_s
     return CGEN_OK;
 }
 
-enum cgen_error crvic_generate_c_identifier(struct module *module, struct ast_expr *identifier,
-                                            struct string_buffer *sb) {
-    TODO("Non-mangled names");
-    assert(identifier->kind == AST_EXPR_IDENTIFIER);
-    sb_add_formatted(sb, "VIC_IDENT__"LXL_SV_FMT_SPEC"__"LXL_SV_FMT_SPEC"__",
-                     LXL_SV_FMT_ARG(module->name), LXL_SV_FMT_ARG(identifier->identifier.name));
+enum cgen_error crvic_generate_c_identifier(struct module *module, struct lxl_string_view name,
+                                            bool should_mangle, struct string_buffer *sb) {
+    if (should_mangle) {
+        sb_add_formatted(sb, "VIC_IDENT__"LXL_SV_FMT_SPEC"__"LXL_SV_FMT_SPEC"__",
+                         LXL_SV_FMT_ARG(module->name), LXL_SV_FMT_ARG(name));
+    }
+    else {
+        sb_add_formatted(sb, ""LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(name));
+    }
     return CGEN_OK;
 }
 
