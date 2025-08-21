@@ -297,7 +297,7 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         UNREACHABLE();
         break;
     case AST_EXPR_MODULE_IDENTIFIER:
-        TODO();
+        TODO("Module identifiers");
         break;
     case AST_EXPR_NOT:
         sb_add_string(sb, "(!(");

@@ -43,6 +43,7 @@ type lxl_token := record {
 type lxl_string_view := record {start: c_string, length: uint}
 
 func main(args: []string) {
+    .other.hello()
     var opts: Options
     if !parse_args(args, &out opts) {
         quit()

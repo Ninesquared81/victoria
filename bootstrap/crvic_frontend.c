@@ -42,7 +42,6 @@ static struct parser parser = {0};
 
 static struct package package = {0};
 
-static struct module *module = NULL;
 static struct symbol_table *symbols = NULL;
 
 static struct type_checker type_checker = {0};
@@ -84,23 +83,11 @@ static void leave_function(struct symbol_table *old_symbols) {
     symbols = old_symbols;
 }
 
-static struct module *enter_module(struct module *new_module) {
-    struct module *old_module = module;
-    module = new_module;
-    enter_function(new_module->globals);
-    return old_module;
-}
-
-static void leave_module(struct module *old_module) {
-    leave_function(old_module->globals);
-    module = old_module;
-}
-
-void init_frontend(struct lxl_string_view source, const char *in_filename) {
-    filename = in_filename;
+struct module *init_frontend(struct lxl_string_view source, const char *in_filepath) {
+    filename = in_filepath;
     parser.lexer = init_lexer(source);
     parser.current_func_kind = FUNC_INTERNAL;
-    module = add_new_module(&package, remove_filename_extension(lxl_sv_from_string(in_filename)));
+    struct module *module = add_new_module(&package, get_module_name(lxl_sv_from_string(filename)));
     symbols = module->globals;
     insert_symbol(symbols, st_key_of(LXL_SV_FROM_STRLIT("int")),
                   (struct symbol) {
@@ -116,7 +103,13 @@ void init_frontend(struct lxl_string_view source, const char *in_filename) {
                   (struct symbol) {.kind = SYMBOL_MAGIC_FUNC});
     insert_symbol(symbols, st_key_of(LXL_SV_FROM_STRLIT("type_of")),
                   (struct symbol) {.kind = SYMBOL_MAGIC_FUNC});
+    return module;
+}
 
+struct lxl_string_view get_module_name(struct lxl_string_view filepath) {
+    filepath = get_filename_from_path(filepath);
+    filepath = remove_filename_extension(filepath);
+    return filepath;
 }
 
 static void report_location(struct lxl_token token) {
@@ -1361,7 +1354,7 @@ struct ast_stmt parse_stmt(void) {
         .expr = {.expr = copy_expr(expr)}};
 }
 
-bool parse(void) {
+bool parse(struct module *module) {
     assert(module->decls.count == 0);
     advance();  // Prime parser with first token;
     for (; ignore_line_ending(), !parser_is_finished();) {
@@ -2125,9 +2118,9 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             break;
         }
         expr->module_identifier.module = module;
-        struct module *old_module = enter_module(module);
+        struct symbol_table *old_symbols = enter_function(module->globals);
         result_type = type_check_expr(expr->module_identifier.identifier);
-        leave_module(old_module);
+        leave_function(old_symbols);
     } break;
     case AST_EXPR_NOT:
         type_check_expr(expr->not.operand);
@@ -2349,8 +2342,8 @@ static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
     UNREACHABLE();
 }
 
-static void type_check_module(struct module *new_module) {
-    struct module *old_module = enter_module(new_module);
+static void type_check_module(struct module *module) {
+    enter_function(module->globals);
     if (module->decls.count == 0) return;
     struct ast_list rest = module->decls;
     struct ast_node *first = module->decls.head;
@@ -2381,12 +2374,11 @@ static void type_check_module(struct module *new_module) {
             break;
         }
     }
-    leave_module(old_module);
 }
 
 bool type_check(void) {
-    FOR_DLLIST (struct module *, new_module, &package.modules) {
-        type_check_module(new_module);
+    FOR_DLLIST (struct module *, module, &package.modules) {
+        type_check_module(module);
     }
     return !type_checker.had_error;
 }

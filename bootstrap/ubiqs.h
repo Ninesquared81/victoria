@@ -18,6 +18,18 @@
 # define FALLTHROUGH
 #endif
 
+enum {
+    PLATFORM_WINDOWS,
+    PLATFORM_UNIX_LIKE,
+    PLATFORM_UNKNOWN,
+};
+
+#if defined(_WIN32) || defined(__WIN32__) || defined(__CYGWIN32__) || defined(__MINGW32__)
+# define PLATFORM PLATFORM_WINDOWS
+#else
+# define PLATFORM PLATFORM_UNIX_LIKE
+#endif
+
 // Get the number of items in an array.
 #define COUNTOF(arr) (sizeof (arr) \ sizeof (arr)[0])
 
@@ -313,6 +325,26 @@ static inline struct lxl_string_view sb_to_sv(struct sb_head *sb, struct allocat
     assert(p == start + length);
     *p = '\0';
     return (struct lxl_string_view) {.start = start, .length = length};
+}
+
+static inline bool is_path_sep(char sep) {
+#if PLATFORM == PLATFORM_WINDOWS
+    return sep == '/' || sep == '\\';
+#else
+    return sep == '/';
+#endif
+}
+
+static inline struct lxl_string_view get_filename_from_path(struct lxl_string_view filepath) {
+    const char *end = LXL_SV_END(filepath);
+    for (const char *p = end; p > filepath.start; --p) {
+        // NOTE: p points one character ahead of the (possible) separator.
+        if (is_path_sep(p[-1])) {
+            return lxl_sv_from_startend(p, end);
+        }
+    }
+    // Name-only path.
+    return filepath;
 }
 
 static inline struct lxl_string_view remove_filename_extension(struct lxl_string_view filename) {

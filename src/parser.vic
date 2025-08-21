@@ -2,92 +2,92 @@ package victoria
 
 ### Begin AST ###
 # AST Types:
-type AstKind := enum {EXPR, STMT, DECL, TYPE}
-type AstNode := record {
-    kind: AstKind,
-    u: union {
-        expr: Expr, stmt: Stmt, decl: Decl, type_: Type
-    }
-}
-type ExprKind := enum {
-    ADDRESS_OF,
-    ASSIGN,
-    BINARY,
-    BOOLEAN,
-    CALL,
-    COMPARE,
-    CONSTRUCTOR,
-    CONVERT,
-    COUNT_OF,
-    DEREF,
-    FIELD,
-    FUNC_EXPR,
-    IDENTIFIER,
-    INDEX,
-    LOGICAL,
-    INTEGER,
-    MAGIC_FUNC,
-    NOT,
-    NULL,
-    STRING,
-    TYPE_EXPR,
-    WHEN,
-}
-type Expr := record {
-    kind: ExprKind,
-    type_: TypeID,
-    u: union {
-        address_of:  record {},
-        assign:      record {},
-        binary:      record {},
-        boolean:     record {},
-        call:        record {},
-        compare:     record {},
-        constructor: record {},
-        convert:     record {},
-        count_of_:   record {},
-        deref:       record {},
-        field:       record {},
-        func_expr:   record {},
-        identifier:  record {},
-        index:       record {},
-        logical:     record {},
-        integer:     record {},
-        magic_func:  record {},
-        not:         record {},
-        null_:       record {},
-        string_:     record {},
-        type_expr:   record {},
-        when_:       record {},
-    }
-}
-type StmtKind := enum {
-    BLOCK,
-    DECL,
-    EXPR,
-    IF,
-    RETURN,
-    WHILE,
-}
-type Stmt := record {
-    kind: StmtKind,
-    u: union {
-        block:   record {},
-        decl:    record {},
-        expr:    record {},
-        if_:     record {},
-        return_: record {},
-        while_:  record {},
-    }
-}
-# AST Functions.
-func parse(source: string) -> []AstNode {
-    # TODO: parsing.
-}
-### End AST ###
+# type AstKind := enum {EXPR, STMT, DECL, TYPE}
+# type AstNode := record {
+#     kind: AstKind,
+#     u: union {
+#         expr: Expr, stmt: Stmt, decl: Decl, type_: Type
+#     }
+# }
+# type ExprKind := enum {
+#     ADDRESS_OF,
+#     ASSIGN,
+#     BINARY,
+#     BOOLEAN,
+#     CALL,
+#     COMPARE,
+#     CONSTRUCTOR,
+#     CONVERT,
+#     COUNT_OF,
+#     DEREF,
+#     FIELD,
+#     FUNC_EXPR,
+#     IDENTIFIER,
+#     INDEX,
+#     LOGICAL,
+#     INTEGER,
+#     MAGIC_FUNC,
+#     NOT,
+#     NULL,
+#     STRING,
+#     TYPE_EXPR,
+#     WHEN,
+# }
+# type Expr := record {
+#     kind: ExprKind,
+#     type_: TypeID,
+#     u: union {
+#         address_of:  record {},
+#         assign:      record {},
+#         binary:      record {},
+#         boolean:     record {},
+#         call:        record {},
+#         compare:     record {},
+#         constructor: record {},
+#         convert:     record {},
+#         count_of_:   record {},
+#         deref:       record {},
+#         field:       record {},
+#         func_expr:   record {},
+#         identifier:  record {},
+#         index:       record {},
+#         logical:     record {},
+#         integer:     record {},
+#         magic_func:  record {},
+#         not:         record {},
+#         null_:       record {},
+#         string_:     record {},
+#         type_expr:   record {},
+#         when_:       record {},
+#     }
+# }
+# type StmtKind := enum {
+#     BLOCK,
+#     DECL,
+#     EXPR,
+#     IF,
+#     RETURN,
+#     WHILE,
+# }
+# type Stmt := record {
+#     kind: StmtKind,
+#     u: union {
+#         block:   record {},
+#         decl:    record {},
+#         expr:    record {},
+#         if_:     record {},
+#         return_: record {},
+#         while_:  record {},
+#     }
+# }
+# # AST Functions.
+# func parse(source: string) -> []AstNode {
+#     # TODO: parsing.
+# }
+# ### End AST ###
 
-### Begin Type ###
-# Type Types.
-type TypeID := int
-# Type Functions.
-### End Type ###
+# ### Begin Type ###
+# # Type Types.
+# type TypeID := int
+# # Type Functions.
+# ### End Type ###

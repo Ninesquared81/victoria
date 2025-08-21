@@ -684,6 +684,7 @@ bool lxl_lexer_is_finished(struct lxl_lexer *lexer) {
 
 void lxl_lexer_reset(struct lxl_lexer *lexer) {
     lexer->current = lexer->start;
+    lexer->pos = (struct lxl_location) {0, 0};
     lexer->status = LXL_LSTS_READY;
 }
 
