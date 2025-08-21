@@ -8,6 +8,8 @@
 #include "crvic_resources.h"
 #include "crvic_type.h"
 
+struct module *module = NULL;
+
 enum cgen_error crvic_generate_c_file(struct package *package, struct string_buffer *sb) {
     int indent_step = 4;  // Number of spaces to indent by for each indent/dedent.
     int indent = 0;  // Current indentation level.
@@ -24,7 +26,7 @@ enum cgen_error crvic_generate_c_file(struct package *package, struct string_buf
         DO_OR_ERROR(ret, crvic_generate_c_func_header(functions[i]->sig, sb));
         sb_add_string(sb, ";\n");
     }
-    FOR_DLLIST (struct module *, module, &package->modules) {
+    FOR_DLLIST (, module, &package->modules) {
         DO_OR_ERROR(ret, crvic_generate_c_nodes(module->decls, indent, indent_step, sb));
     }
     return CGEN_OK;
@@ -262,7 +264,7 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         sb_add_formatted(sb, ""LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(expr->func_expr.name));
         break;
     case AST_EXPR_IDENTIFIER:
-        sb_add_formatted(sb, ""LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(expr->identifier.name));
+        DO_OR_ERROR(error, crvic_generate_c_identifier(module, expr, sb));
         break;
     case AST_EXPR_INDEX: {
         // TODO: bounds checking.
@@ -296,9 +298,11 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
     case AST_EXPR_MAGIC_FUNC:
         UNREACHABLE();
         break;
-    case AST_EXPR_MODULE_IDENTIFIER:
-        TODO("Module identifiers");
-        break;
+    case AST_EXPR_MODULE_IDENTIFIER: {
+        struct module *module = expr->module_identifier.module;
+        struct ast_expr *identifier = expr->module_identifier.identifier;
+        DO_OR_ERROR(error, crvic_generate_c_identifier(module, identifier, sb));
+    } break;
     case AST_EXPR_NOT:
         sb_add_string(sb, "(!(");
         DO_OR_ERROR(error, crvic_generate_c_expr(expr->not.operand, sb));
@@ -352,8 +356,13 @@ enum cgen_error crvic_generate_c_main_header(struct func_sig *sig, struct string
 
 enum cgen_error crvic_generate_c_func_header(struct func_sig *sig, struct string_buffer *sb) {
     if (lxl_sv_equal(sig->name, LXL_SV_FROM_STRLIT("main"))) return crvic_generate_c_main_header(sig, sb);
-    sb_add_formatted(sb, "%s "LXL_SV_FMT_SPEC"(",
-                     crvic_get_c_type(sig->ret_type), LXL_SV_FMT_ARG(sig->name));
+    sb_add_string(sb, crvic_get_c_type(sig->ret_type));
+    struct ast_expr identifier = {
+        .kind = AST_EXPR_IDENTIFIER,
+        .identifier = {
+            .name = sig->name}};
+    enum cgen_error error = CGEN_OK;
+    DO_OR_ERROR(error, crvic_generate_c_identifier(module, &identifier, sb));
     if (sig->params.count >= 1) {
         struct type_decl param = sig->params.items[0];
         sb_add_formatted(sb, "%s "LXL_SV_FMT_SPEC"",
@@ -445,6 +454,15 @@ enum cgen_error crvic_generate_c_record_defn(struct type_info info, int indent_s
                          LXL_SV_FMT_ARG(field.name));
     }
     sb_add_string(sb, "};\n");
+    return CGEN_OK;
+}
+
+enum cgen_error crvic_generate_c_identifier(struct module *module, struct ast_expr *identifier,
+                                            struct string_buffer *sb) {
+    TODO("Non-mangled names");
+    assert(identifier->kind == AST_EXPR_IDENTIFIER);
+    sb_add_formatted(sb, "VIC_IDENT__"LXL_SV_FMT_SPEC"__"LXL_SV_FMT_SPEC"__",
+                     LXL_SV_FMT_ARG(module->name), LXL_SV_FMT_ARG(identifier->identifier.name));
     return CGEN_OK;
 }
 

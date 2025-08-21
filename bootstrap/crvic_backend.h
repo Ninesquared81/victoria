@@ -35,6 +35,9 @@ enum cgen_error crvic_generate_c_types(int indent_step, struct string_buffer *sb
 enum cgen_error crvic_generate_c_record_defn(struct type_info info, int indent_step,
                                              const char *type_name, struct string_buffer *sb);
 
+enum cgen_error crvic_generate_c_identifier(struct module *module, struct ast_expr *identifier,
+                                            struct string_buffer *sb);
+
 const char *crvic_get_c_op(enum ast_bin_op_kind op);
 const char *crvic_get_c_cmp(enum ast_cmp_op_kind op);
 const char *crvic_get_c_type(TypeID type);
