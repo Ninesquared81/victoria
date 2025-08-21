@@ -18,14 +18,14 @@ enum cgen_error crvic_generate_c_file(struct package *package, struct string_buf
                   "#include <string.h>  // strlen().\n"
         );
     enum cgen_error ret = CGEN_OK;
-    if ((ret = crvic_generate_c_types(indent_step, sb)) != CGEN_OK) return ret;
+    DO_OR_ERROR(ret, crvic_generate_c_types(indent_step, sb));
     for (int i = 0; i < function_count; ++i) {
         // Forward-declare all functions.
-        if ((ret = crvic_generate_c_func_header(functions[i]->sig, sb))) return ret;
+        DO_OR_ERROR(ret, crvic_generate_c_func_header(functions[i]->sig, sb));
         sb_add_string(sb, ";\n");
     }
     FOR_DLLIST (struct module *, module, &package->modules) {
-        if ((ret = crvic_generate_c_nodes(module->decls, indent, indent_step, sb)) != CGEN_OK) return ret;
+        DO_OR_ERROR(ret, crvic_generate_c_nodes(module->decls, indent, indent_step, sb));
     }
     return CGEN_OK;
 }
@@ -73,31 +73,31 @@ enum cgen_error crvic_generate_c_stmt(struct ast_stmt *stmt, int indent, int ind
         break;
     case AST_STMT_IF:
         sb_add_string(sb, "if (");
-        if ((error = crvic_generate_c_expr(stmt->if_.cond, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(stmt->if_.cond, sb));
         sb_add_string(sb, ") {\n");
-        if ((error = crvic_generate_c_nodes(
-                 stmt->if_.then_clause.stmts, indent + indent_step, indent_step, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_nodes(stmt->if_.then_clause.stmts,
+                                                  indent + indent_step, indent_step, sb));
         sb_add_formatted(sb, "%*s}\n", indent, "");
         if (!stmt->if_.else_clause) break;  // No else clause.
         sb_add_formatted(sb, "%*selse {\n", indent, "");
-        if ((error = crvic_generate_c_stmt(stmt->if_.else_clause, indent + indent_step,
-                                           indent_step, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_stmt(stmt->if_.else_clause,
+                                                 indent + indent_step, indent_step, sb));
         sb_add_formatted(sb, "%*s}\n", indent, "");
         break;
     case AST_STMT_RETURN:
         sb_add_string(sb, "return");
         if (stmt->return_.expr) {
             sb_add_string(sb, " ");
-            if ((error = crvic_generate_c_expr(stmt->return_.expr, sb))) return error;
+            DO_OR_ERROR(error, crvic_generate_c_expr(stmt->return_.expr, sb));
         }
         sb_add_string(sb, ";\n");
         break;
     case AST_STMT_WHILE:
         sb_add_string(sb, "while (");
-        if ((error = crvic_generate_c_expr(stmt->while_.cond, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(stmt->while_.cond, sb));
         sb_add_string(sb, ") {\n");
-        if ((error = crvic_generate_c_nodes(
-                 stmt->while_.body.stmts, indent + indent_step, indent_step, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_nodes(stmt->while_.body.stmts,
+                                                  indent + indent_step, indent_step, sb));
         sb_add_formatted(sb, "%*s}\n", indent, "");
     }
     return error;
@@ -117,7 +117,7 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
                          LXL_SV_FMT_ARG(decl->var.name));
         if (decl->var.value) {
             // Initial value.
-            if ((error = crvic_generate_c_expr(decl->var.value, sb))) return error;
+            DO_OR_ERROR(error, crvic_generate_c_expr(decl->var.value, sb));
         }
         else {
             // Implicit zero-initialisation.
@@ -131,7 +131,7 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
         if (decl->func.decl_kind == AST_FUNC_DECL) break;  // Declaration; function already forward-declared.
         // Definition.
         assert(decl->func.decl_kind == AST_FUNC_DEFN);
-        if ((error = crvic_generate_c_func_header(&decl->func.sig->resolved_sig, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_func_header(&decl->func.sig->resolved_sig, sb));
         struct lxl_string_view name = decl->func.sig->resolved_sig.name;
         bool is_main = lxl_sv_equal(name, LXL_SV_FROM_STRLIT("main"));
         sb_add_string(sb, " {\n");
@@ -149,7 +149,7 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
             sb_add_formatted(sb, "%*s%s "LXL_SV_FMT_SPEC" = {VIC_args_data__, argc};\n",
                              indent_step, "", crvic_get_c_type(args.type), LXL_SV_FMT_ARG(args.name));
         }
-        if ((error = crvic_generate_c_func_body(decl->func.body.stmts, indent_step, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_func_body(decl->func.body.stmts, indent_step, sb));
         if (is_main) {
             sb_add_formatted(sb, "%*sreturn 0;\n", indent_step, "");
         }
@@ -158,7 +158,7 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
     case AST_DECL_EXTERNAL_BLOCK:
         FOR_DLLIST (struct ast_node *, node, &decl->external_block.decls) {
             assert(node->kind == AST_DECL);
-            if ((error = crvic_generate_c_decl(&node->decl, indent, indent_step, sb))) return error;
+            DO_OR_ERROR(error, crvic_generate_c_decl(&node->decl, indent, indent_step, sb));
         }
         break;
     case AST_DECL_TYPE_DEFN:
@@ -176,42 +176,42 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
     switch (expr->kind) {
     case AST_EXPR_ADDRESS_OF:
         sb_add_string(sb, "&(");
-        if ((error = crvic_generate_c_expr(expr->address_of.target, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->address_of.target, sb));
         sb_add_string(sb, ")");
         break;
     case AST_EXPR_ASSIGN:
         sb_add_string(sb, "(");
-        if ((error = crvic_generate_c_expr(expr->assign.target, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->assign.target, sb));
         sb_add_string(sb, " = ");
-        if ((error = crvic_generate_c_expr(expr->assign.value, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->assign.value, sb));
         sb_add_string(sb, ")");
         break;
     case AST_EXPR_BINARY:
         sb_add_string(sb, "(");  // Brackets to ensure precedence is preserved.
-        if ((error = crvic_generate_c_expr(expr->binary.lhs, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->binary.lhs, sb));
         sb_add_formatted(sb, " %s ", crvic_get_c_op(expr->binary.op));
-        if ((error = crvic_generate_c_expr(expr->binary.rhs, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->binary.rhs, sb));
         sb_add_string(sb, ")");
         break;
     case AST_EXPR_BOOLEAN:
         sb_add_string(sb, ((expr->boolean.value) ? "true" : "false"));
         break;
     case AST_EXPR_CALL:
-        if ((error = crvic_generate_c_expr(expr->call.callee, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->call.callee, sb));
         sb_add_string(sb, "(");
-        if ((error = crvic_generate_c_expr_sep_list(expr->call.args, ", ", sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr_sep_list(expr->call.args, ", ", sb));
         sb_add_string(sb, ")");
         break;
     case AST_EXPR_COMPARE:
         sb_add_string(sb, "(");  // Brackets to ensure precedence is preserved.
-        if ((error = crvic_generate_c_expr(expr->compare.lhs, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->compare.lhs, sb));
         sb_add_formatted(sb, " %s ", crvic_get_c_cmp(expr->compare.op));
-        if ((error = crvic_generate_c_expr(expr->compare.rhs, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->compare.rhs, sb));
         sb_add_string(sb, ")");
         break;
     case AST_EXPR_CONSTRUCTOR:
         sb_add_formatted(sb, "((%s) {", crvic_get_c_type(expr->type));
-        if ((error = crvic_generate_c_expr_sep_list(expr->constructor.init_list, ", ", sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr_sep_list(expr->constructor.init_list, ", ", sb));
         sb_add_string(sb, "})");
         break;
     case AST_EXPR_CONVERT:
@@ -222,7 +222,7 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
             sb_add_formatted(sb, "((union {%s value; %s as;}){.value = ",
                              crvic_get_c_type(expr->convert.operand->type),
                              crvic_get_c_type(expr->convert.target_type->resolved_type));
-            if ((error = crvic_generate_c_expr(expr->convert.operand, sb))) return error;
+            DO_OR_ERROR(error, crvic_generate_c_expr(expr->convert.operand, sb));
             sb_add_string(sb, "}.as)");
         }
         else {
@@ -232,7 +232,7 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
             if (!str2cstr) {
                 sb_add_formatted(sb, "(%s)", crvic_get_c_type(expr->convert.target_type->resolved_type));
             }
-            if ((error = crvic_generate_c_expr(expr->convert.operand, sb))) return error;
+            DO_OR_ERROR(error, crvic_generate_c_expr(expr->convert.operand, sb));
             if (type_is_kind(expr->convert.operand->type, KIND_ARRAY)) {
                 sb_add_string(sb, "._");
             }
@@ -246,16 +246,16 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         struct type_info *info = get_type(expr->count_of.operand->type);
         assert(info->kind == KIND_SLICE || info->id == TYPE_STRING);
         sb_add_string(sb, "((");
-        if ((error = crvic_generate_c_expr(expr->count_of.operand, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->count_of.operand, sb));
         sb_add_string(sb, ").len)");
     } break;
     case AST_EXPR_DEREF:
         sb_add_string(sb, "(*(");
-        if ((error = crvic_generate_c_expr(expr->deref.pointer, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->deref.pointer, sb));
         sb_add_string(sb, "))");
         break;
     case AST_EXPR_FIELD:
-        if ((error = crvic_generate_c_expr(expr->field.target, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->field.target, sb));
         sb_add_formatted(sb, "."LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(expr->field.name));
         break;
     case AST_EXPR_FUNC_EXPR:
@@ -267,7 +267,7 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
     case AST_EXPR_INDEX: {
         // TODO: bounds checking.
         sb_add_string(sb, "(");
-        if ((error = crvic_generate_c_expr(expr->index.array, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->index.array, sb));
         struct type_info *array_info = get_type(expr->index.array->type);
         if (array_info->kind == KIND_ARRAY) {
             sb_add_string(sb, "._[");  // N.B. arrays are wrapped in a struct.
@@ -279,7 +279,7 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
             assert(array_info->kind == KIND_POINTER && array_info->pointer.kind == POINTER_ARRAY_LIKE);
             sb_add_string(sb, "[");
         }
-        if ((error = crvic_generate_c_expr(expr->index.index, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->index.index, sb));
         sb_add_string(sb, "])");
     } break;
     case AST_EXPR_INTEGER:
@@ -288,9 +288,9 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
     case AST_EXPR_LOGICAL:
         assert(expr->type == TYPE_BOOL);
         sb_add_string(sb, "((");
-        if ((error = crvic_generate_c_expr(expr->logical.lhs, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->logical.lhs, sb));
         sb_add_formatted(sb, ")%s(", ((expr->logical.op == AST_LOG_AND) ? "&&" : "||"));
-        if ((error = crvic_generate_c_expr(expr->logical.rhs, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->logical.rhs, sb));
         sb_add_string(sb, "))");
         break;
     case AST_EXPR_MAGIC_FUNC:
@@ -301,7 +301,7 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         break;
     case AST_EXPR_NOT:
         sb_add_string(sb, "(!(");
-        if ((error = crvic_generate_c_expr(expr->not.operand, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->not.operand, sb));
         sb_add_string(sb, "))");
         break;
     case AST_EXPR_NULL:
@@ -326,11 +326,11 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         return CGEN_UNEXPECTED_TYPE;
     case AST_EXPR_WHEN:
         sb_add_string(sb, "((");  // Outer '(', Conditon '('.
-        if ((error = crvic_generate_c_expr(expr->when.cond, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->when.cond, sb));
         sb_add_string(sb, ") ? (");  // Condition ')', Then '('.
-        if ((error = crvic_generate_c_expr(expr->when.then_expr, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->when.then_expr, sb));
         sb_add_string(sb, ") : (");  // Then ')', Else '('.
-        if ((error = crvic_generate_c_expr(expr->when.else_expr, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->when.else_expr, sb));
         sb_add_string(sb, "))");   // Else ')', Outer ')'.
         break;
     }
@@ -386,11 +386,11 @@ enum cgen_error crvic_generate_c_expr_sep_list(struct ast_list nodes, const char
     enum cgen_error error = CGEN_OK;
     struct ast_node *node = nodes.head;
     if (node->kind != AST_EXPR) return CGEN_UNEXPECTED_STMT;
-    if ((error = crvic_generate_c_expr(&node->expr, sb))) return error;
+    DO_OR_ERROR(error, crvic_generate_c_expr(&node->expr, sb));
     while ((node = node->next) != NULL) {
         if (node->kind != AST_EXPR) return CGEN_UNEXPECTED_STMT;
         sb_add_string(sb, sep);
-        if ((error = crvic_generate_c_expr(&node->expr, sb))) return error;
+        DO_OR_ERROR(error, crvic_generate_c_expr(&node->expr, sb));
     }
     return CGEN_OK;
 }
@@ -406,8 +406,7 @@ enum cgen_error crvic_generate_c_types(int indent_step, struct string_buffer *sb
         const char *this_type_name = crvic_get_c_type(info->id);
         if (info->kind == KIND_RECORD) {
             sb_add_formatted(sb, "typedef struct %s %s;\n", this_type_name, this_type_name);
-            if ((ret = crvic_generate_c_record_defn(*info, indent_step,
-                                                    this_type_name, sb)) != CGEN_OK) return ret;
+            DO_OR_ERROR(ret, crvic_generate_c_record_defn(*info, indent_step, this_type_name, sb));
         }
         else if (info->kind == KIND_ARRAY) {
             sb_add_formatted(sb, "typedef struct %s %s;\nstruct %s {%s _[%d];};\n",
