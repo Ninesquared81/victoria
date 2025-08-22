@@ -22,3 +22,10 @@ struct module *find_module(struct package *package, struct lxl_string_view name)
     // Not found.
     return NULL;
 }
+
+struct function *add_new_function(struct module *module, struct ast_decl_func decl) {
+    struct function *func = ALLOCATE(perm, sizeof *func);
+    *func = (struct function) {.module = module, .decl = decl};
+    DLLIST_APPEND(&module->funcs, func);
+    return func;
+}

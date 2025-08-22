@@ -28,6 +28,7 @@
 struct parser {
     struct lxl_token current_token, previous_token;
     struct lxl_lexer *lexer;
+    struct module *module;
     bool panic_mode;
     bool had_error;
     VIC_INT enum_counter;
@@ -83,12 +84,12 @@ static void leave_function(struct symbol_table *old_symbols) {
     symbols = old_symbols;
 }
 
-struct module *init_frontend(struct lxl_string_view source, const char *in_filepath) {
+void init_frontend(struct lxl_string_view source, const char *in_filepath) {
     filename = in_filepath;
     parser.lexer = init_lexer(source);
     parser.current_func_kind = FUNC_INTERNAL;
-    struct module *module = add_new_module(&package, get_module_name(lxl_sv_from_string(filename)));
-    symbols = module->globals;
+    parser.module = add_new_module(&package, get_module_name(lxl_sv_from_string(filename)));
+    symbols = parser.module->globals;
     insert_symbol(symbols, st_key_of(LXL_SV_FROM_STRLIT("int")),
                   (struct symbol) {
                       .kind = SYMBOL_TYPE_ALIAS,
@@ -103,7 +104,6 @@ struct module *init_frontend(struct lxl_string_view source, const char *in_filep
                   (struct symbol) {.kind = SYMBOL_MAGIC_FUNC});
     insert_symbol(symbols, st_key_of(LXL_SV_FROM_STRLIT("type_of")),
                   (struct symbol) {.kind = SYMBOL_MAGIC_FUNC});
-    return module;
 }
 
 struct lxl_string_view get_module_name(struct lxl_string_view filepath) {
@@ -1125,6 +1125,7 @@ static struct ast_decl parse_func_decl(void) {
                     .sig = &decl.func.sig->resolved_sig}});
         assert(symbol);
         assert(symbol->kind == SYMBOL_FUNC);
+        add_new_function(parser.module, decl.func);
     }
     else if (symbol->kind == SYMBOL_FUNC) {
         // Function previously declared/defined.
@@ -1353,14 +1354,14 @@ struct ast_stmt parse_stmt(void) {
         .expr = {.expr = copy_expr(expr)}};
 }
 
-bool parse(struct module *module) {
-    assert(module->decls.count == 0);
+bool parse(void) {
+    assert(parser.module->decls.count == 0);
     advance();  // Prime parser with first token;
     for (; ignore_line_ending(), !parser_is_finished();) {
         struct ast_decl decl = {0};
         if (try_parse_decl(&decl)) {
             struct ast_node *node = copy_node(DECL_NODE(decl));
-            DLLIST_APPEND(&module->decls, node);
+            DLLIST_APPEND(&parser.module->decls, node);
         }
         else {
             parse_error_current_show_token("Unexpected token at module top level");

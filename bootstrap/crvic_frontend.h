@@ -111,7 +111,7 @@ enum token_type {
 };
 
 // General.
-struct module *init_frontend(struct lxl_string_view source, const char *in_filepath);
+void init_frontend(struct lxl_string_view source, const char *in_filepath);
 struct lxl_string_view get_module_name(struct lxl_string_view filepath);
 struct symbol_table *new_globals(void);
 struct symbol_table *new_locals(struct symbol_table *parent);
@@ -126,7 +126,7 @@ void print_token(struct lxl_token token, FILE *f);
 void print_tokens(FILE *f);
 
 // Parser.
-bool parse(struct module *module);   // NOTE: call `init_parser()` first!
+bool parse(void);   // NOTE: call `init_parser()` first!
 
 // Type Checker.
 bool type_check(void);

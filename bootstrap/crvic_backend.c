@@ -22,14 +22,10 @@ enum cgen_error crvic_generate_c_file(struct package *package, struct string_buf
     enum cgen_error ret = CGEN_OK;
     DO_OR_ERROR(ret, crvic_generate_c_types(indent_step, sb));
     FOR_DLLIST (, module, &package->modules) {
-        FOR_DLLIST (struct ast_node *, node, &module->decls) {
-            assert(node->kind == AST_DECL);
-            struct ast_decl *decl = &node->decl;
-            if (decl->kind == AST_DECL_FUNC) {
-                // Forward-declare all functions.
-                DO_OR_ERROR(ret, crvic_generate_c_func_header(&decl->func, sb));
-                sb_add_string(sb, ";\n");
-            }
+        FOR_DLLIST (struct function *, func, &module->funcs) {
+            // Forward-declare all functions.
+            DO_OR_ERROR(ret, crvic_generate_c_func_header(&func->decl, sb));
+            sb_add_string(sb, ";\n");
         }
     }
     FOR_DLLIST (, module, &package->modules) {

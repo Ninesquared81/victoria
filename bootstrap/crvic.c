@@ -139,8 +139,8 @@ int main(int argc, char *argv[]) {
         const char *in_filename = args.in_filenames.items[i];
         struct lxl_string_view source = read_source(in_filename);
         // NOTE: we re-initialise the frontend for each file module.
-        struct module *module = init_frontend(source, in_filename);  // This also initialises the lexer.
-        if (!parse(module)) {
+        init_frontend(source, in_filename);  // This also initialises the lexer.
+        if (!parse()) {
             // This doesn't /need/ to be an if, but imo it's easier to read like this.
             parse_fail_count += 1;
         }
