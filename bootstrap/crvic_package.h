@@ -9,7 +9,7 @@
 
 struct function {
     struct function *next, *prev;
-    struct moudle *module;
+    struct module *module;
     struct ast_decl_func decl;
 };
 
