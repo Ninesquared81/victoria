@@ -116,9 +116,9 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
     switch (decl->kind) {
     case AST_DECL_VAR:
         assert(decl->var.kind != AST_VAR_CONST);
-        sb_add_formatted(sb, "%s "LXL_SV_FMT_SPEC" = ",
-                         crvic_get_c_type(decl->var.type->resolved_type),
-                         LXL_SV_FMT_ARG(decl->var.name));
+        sb_add_formatted(sb, "%s ", crvic_get_c_type(decl->var.type->resolved_type));
+        DO_OR_ERROR(error, crvic_generate_c_identifier(module, decl->var.name, true, sb));
+        sb_add_string(sb, " = ");
         if (decl->var.value) {
             // Initial value.
             DO_OR_ERROR(error, crvic_generate_c_expr(decl->var.value, sb));
@@ -150,8 +150,9 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
                              "%*sVIC_args_data__[i] = (VIC_STRING){argv[i], strlen(argv[i])};\n"
                              "%*s};\n",
                              indent_step, "", indent_step * 2, "", indent_step, "");
-            sb_add_formatted(sb, "%*s%s "LXL_SV_FMT_SPEC" = {VIC_args_data__, argc};\n",
-                             indent_step, "", crvic_get_c_type(args.type), LXL_SV_FMT_ARG(args.name));
+            sb_add_formatted(sb, "%*s%s ", indent_step, "", crvic_get_c_type(args.type));
+            DO_OR_ERROR(error, crvic_generate_c_identifier(module, args.name, true, sb));
+            sb_add_string(sb, " = {VIC_args_data__, argc};\n");
         }
         DO_OR_ERROR(error, crvic_generate_c_func_body(decl->func.body.stmts, indent_step, sb));
         if (is_main) {
@@ -368,8 +369,8 @@ enum cgen_error crvic_generate_c_func_header(struct ast_decl_func *func, struct 
     sb_add_string(sb, "(");
     if (sig->params.count >= 1) {
         struct type_decl param = sig->params.items[0];
-        sb_add_formatted(sb, "%s "LXL_SV_FMT_SPEC"",
-                         crvic_get_c_type(param.type), LXL_SV_FMT_ARG(param.name));
+        sb_add_formatted(sb, "%s ", crvic_get_c_type(param.type));
+        DO_OR_ERROR(error, crvic_generate_c_identifier(module, param.name, true, sb));
     }
     else {
         // No parameters; use `void` in parameter list for strict adherence to (pre-C23) C standard.
@@ -377,8 +378,8 @@ enum cgen_error crvic_generate_c_func_header(struct ast_decl_func *func, struct 
     }
     for (int i = 1; i < sig->params.count; ++i) {
         struct type_decl param = sig->params.items[i];
-        sb_add_formatted(sb, ", %s "LXL_SV_FMT_SPEC"",
-                         crvic_get_c_type(param.type), LXL_SV_FMT_ARG(param.name));
+        sb_add_formatted(sb, ", %s ", crvic_get_c_type(param.type));
+        DO_OR_ERROR(error, crvic_generate_c_identifier(module, param.name, true, sb));
     }
     if (sig->c_variadic) {
         sb_add_string(sb, ", ...");
