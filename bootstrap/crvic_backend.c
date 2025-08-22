@@ -266,13 +266,11 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         DO_OR_ERROR(error, crvic_generate_c_expr(expr->field.target, sb));
         sb_add_formatted(sb, "."LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(expr->field.name));
         break;
-    case AST_EXPR_FUNC_EXPR:
-        DO_OR_ERROR(error, crvic_generate_c_identifier(
-                        module, expr->func_expr.name,
-                        lookup_symbol(module->globals,
-                                      st_key_of(expr->func_expr.name))->func.decl.link_kind
-                        == FUNC_INTERNAL, sb));
-        break;
+    case AST_EXPR_FUNC_EXPR: {
+        struct lxl_string_view name = expr->func_expr.name;
+        enum func_link_kind link_kind = expr->func_expr.symbol->decl.link_kind;
+        DO_OR_ERROR(error, crvic_generate_c_identifier(module, name, link_kind == FUNC_INTERNAL, sb));
+    } break;
     case AST_EXPR_IDENTIFIER:
         DO_OR_ERROR(error, crvic_generate_c_identifier(module, expr->identifier.name, true, sb));
         break;
@@ -309,10 +307,10 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         UNREACHABLE();
         break;
     case AST_EXPR_MODULE_IDENTIFIER: {
-        struct module *module = expr->module_identifier.module;
-        struct ast_expr *identifier = expr->module_identifier.identifier;
-        assert(identifier->kind == AST_EXPR_IDENTIFIER);
-        DO_OR_ERROR(error, crvic_generate_c_identifier(module, identifier->identifier.name, true, sb));
+        struct module *old_module = module;
+        module = expr->module_identifier.module;
+        DO_OR_ERROR(error, crvic_generate_c_expr(expr->module_identifier.identifier, sb));
+        module = old_module;
     } break;
     case AST_EXPR_NOT:
         sb_add_string(sb, "(!(");

@@ -2035,8 +2035,8 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                 .anchor = expr->anchor,
                 .kind = AST_EXPR_FUNC_EXPR,
                 .func_expr = {
-                    .sig = symbol->func.sig,
-                    .name = name}};
+                    .name = name,
+                    .symbol = &symbol->func}};
         }
         else if (symbol->kind == SYMBOL_TYPE_ALIAS) {
             struct ast_type *aliased_type = &symbol->type_alias.type;

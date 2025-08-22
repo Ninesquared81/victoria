@@ -237,8 +237,8 @@ struct ast_expr {
             struct lxl_string_view name;  // Field name.
         } field;
         struct {
-            struct func_sig *sig;
             struct lxl_string_view name;
+            struct symbol_func *symbol;
         } func_expr;
         struct {
             struct lxl_string_view name;
