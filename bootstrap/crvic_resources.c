@@ -35,10 +35,3 @@ REGION_RESTORE begin_temp(void) {
 void end_temp(REGION_RESTORE restore_point) {
     region_restore(temp_region, restore_point);
 }
-
-int add_function(struct symbol_func *func) {
-    assert(function_count + 1 <= FUNCTION_CAPACITY && "Too many functions");
-    int index = function_count;
-    functions[function_count++] = func;
-    return index;
-}

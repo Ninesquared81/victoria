@@ -21,10 +21,16 @@ enum cgen_error crvic_generate_c_file(struct package *package, struct string_buf
         );
     enum cgen_error ret = CGEN_OK;
     DO_OR_ERROR(ret, crvic_generate_c_types(indent_step, sb));
-    for (int i = 0; i < function_count; ++i) {
-        // Forward-declare all functions.
-        DO_OR_ERROR(ret, crvic_generate_c_func_header(&functions[i]->decl, sb));
-        sb_add_string(sb, ";\n");
+    FOR_DLLIST (, module, &package->modules) {
+        FOR_DLLIST (struct ast_node *, node, &module->decls) {
+            assert(node->kind == AST_DECL);
+            struct ast_decl *decl = &node->decl;
+            if (decl->kind == AST_DECL_FUNC) {
+                // Forward-declare all functions.
+                DO_OR_ERROR(ret, crvic_generate_c_func_header(&decl->func, sb));
+                sb_add_string(sb, ";\n");
+            }
+        }
     }
     FOR_DLLIST (, module, &package->modules) {
         DO_OR_ERROR(ret, crvic_generate_c_nodes(module->decls, indent, indent_step, sb));
@@ -261,7 +267,11 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         sb_add_formatted(sb, "."LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(expr->field.name));
         break;
     case AST_EXPR_FUNC_EXPR:
-        sb_add_formatted(sb, ""LXL_SV_FMT_SPEC"", LXL_SV_FMT_ARG(expr->func_expr.name));
+        DO_OR_ERROR(error, crvic_generate_c_identifier(
+                        module, expr->func_expr.name,
+                        lookup_symbol(module->globals,
+                                      st_key_of(expr->func_expr.name))->func.decl.link_kind
+                        == FUNC_INTERNAL, sb));
         break;
     case AST_EXPR_IDENTIFIER:
         DO_OR_ERROR(error, crvic_generate_c_identifier(module, expr->identifier.name, true, sb));
@@ -301,6 +311,7 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
     case AST_EXPR_MODULE_IDENTIFIER: {
         struct module *module = expr->module_identifier.module;
         struct ast_expr *identifier = expr->module_identifier.identifier;
+        assert(identifier->kind == AST_EXPR_IDENTIFIER);
         DO_OR_ERROR(error, crvic_generate_c_identifier(module, identifier->identifier.name, true, sb));
     } break;
     case AST_EXPR_NOT:
@@ -357,9 +368,10 @@ enum cgen_error crvic_generate_c_main_header(struct func_sig *sig, struct string
 enum cgen_error crvic_generate_c_func_header(struct ast_decl_func *func, struct string_buffer *sb) {
     struct func_sig *sig = &func->sig->resolved_sig;
     if (lxl_sv_equal(sig->name, LXL_SV_FROM_STRLIT("main"))) return crvic_generate_c_main_header(sig, sb);
-    sb_add_string(sb, crvic_get_c_type(sig->ret_type));
+    sb_add_formatted(sb, "%s ", crvic_get_c_type(sig->ret_type));
     enum cgen_error error = CGEN_OK;
     DO_OR_ERROR(error, crvic_generate_c_identifier(module, sig->name, func->link_kind == FUNC_INTERNAL, sb));
+    sb_add_string(sb, "(");
     if (sig->params.count >= 1) {
         struct type_decl param = sig->params.items[0];
         sb_add_formatted(sb, "%s "LXL_SV_FMT_SPEC"",

@@ -1125,7 +1125,6 @@ static struct ast_decl parse_func_decl(void) {
                     .sig = &decl.func.sig->resolved_sig}});
         assert(symbol);
         assert(symbol->kind == SYMBOL_FUNC);
-        add_function(&symbol->func);
     }
     else if (symbol->kind == SYMBOL_FUNC) {
         // Function previously declared/defined.
