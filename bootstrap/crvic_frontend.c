@@ -130,21 +130,6 @@ static void print_line_with_token(struct lxl_token token) {
     fprintf(stderr, ""LXL_SV_FMT_SPEC"\n", LXL_SV_FMT_ARG(line));
 }
 
-static void parse_error_no_token_vargs(const char *restrict fmt, va_list vargs) {
-    fprintf(stderr, "Parse Error: ");
-    vfprintf(stderr, fmt, vargs);
-    fprintf(stderr, ".\n");
-    parser.panic_mode = true;
-    parser.had_error = true;
-}
-
-static void parse_error_no_token(const char *restrict fmt, ...) {
-    va_list vargs;
-    va_start(vargs, fmt);
-    parse_error_no_token_vargs(fmt, vargs);
-    va_end(vargs);
-}
-
 static void parse_error_show_token_vargs(struct lxl_token token, const char *restrict fmt, va_list vargs) {
     if (parser.panic_mode) return;  // Avoid cascading errors.
     report_location(token);
@@ -2278,7 +2263,8 @@ static void type_check_decl(struct ast_decl *decl) {
         return;
     case AST_DECL_PACKAGE:
         // This is a syntax error, but we only catch it after parsing.
-        parse_error_no_token("Package declaration is only allowed at the beginning of a file module");
+        parse_error_show_token(decl->anchor,
+                               "Package declaration is only allowed at the beginning of a file module");
         return;
     }
     UNREACHABLE();
@@ -2350,9 +2336,10 @@ static void type_check_module(struct module *module) {
     assert(first);
     if (first->kind == AST_DECL && first->decl.kind == AST_DECL_PACKAGE) {
         if (!check_or_add_package(first->decl.package.name)) {
-            parse_error_no_token("At most one package is allowed; compiling '"LXL_SV_FMT_SPEC"'"
-                                 " but found declaration for package '"LXL_SV_FMT_SPEC"'",
-                                 LXL_SV_FMT_ARG(package.name), LXL_SV_FMT_ARG(first->decl.package.name));
+            parse_error_show_token(first->decl.anchor,
+                                   "At most one package is allowed; compiling '"LXL_SV_FMT_SPEC"'"
+                                   " but found declaration for package '"LXL_SV_FMT_SPEC"'",
+                                   LXL_SV_FMT_ARG(package.name), LXL_SV_FMT_ARG(first->decl.package.name));
         }
         rest = (struct ast_list) {
             .head = module->decls.head->next,
