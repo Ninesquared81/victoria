@@ -130,15 +130,21 @@ static void print_line_with_token(struct lxl_token token) {
     fprintf(stderr, ""LXL_SV_FMT_SPEC"\n", LXL_SV_FMT_ARG(line));
 }
 
-static void parse_error_vargs(struct lxl_token token, const char *restrict fmt, va_list vargs) {
-    if (parser.panic_mode) return;  // Avoid cascading errors.
+static void error_at_token_vargs(struct lxl_token token, const char *restrict error_kind,
+                                 const char *restrict fmt, va_list vargs) {
     report_location(token);
     struct lxl_string_view token_value = lxl_token_value(token);
-    fprintf(stderr, "Parse error in '"LXL_SV_FMT_SPEC"': ", LXL_SV_FMT_ARG(token_value));
+    fprintf(stderr, "%s error in '"LXL_SV_FMT_SPEC"': ",
+            error_kind, LXL_SV_FMT_ARG(token_value));
     vfprintf(stderr, fmt, vargs);
     fprintf(stderr, ".\n");
     fprintf(stderr, "On this line:\n");
     print_line_with_token(token);
+}
+
+static void parse_error_vargs(struct lxl_token token, const char *restrict fmt, va_list vargs) {
+    if (parser.panic_mode) return;  // Avoid cascading errors.
+    error_at_token_vargs(token, "Parse", fmt, vargs);
     parser.panic_mode = true;
     parser.had_error = true;
     exit(1);  // TODO: remove this
@@ -165,30 +171,30 @@ static void parse_error_current(const char *restrict fmt, ...) {
     va_end(vargs);
 }
 
-void type_error_vargs(const char *fmt, va_list vargs) {
-    fprintf(stderr, "Type error: ");
-    vfprintf(stderr, fmt, vargs);
-    fprintf(stderr, ".\n");
+void type_error_vargs(struct lxl_token token, const char *fmt, va_list vargs) {
+    error_at_token_vargs(token, "Type", fmt, vargs);
     type_checker.had_error = true;
 }
 
-void type_error(const char *fmt, ...) {
+void type_error(struct lxl_token token, const char *fmt, ...) {
     va_list vargs;
     va_start(vargs, fmt);
-    type_error_vargs(fmt, vargs);
+    type_error_vargs(token, fmt, vargs);
     va_end(vargs);
 }
 
-void name_error(const char *msg, ...) {
-    fprintf(stderr, "Name error: ");
-    va_list vargs;
-    va_start(vargs, msg);
-    vfprintf(stderr, msg, vargs);
-    va_end(vargs);
-    fprintf(stderr, ".\n");
+void name_error_vargs(struct lxl_token token, const char *msg, va_list vargs) {
+    error_at_token_vargs(token, "Name", msg, vargs);
     parser.panic_mode = true;
     parser.had_error = true;
     type_checker.had_error = true;
+}
+
+void name_error(struct lxl_token token, const char *msg, ...) {
+    va_list vargs;
+    va_start(vargs, msg);
+    name_error_vargs(token, msg, vargs);
+    va_end(vargs);
 }
 
 
@@ -1120,7 +1126,8 @@ static struct ast_decl parse_func_decl(void) {
         symbol->func.decl = decl.func;
     }
     else {
-        name_error("Previously defined symbol '"LXL_SV_FMT_SPEC"' redeclared as function", name);
+        name_error(name_token,
+                   "Previously defined symbol '"LXL_SV_FMT_SPEC"' redeclared as function", name);
     }
     return decl;
 }
@@ -1188,7 +1195,7 @@ struct ast_decl parse_type_defn(void) {
                           .kind = SYMBOL_TYPE_ALIAS,
                           .type_alias = {.type = *type}});
     if (!insert_result) {
-        name_error("Cannot redefine symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(alias));
+        name_error(alias_token, "Cannot redefine symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(alias));
     }
     return decl;
 }
@@ -1364,7 +1371,7 @@ VIC_INT fold_integer_constant(struct ast_expr *expr, const char *fmt, ...) {
     // Not an integer constant.
     va_list vargs;
     va_start(vargs, fmt);
-    type_error_vargs(fmt, vargs);
+    type_error_vargs(expr->anchor, fmt, vargs);
     va_end(vargs);
     return 0;
 }
@@ -1497,11 +1504,13 @@ static TypeID resolve_type(struct ast_type *type) {
     case AST_TYPE_ALIAS: {
         struct symbol *symbol = lookup_symbol(symbols, st_key_of(type->alias.name));
         if (!symbol) {
-            name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(type->alias.name));
+            name_error(type->anchor,
+                       "Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(type->alias.name));
             return TYPE_NO_TYPE;
         }
         if (symbol->kind != SYMBOL_TYPE_ALIAS) {
-            name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a type alias", LXL_SV_FMT_ARG(type->alias.name));
+            name_error(type->anchor,
+                       "Symbol '"LXL_SV_FMT_SPEC"' is not a type alias", LXL_SV_FMT_ARG(type->alias.name));
             return TYPE_NO_TYPE;
         }
         return (type->resolved_type = resolve_type(&symbol->type_alias.type));
@@ -1523,10 +1532,11 @@ static TypeID resolve_type(struct ast_type *type) {
     return TYPE_NO_TYPE;
 }
 
-static bool expect_integer_type(TypeID type) {
-    if (is_integer_type(type)) return true;
-    struct lxl_string_view actual_type_sv = get_type_sv(type);
-    type_error("Expect integer type, not '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(actual_type_sv));
+static bool expect_integer_type(struct ast_expr *expr) {
+    if (is_integer_type(expr->type)) return true;
+    struct lxl_string_view actual_type_sv = get_type_sv(expr->type);
+    type_error(expr->anchor,
+               "Expect integer type, not '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(actual_type_sv));
     return false;
 }
 
@@ -1536,13 +1546,15 @@ static bool check_signs(TypeID ltype, TypeID rtype) {
     return ltype == TYPE_CONST_INT || rtype == TYPE_CONST_INT;
 }
 
-static TypeID convert_binary(TypeID lhs_type, TypeID rhs_type) {
-    if (!expect_integer_type(lhs_type)) return TYPE_NO_TYPE;
-    if (!expect_integer_type(rhs_type)) return TYPE_NO_TYPE;
+static TypeID convert_binary(struct ast_expr *lhs, struct ast_expr *rhs) {
+    TypeID lhs_type = lhs->type;
+    TypeID rhs_type = rhs->type;
+    if (!expect_integer_type(lhs)) return TYPE_NO_TYPE;
+    if (!expect_integer_type(rhs)) return TYPE_NO_TYPE;
     if (check_signs(lhs_type, rhs_type)) {
         return max_type_rank(lhs_type, rhs_type);
     }
-    type_error("Cannot mix signed and unsigned here");
+    type_error(lhs->anchor, "Cannot mix signed and unsigned here");
     return TYPE_NO_TYPE;
 }
 
@@ -1588,15 +1600,17 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
         struct lxl_string_view name = target->identifier.name;
         struct symbol *target_symbol = lookup_symbol(symbols, st_key_of(name));
         if (!target_symbol) {
-            name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
+            name_error(target->anchor, "Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
             break;
         }
         if (target_symbol->kind == SYMBOL_VAL) {
-            type_error("Cannot reassign immutable value '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
+            type_error(target->anchor, "Cannot reassign immutable value '"LXL_SV_FMT_SPEC"'",
+                       LXL_SV_FMT_ARG(name));
             break;
         }
         else if (target_symbol->kind != SYMBOL_VAR) {
-            name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a variable", LXL_SV_FMT_ARG(name));
+            name_error(target->anchor, "Symbol '"LXL_SV_FMT_SPEC"' is not a variable",
+                       LXL_SV_FMT_ARG(name));
             break;
         }
         target->type = target_symbol->var.type;
@@ -1606,13 +1620,13 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
         if (!pointer_type) return TYPE_NO_TYPE;
         struct type_info *pointer_info = get_type(pointer_type);
         if (pointer_info->kind != KIND_POINTER) {
-            type_error("Only pointers can be dereferenced, not '"LXL_SV_FMT_SPEC"'",
+            type_error(target->anchor, "Only pointers can be dereferenced, not '"LXL_SV_FMT_SPEC"'",
                        LXL_SV_FMT_ARG(pointer_info->repr));
             break;
         }
         switch (pointer_info->pointer.rw) {
         case RW_READ_ONLY:
-            type_error("Attempt to write to read-only pointer");
+            type_error(target->anchor, "Attempt to write to read-only pointer");
             break;
         case RW_READ_WRITE:
             // Do nothing.
@@ -1624,7 +1638,7 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
         }
         target->type = pointer_info->pointer.dest_type;
         if (target->type == TYPE_ABSURD) {
-            type_error("Cannot dereference pointer to absurd type '!'");
+            type_error(target->anchor, "Cannot dereference pointer to absurd type '!'");
         }
     } break;
     case AST_EXPR_FIELD: {
@@ -1634,12 +1648,13 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
         if (!object_type) break;
         struct type_info *object_info = get_type(object_type);
         if (object_info->kind != KIND_RECORD) {
-            type_error("Invalid type for '.': '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(object_info->repr));
+            type_error(target->anchor, "Invalid type for '.': '"LXL_SV_FMT_SPEC"'",
+                       LXL_SV_FMT_ARG(object_info->repr));
             break;
         }
         TypeID field_type = get_record_field_type(object_info->record, target->field.name);
         if (!field_type) {
-            name_error("Unknown field '"LXL_SV_FMT_SPEC"' for '"LXL_SV_FMT_SPEC"'",
+            name_error(target->anchor, "Unknown field '"LXL_SV_FMT_SPEC"' for '"LXL_SV_FMT_SPEC"'",
                        LXL_SV_FMT_ARG(target->field.name), LXL_SV_FMT_ARG(object_info->repr));
             break;
         }
@@ -1649,7 +1664,7 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
         TypeID array_type = type_check_expr(target->index.array);
         struct type_info *array_info = get_type(array_type);
         if (!is_array_like_type(array_type)) {
-            type_error("Only array-like types can be indexed");
+            type_error(target->anchor, "Only array-like types can be indexed");
             break;
         }
         TypeID dest_type =
@@ -1668,7 +1683,7 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
             ;
         switch (rw) {
         case RW_READ_ONLY:
-            type_error("Attempt to write to read-only array element");
+            type_error(target->anchor, "Attempt to write to read-only array element");
             break;
         case RW_READ_WRITE:
             // Do nothing.
@@ -1709,7 +1724,8 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         if (!check_assignable(target_type, result_type)) {
             struct lxl_string_view result_type_name = get_type_sv(result_type);
             struct lxl_string_view target_type_name = get_type_sv(target_type);
-            type_error("Cannot assign value of type '"LXL_SV_FMT_SPEC"'"
+            type_error(expr->anchor,
+                       "Cannot assign value of type '"LXL_SV_FMT_SPEC"'"
                        " to target of type '"LXL_SV_FMT_SPEC"'",
                        LXL_SV_FMT_ARG(result_type_name),
                        LXL_SV_FMT_ARG(target_type_name));
@@ -1721,11 +1737,12 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         if (!check_assignable(lhs_type, rhs_type) && !check_assignable(rhs_type, lhs_type)) {
             struct lxl_string_view lname = get_type_sv(lhs_type);
             struct lxl_string_view rname = get_type_sv(rhs_type);
-            type_error("Incopatible types for binary operator: '"LXL_SV_FMT_SPEC"'"
+            type_error(expr->anchor,
+                       "Incopatible types for binary operator: '"LXL_SV_FMT_SPEC"'"
                        " and '"LXL_SV_FMT_SPEC"'",
                        LXL_SV_FMT_ARG(lname), LXL_SV_FMT_ARG(rname));
         }
-        result_type = convert_binary(lhs_type, rhs_type);
+        result_type = convert_binary(expr->binary.lhs, expr->binary.rhs);
     } break;
     case AST_EXPR_BOOLEAN: {
         result_type = TYPE_CONST_BOOL;
@@ -1744,7 +1761,8 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             struct lxl_string_view name = info->repr;
             if (info->kind == KIND_RECORD) {
                 if (info->record.fields.count != expr->constructor.init_list.count) {
-                    type_error("Incorrect number of fields in initialiser list for type '"
+                    type_error(expr->anchor,
+                               "Incorrect number of fields in initialiser list for type '"
                                LXL_SV_FMT_SPEC"'; expected %d but got %d",
                                LXL_SV_FMT_ARG(name), info->record.fields.count,
                                expr->constructor.init_list.count);
@@ -1759,7 +1777,8 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                     if (!check_assignable(expected_type, actual_type)) {
                         struct lxl_string_view expected_sv = get_type_sv(expected_type);
                         struct lxl_string_view actual_sv = get_type_sv(actual_type);
-                        type_error("Expected type '"LXL_SV_FMT_SPEC "' for field %d of type '"
+                        type_error(expr->anchor,
+                                   "Expected type '"LXL_SV_FMT_SPEC "' for field %d of type '"
                                    LXL_SV_FMT_SPEC"', but got type '"LXL_SV_FMT_SPEC"'",
                                    LXL_SV_FMT_ARG(expected_sv),
                                    i, LXL_SV_FMT_ARG(name),
@@ -1769,7 +1788,8 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                 }
             }
             else {
-                type_error("Invalid type for constructor: '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
+                type_error(expr->anchor,
+                           "Invalid type for constructor: '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
                 break;
             }
             break;
@@ -1779,7 +1799,8 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                 TODO("`size_of()` and `type_of()`");
             }
             if (expr->call.arity != 1) {
-                type_error("Expect exactly one argument to `count_of()`, not %d", expr->call.arity);
+                type_error(expr->anchor,
+                           "Expect exactly one argument to `count_of()`, not %d", expr->call.arity);
                 break;
             }
             struct ast_expr *operand = &expr->call.args.head->expr;
@@ -1812,7 +1833,8 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                 if (operand_type == TYPE_STRING) break;
                 FALLTHROUGH;
             case KIND_POINTER:
-                type_error("Invalid operand type for 'count_of()': '"LXL_SV_FMT_SPEC"'", info->repr);
+                type_error(expr->anchor,
+                           "Invalid operand type for 'count_of()': '"LXL_SV_FMT_SPEC"'", info->repr);
                 break;
             }
             if (known_count >= 0) {
@@ -1833,7 +1855,8 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         struct type_info *callee_info = get_type(callee_type);
         assert(callee_info);
         if (callee_info->kind != KIND_FUNCTION) {
-            type_error("Only functions are callable, not '"LXL_SV_FMT_SPEC"'",
+            type_error(expr->anchor,
+                       "Only functions are callable, not '"LXL_SV_FMT_SPEC"'",
                        LXL_SV_FMT_ARG(callee_info->repr));
             break;
         }
@@ -1846,14 +1869,16 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         int expected_arity = callee->sig->arity;
         int actual_arity = expr->call.arity;
         if (actual_arity < expected_arity) {
-            type_error("Not enough arguments passed to '"LXL_SV_FMT_SPEC"': expected %s%d, but got %d",
+            type_error(expr->anchor,
+                       "Not enough arguments passed to '"LXL_SV_FMT_SPEC"': expected %s%d, but got %d",
                        LXL_SV_FMT_ARG(callee_name),
                        ((callee->sig->c_variadic) ? "at least " : ""),
                        expected_arity, actual_arity);
             break;
         }
         if (actual_arity > expected_arity && !callee->sig->c_variadic) {
-            type_error("Too many arguments passed to '"LXL_SV_FMT_SPEC"': expected %d, but got %d",
+            type_error(expr->anchor,
+                       "Too many arguments passed to '"LXL_SV_FMT_SPEC"': expected %d, but got %d",
                        LXL_SV_FMT_ARG(callee_name), expected_arity, actual_arity);
             break;
         }
@@ -1871,7 +1896,8 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             if (!check_assignable(param->type, arg_type)) {
                 struct lxl_string_view param_type_name = get_type_sv(param->type);
                 struct lxl_string_view arg_type_name = get_type_sv(arg_type);
-                type_error("Expected type '"LXL_SV_FMT_SPEC"' for parameter '"LXL_SV_FMT_SPEC"' "
+                type_error(expr->anchor,
+                           "Expected type '"LXL_SV_FMT_SPEC"' for parameter '"LXL_SV_FMT_SPEC"' "
                            "of function '"LXL_SV_FMT_SPEC"', but got type '"LXL_SV_FMT_SPEC"'",
                            LXL_SV_FMT_ARG(param_type_name), LXL_SV_FMT_ARG(param->name),
                            LXL_SV_FMT_ARG(callee_name), LXL_SV_FMT_ARG(arg_type_name));
@@ -1890,14 +1916,16 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         if (!check_comparable(ltype, rtype)) {
             struct lxl_string_view lname = get_type_sv(ltype);
             struct lxl_string_view rname = get_type_sv(rtype);
-            type_error("Cannot compare types '"LXL_SV_FMT_SPEC"' and '"LXL_SV_FMT_SPEC"'",
+            type_error(expr->anchor,
+                       "Cannot compare types '"LXL_SV_FMT_SPEC"' and '"LXL_SV_FMT_SPEC"'",
                        LXL_SV_FMT_ARG(lname), LXL_SV_FMT_ARG(rname));
             break;
         }
         if (expr->compare.op == AST_CMP_EQ || expr->compare.op == AST_CMP_NEQ) break;
         if (!is_ordered_type(ltype)) {
             struct lxl_string_view lname = get_type_sv(ltype);
-            type_error("Cannot use ordered comparison on value of type '"LXL_SV_FMT_SPEC"'",
+            type_error(expr->anchor,
+                       "Cannot use ordered comparison on value of type '"LXL_SV_FMT_SPEC"'",
                        LXL_SV_FMT_ARG(lname));
             break;
         }
@@ -1923,15 +1951,16 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         assert(info);
         if (info->kind != KIND_POINTER) {
             struct lxl_string_view type_name = get_type_sv(pointer);
-            type_error("Cannot dereference type '"LXL_SV_FMT_SPEC"'; expect pointer",
+            type_error(expr->anchor,
+                       "Cannot dereference type '"LXL_SV_FMT_SPEC"'; expect pointer",
                        LXL_SV_FMT_ARG(type_name));
             break;
         }
         if (info->pointer.dest_type == TYPE_ABSURD) {
-            type_error("Cannot dereference pointer to absurd type '!'");
+            type_error(expr->anchor, "Cannot dereference pointer to absurd type '!'");
         }
         if (info->pointer.rw == RW_WRITE_BEFORE_READ) {
-            type_error("Cannot read from 'out' pointer in rVic");
+            type_error(expr->anchor, "Cannot read from 'out' pointer in rVic");
         }
         result_type = info->pointer.dest_type;
     } break;
@@ -1942,7 +1971,8 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         if (target_info->kind == KIND_RECORD) {
             TypeID field_type = get_record_field_type(target_info->record, expr->field.name);
             if (!field_type) {
-                name_error("Unknown field '"LXL_SV_FMT_SPEC"' in type '"LXL_SV_FMT_SPEC"'",
+                name_error(expr->anchor,
+                           "Unknown field '"LXL_SV_FMT_SPEC"' in type '"LXL_SV_FMT_SPEC"'",
                            LXL_SV_FMT_ARG(expr->field.name), LXL_SV_FMT_ARG(target_info->repr));
                 break;
             }
@@ -1956,7 +1986,8 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             if (inner_info->kind == KIND_ENUM) {
                 VIC_INT value = 0;
                 if (!get_enum_field_value(inner_info->enum_, expr->field.name, &value)) {
-                    name_error("Unknown variant '"LXL_SV_FMT_SPEC"' for type '"LXL_SV_FMT_SPEC"'.",
+                    name_error(expr->anchor,
+                               "Unknown variant '"LXL_SV_FMT_SPEC"' for type '"LXL_SV_FMT_SPEC"'.",
                                LXL_SV_FMT_ARG(expr->field.name), LXL_SV_FMT_ARG(inner_info->repr));
                     break;
                 }
@@ -1967,13 +1998,15 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                     .integer = {.value = value}};
             }
             else {
-                type_error("Expect enum, not '"LXL_SV_FMT_SPEC"'.", LXL_SV_FMT_ARG(inner_info->repr));
+                type_error(expr->anchor,
+                           "Expect enum, not '"LXL_SV_FMT_SPEC"'.", LXL_SV_FMT_ARG(inner_info->repr));
                 break;
             }
             result_type = inner_type;
         }
         else {
-            type_error("Cannot get field of type '"LXL_SV_FMT_SPEC"'.",
+            type_error(expr->anchor,
+                       "Cannot get field of type '"LXL_SV_FMT_SPEC"'.",
                        LXL_SV_FMT_ARG(target_info->repr));
             break;
         }
@@ -1986,7 +2019,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         struct lxl_string_view name = expr->identifier.name;
         struct symbol *symbol = lookup_symbol(symbols, st_key_of(name));
         if (!symbol) {
-            name_error("Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
+            name_error(expr->anchor, "Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
             break;
         }
         if (symbol->kind == SYMBOL_VAR) {
@@ -1998,7 +2031,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         else if (symbol->kind == SYMBOL_CONST) {
             if (!is_integer_type(symbol->val.type)) {
                 // TODO: other types for consts.
-                type_error("Consts can only be of integer type");
+                type_error(expr->anchor, "Consts can only be of integer type");
                 break;
             }
             *expr = (struct ast_expr) {
@@ -2041,7 +2074,8 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                 .magic_func = {.name = name}};
         }
         else {
-            name_error("Symbol '"LXL_SV_FMT_SPEC"' is not a variable or type", LXL_SV_FMT_ARG(name));
+            name_error(expr->anchor,
+                       "Symbol '"LXL_SV_FMT_SPEC"' is not a variable or type", LXL_SV_FMT_ARG(name));
         }
     } break;
     case AST_EXPR_INDEX: {
@@ -2056,14 +2090,16 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             ;
         if (!is_array_like_type(array_type)) {
             struct lxl_string_view array_type_name = get_type_sv(array_type);
-            type_error("Only array-like types can be indexed, not '"LXL_SV_FMT_SPEC"'",
+            type_error(expr->anchor,
+                       "Only array-like types can be indexed, not '"LXL_SV_FMT_SPEC"'",
                        LXL_SV_FMT_ARG(array_type_name));
             break;
         }
         TypeID index_type = type_check_expr(expr->index.index);
         if (!is_integer_type(index_type)) {
             struct lxl_string_view index_type_name = get_type_sv(index_type);
-            type_error("Expect integer type for array index, not '"LXL_SV_FMT_SPEC"'",
+            type_error(expr->anchor,
+                       "Expect integer type for array index, not '"LXL_SV_FMT_SPEC"'",
                        LXL_SV_FMT_ARG(index_type_name));
             break;
         }
@@ -2078,7 +2114,8 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         if (ltype != rtype) {
             struct lxl_string_view lname = get_type_sv(ltype);
             struct lxl_string_view rname = get_type_sv(rtype);
-            type_error("Operands of logical operators must be of the same type, not '"
+            type_error(expr->anchor,
+                       "Operands of logical operators must be of the same type, not '"
                        LXL_SV_FMT_SPEC"' and '"LXL_SV_FMT_SPEC"'",
                        LXL_SV_FMT_ARG(lname), LXL_SV_FMT_ARG(rname));
             break;
@@ -2086,7 +2123,8 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         // TODO: other types (probably not in rVic).
         if (ltype != TYPE_BOOL) {
             struct lxl_string_view lname = get_type_sv(ltype);
-            type_error("Only booleans are allowed in logical operators in rVic, not '"
+            type_error(expr->anchor,
+                       "Only booleans are allowed in logical operators in rVic, not '"
                        LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(lname));
             break;
         }
@@ -2099,7 +2137,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
         struct lxl_string_view name = expr->module_identifier.module_name;
         struct module *module = find_module(&package, name);
         if (!module) {
-            name_error("Unknown module '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
+            name_error(expr->anchor, "Unknown module '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
             break;
         }
         expr->module_identifier.module = module;
@@ -2131,7 +2169,8 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             result_type = then_type;
         }
         else {
-            type_error("Types for 'then' branch and 'else' branch of 'when' expression must match");
+            type_error(expr->anchor,
+                       "Types for 'then' branch and 'else' branch of 'when' expression must match");
         }
     } break;
     }
@@ -2153,7 +2192,7 @@ static bool compare_sigs(struct func_sig *sig1, struct func_sig *sig2) {
     return true;
 }
 
-static void type_check_function(struct ast_decl_func *func) {
+static void type_check_function(struct lxl_token anchor, struct ast_decl_func *func) {
     struct func_sig *sig = resolve_func_sig(func->sig);
     struct st_key key = st_key_of(sig->name);
     struct symbol *symbol = lookup_symbol(symbols, key);
@@ -2163,7 +2202,8 @@ static void type_check_function(struct ast_decl_func *func) {
     if (!symbol->resolved) {
         for (struct ast_decl_func *decl = &symbol->func.decl; decl != NULL; decl = decl->prev_decl) {
             if (!compare_sigs(resolve_func_sig(decl->sig), sig)) {
-                type_error("Redeclaration of function '"LXL_SV_FMT_SPEC"' with a different signature",
+                type_error(anchor,
+                           "Redeclaration of function '"LXL_SV_FMT_SPEC"' with a different signature",
                            LXL_SV_FMT_ARG(sig->name));
             }
         }
@@ -2179,7 +2219,8 @@ static void type_check_function(struct ast_decl_func *func) {
                 prev_linkage = "internal";
                 new_linkage = "external";
             }
-            type_error("Cannot redeclare function '"LXL_SV_FMT_SPEC"' as '%s'"
+            type_error(anchor,
+                       "Cannot redeclare function '"LXL_SV_FMT_SPEC"' as '%s'"
                        " following previous declaration as '%s'",
                        LXL_SV_FMT_ARG(sig->name), prev_linkage, new_linkage);
         }
@@ -2219,10 +2260,10 @@ static void type_check_decl(struct ast_decl *decl) {
         TypeID var_type = resolve_type(decl->var.type);
         if (!var_type) return;  // Exit if type resolution failed.
         if (var_type == TYPE_ABSURD) {
-            type_error("Cannot create variable of absurd type '!'");
+            type_error(decl->anchor, "Cannot create variable of absurd type '!'");
         }
         if (value_type && !check_assignable(var_type, value_type)) {
-            type_error("Mismatched types in variable definition");
+            type_error(decl->anchor, "Mismatched types in variable definition");
         }
         struct symbol symbol;
         switch (decl->var.kind) {
@@ -2246,11 +2287,12 @@ static void type_check_decl(struct ast_decl *decl) {
             break;
         }
         if (!insert_symbol(symbols, st_key_of(decl->var.name), symbol)) {
-            name_error("Redeclaration of symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(decl->var.name));
+            name_error(decl->anchor,
+                       "Redeclaration of symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(decl->var.name));
         }
     } return;
     case AST_DECL_FUNC:
-        type_check_function(&decl->func);
+        type_check_function(decl->anchor, &decl->func);
         return;
     case AST_DECL_EXTERNAL_BLOCK:
         FOR_DLLIST (struct ast_node *, node, &decl->external_block.decls) {
@@ -2306,16 +2348,18 @@ static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
             if (!check_assignable(ret_type, return_expr_type)) {
                 struct lxl_string_view expected_sv = get_type_sv(ret_type);
                 struct lxl_string_view actual_sv = get_type_sv(return_expr_type);
-                type_error("Expected return type '"LXL_SV_FMT_SPEC"' but got '"LXL_SV_FMT_SPEC"'",
+                type_error(stmt->anchor,
+                           "Expected return type '"LXL_SV_FMT_SPEC"' but got '"LXL_SV_FMT_SPEC"'",
                            LXL_SV_FMT_ARG(expected_sv), LXL_SV_FMT_ARG(actual_sv));
             }
         }
         else if (ret_type == TYPE_ABSURD) {
-            type_error("Cannot return from non-returning function");
+            type_error(stmt->anchor, "Cannot return from non-returning function");
         }
         else if (ret_type != TYPE_UNIT) {
             struct lxl_string_view expected_sv = get_type_sv(ret_type);
-            type_error("Expression-less return from function with non-unit return type '"LXL_SV_FMT_SPEC"'",
+            type_error(stmt->anchor,
+                       "Expression-less return from function with non-unit return type '"LXL_SV_FMT_SPEC"'",
                        LXL_SV_FMT_ARG(expected_sv));
         }
         return;
@@ -2353,7 +2397,7 @@ static void type_check_module(struct module *module) {
             UNREACHABLE();
             break;
         case AST_STMT:
-            type_error("Only declarations and definitons are allowed at module scope");
+            type_error(node->stmt.anchor, "Only declarations and definitons are allowed at module scope");
             break;
         case AST_DECL:
             type_check_decl(&node->decl);
