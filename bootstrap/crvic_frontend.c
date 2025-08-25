@@ -130,7 +130,7 @@ static void print_line_with_token(struct lxl_token token) {
     fprintf(stderr, ""LXL_SV_FMT_SPEC"\n", LXL_SV_FMT_ARG(line));
 }
 
-static void parse_error_show_token_vargs(struct lxl_token token, const char *restrict fmt, va_list vargs) {
+static void parse_error_vargs(struct lxl_token token, const char *restrict fmt, va_list vargs) {
     if (parser.panic_mode) return;  // Avoid cascading errors.
     report_location(token);
     struct lxl_string_view token_value = lxl_token_value(token);
@@ -144,24 +144,24 @@ static void parse_error_show_token_vargs(struct lxl_token token, const char *res
     exit(1);  // TODO: remove this
 }
 
-static void parse_error_show_token(struct lxl_token token, const char *restrict fmt, ...) {
+static void parse_error(struct lxl_token token, const char *restrict fmt, ...) {
     va_list vargs;
     va_start(vargs, fmt);
-    parse_error_show_token_vargs(token, fmt, vargs);
+    parse_error_vargs(token, fmt, vargs);
     va_end(vargs);
 }
 
-static void parse_error_previous_show_token(const char *restrict fmt, ...) {
+static void parse_error_previous(const char *restrict fmt, ...) {
     va_list vargs;
     va_start(vargs, fmt);
-    parse_error_show_token_vargs(parser.previous_token, fmt, vargs);
+    parse_error_vargs(parser.previous_token, fmt, vargs);
     va_end(vargs);
 }
 
-static void parse_error_current_show_token(const char *restrict fmt, ...) {
+static void parse_error_current(const char *restrict fmt, ...) {
     va_list vargs;
     va_start(vargs, fmt);
-    parse_error_show_token_vargs(parser.current_token, fmt, vargs);
+    parse_error_vargs(parser.current_token, fmt, vargs);
     va_end(vargs);
 }
 
@@ -200,7 +200,7 @@ static void ensure_not_at_end(const char *fmt, ...) {
     if (!parser_is_finished()) return;
     va_list vargs;
     va_start(vargs, fmt);
-    parse_error_show_token_vargs(parser.current_token, fmt, vargs);
+    parse_error_vargs(parser.current_token, fmt, vargs);
     va_end(vargs);
 }
 
@@ -237,7 +237,7 @@ static struct lxl_token consume(enum token_type type, bool strict, const char *f
     if (match(type, strict)) return parser.previous_token;
     va_list vargs;
     va_start(vargs, fmt);
-    parse_error_show_token_vargs(parser.current_token, fmt, vargs);
+    parse_error_vargs(parser.current_token, fmt, vargs);
     va_end(vargs);
     return parser.current_token;
 }
@@ -440,7 +440,7 @@ static struct lxl_string_view parse_string(struct lxl_token token) {
                 TODO("Hex string escape"); break;
                 /* Unknown. */
             default:
-                parse_error_previous_show_token("Unknown escape sequence '\\%c'", *p);
+                parse_error_previous("Unknown escape sequence '\\%c'", *p);
                 break;
             }
             start = p + 1;
@@ -644,7 +644,7 @@ static struct ast_type parse_type(const char *fmt, ...) {
         // Not a type.
         va_list vargs;
         va_start(vargs, fmt);
-        parse_error_show_token_vargs(parser.current_token, fmt, vargs);
+        parse_error_vargs(parser.current_token, fmt, vargs);
         va_end(vargs);
     }
     return type;
@@ -714,7 +714,7 @@ static struct ast_expr parse_primary(void) {
         consume(TOKEN_DOT, false, "Expect '.' after module name");
         struct ast_expr identifier = parse_primary();
         if (identifier.kind != AST_EXPR_IDENTIFIER) {
-            parse_error_show_token(identifier.anchor, "Expect module member after '.'");
+            parse_error(identifier.anchor, "Expect module member after '.'");
         }
         expr = (struct ast_expr) {
             .anchor = module_name,
@@ -763,7 +763,7 @@ static struct ast_expr parse_primary(void) {
             .type_expr = {.type = copy_type(type)}};
     }
     else {
-        parse_error_current_show_token("Expect expression");
+        parse_error_current("Expect expression");
     }
     return expr;
 }
@@ -965,7 +965,7 @@ static struct ast_expr parse_compare(void) {
                 .rhs = copy_expr(rhs),
                 .op = op}};
         if (match_comparison(NULL, true)) {
-            parse_error_previous_show_token("Chained comparisons are not allowed in rVic");
+            parse_error_previous("Chained comparisons are not allowed in rVic");
         }
     }
     return expr;
@@ -976,7 +976,7 @@ static struct ast_expr parse_assign(void) {
     if (!match(TOKEN_COLON_EQUALS, true)) return expr;
     struct lxl_token anchor = parser.previous_token;
     if (!check_assignment_target(expr)) {
-        parse_error_previous_show_token("Expression on left hand side of ':=' is not assignable");
+        parse_error_previous("Expression on left hand side of ':=' is not assignable");
     }
     struct ast_expr *value = new_expr();
     *value = parse_compare();
@@ -1023,7 +1023,7 @@ static struct ast_sig parse_func_sig(struct lxl_string_view name) {
             // Variadic (C-style) parameter(s).
             sig.c_variadic = true;
             if (parser.current_func_kind != FUNC_EXTERNAL) {
-                parse_error_previous_show_token(
+                parse_error_previous(
                     "Only external functions can have C-style variadic parameters");
             }
             // NOTE: '..!' must be the final parameter, although a trailing comma is still allowed.
@@ -1068,7 +1068,7 @@ static struct ast_decl parse_func_decl(void) {
     bool had_line_ending = check_line_ending();
     if (match(TOKEN_BKT_CURLY_LEFT, false)) {
         if (parser.current_func_kind == FUNC_EXTERNAL) {
-            parse_error_previous_show_token("External functions can only be declared, not defined");
+            parse_error_previous("External functions can only be declared, not defined");
         }
         else {
             assert(parser.current_func_kind == FUNC_INTERNAL);
@@ -1097,7 +1097,7 @@ static struct ast_decl parse_func_decl(void) {
                 .decl_kind = AST_FUNC_DECL}};
     }
     else {
-        parse_error_current_show_token("Expect '{' or end of statement after function signature");
+        parse_error_current("Expect '{' or end of statement after function signature");
     }
     struct st_key key = st_key_of(name);
     struct symbol *symbol = lookup_symbol(symbols, key);
@@ -1139,12 +1139,12 @@ static struct ast_decl parse_var_decl(enum ast_var_kind kind) {
         type = copy_type(parse_type("Expect type after ':'"));
         if (!match(TOKEN_EQUALS, false)) {
             if (kind == AST_VAR_VAL) {
-                parse_error_show_token(var_token, "Immutable value '"LXL_SV_FMT_SPEC"' must be initialised",
-                                       LXL_SV_FMT_ARG(name));
+                parse_error(var_token, "Immutable value '"LXL_SV_FMT_SPEC"' must be initialised",
+                            LXL_SV_FMT_ARG(name));
             }
             else if (kind == AST_VAR_CONST) {
-                parse_error_show_token(var_token, "Constant value '"LXL_SV_FMT_SPEC"' must be initialised",
-                                       LXL_SV_FMT_ARG(name));
+                parse_error(var_token, "Constant value '"LXL_SV_FMT_SPEC"' must be initialised",
+                            LXL_SV_FMT_ARG(name));
             }
         }
         else {
@@ -1217,7 +1217,7 @@ bool try_parse_decl(struct ast_decl *OUT_decl) {
                 struct ast_decl *func = &node->decl;
                 assert(func->kind == AST_DECL_FUNC);
                 if (func->func.decl_kind != AST_FUNC_DECL) {
-                    parse_error_show_token(func_token, "Expect function delcaration in 'external' block");
+                    parse_error(func_token, "Expect function delcaration in 'external' block");
                 }
                 else {
                     assert(func->func.link_kind == FUNC_EXTERNAL &&
@@ -1349,7 +1349,7 @@ bool parse(void) {
             DLLIST_APPEND(&parser.module->decls, node);
         }
         else {
-            parse_error_current_show_token("Unexpected token at module top level");
+            parse_error_current("Unexpected token at module top level");
         }
     }
     return !parser.had_error;
@@ -2263,8 +2263,7 @@ static void type_check_decl(struct ast_decl *decl) {
         return;
     case AST_DECL_PACKAGE:
         // This is a syntax error, but we only catch it after parsing.
-        parse_error_show_token(decl->anchor,
-                               "Package declaration is only allowed at the beginning of a file module");
+        parse_error(decl->anchor, "Package declaration is only allowed at the beginning of a file module");
         return;
     }
     UNREACHABLE();
@@ -2336,10 +2335,10 @@ static void type_check_module(struct module *module) {
     assert(first);
     if (first->kind == AST_DECL && first->decl.kind == AST_DECL_PACKAGE) {
         if (!check_or_add_package(first->decl.package.name)) {
-            parse_error_show_token(first->decl.anchor,
-                                   "At most one package is allowed; compiling '"LXL_SV_FMT_SPEC"'"
-                                   " but found declaration for package '"LXL_SV_FMT_SPEC"'",
-                                   LXL_SV_FMT_ARG(package.name), LXL_SV_FMT_ARG(first->decl.package.name));
+            parse_error(first->decl.anchor,
+                        "At most one package is allowed; compiling '"LXL_SV_FMT_SPEC"'"
+                        " but found declaration for package '"LXL_SV_FMT_SPEC"'",
+                        LXL_SV_FMT_ARG(package.name), LXL_SV_FMT_ARG(first->decl.package.name));
         }
         rest = (struct ast_list) {
             .head = module->decls.head->next,
