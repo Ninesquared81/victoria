@@ -1,4 +1,4 @@
-func puts(c: c_string) -> s32 := external
+external func puts(c: c_string) -> i32
 
 func main() {
     puts(c"Hello, World")
