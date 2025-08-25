@@ -494,12 +494,13 @@ static enum rw_access parse_rw_access(void) {
 static struct ast_type parse_type(const char *fmt, ...);
 
 bool try_parse_type(struct ast_type *OUT_type) {
-    OUT_type->anchor = parser.current_token;
+    struct lxl_token anchor = parser.current_token;
     // Basic types.
     TypeID primitive_type = token_to_type(parser.current_token);
     if (primitive_type) {
         advance();
         *OUT_type =  (struct ast_type) {
+            .anchor = anchor,
             .kind = AST_TYPE_PRIMITIVE,
             .resolved_type = primitive_type};
         return true;
@@ -507,6 +508,7 @@ bool try_parse_type(struct ast_type *OUT_type) {
     // Type aliases.
     if (match(TOKEN_IDENTIFIER, false)) {
         *OUT_type =  (struct ast_type) {
+            .anchor = anchor,
             .kind = AST_TYPE_ALIAS,
             .alias = {
                 .name = lxl_token_value(parser.previous_token)}};
@@ -529,6 +531,7 @@ bool try_parse_type(struct ast_type *OUT_type) {
         }
         consume(TOKEN_BKT_CURLY_RIGHT, false, "Expect '}' after record definition");
         *OUT_type =  (struct ast_type) {
+            .anchor = anchor,
             .kind = AST_TYPE_RECORD,
             .record_lit = {
                 .fields = fields}};
@@ -538,6 +541,7 @@ bool try_parse_type(struct ast_type *OUT_type) {
     if (match(TOKEN_KW_ENUM, false)) {
         // begin_temp();
         struct ast_type underlying_type = {
+            .anchor = anchor,
             .kind = AST_TYPE_PRIMITIVE,
             .resolved_type = TYPE_INT};
         if (match(TOKEN_COLON, false)) {
@@ -562,6 +566,7 @@ bool try_parse_type(struct ast_type *OUT_type) {
         }
         consume(TOKEN_BKT_CURLY_RIGHT, false, "Expect '}' after enum field list");
         *OUT_type =  (struct ast_type) {
+            .anchor = anchor,
             .kind = AST_TYPE_ENUM,
             .enum_lit = {
                 .underlying_type = copy_type(underlying_type),
@@ -573,6 +578,7 @@ bool try_parse_type(struct ast_type *OUT_type) {
         enum rw_access rw = parse_rw_access();
         struct ast_type dest_type = parse_type("Expect type after '^'");
         *OUT_type =  (struct ast_type) {
+            .anchor = anchor,
             .kind = AST_TYPE_POINTER,
             .pointer = {
                 .kind = POINTER_PROPER,
@@ -588,6 +594,7 @@ bool try_parse_type(struct ast_type *OUT_type) {
             enum rw_access rw = parse_rw_access();
             struct ast_type dest_type = parse_type("Expect type after '[^]'");
             *OUT_type =  (struct ast_type) {
+                .anchor = anchor,
                 .kind = AST_TYPE_POINTER,
                 .pointer = {
                     .kind = POINTER_ARRAY_LIKE,
@@ -600,6 +607,7 @@ bool try_parse_type(struct ast_type *OUT_type) {
             enum rw_access rw = parse_rw_access();
             struct ast_type dest_type = parse_type("Expect type after '[]'");
             *OUT_type = (struct ast_type) {
+                .anchor = anchor,
                 .kind = AST_TYPE_SLICE,
                 .slice = {
                     .rw = rw,
@@ -619,6 +627,7 @@ bool try_parse_type(struct ast_type *OUT_type) {
         }
         struct ast_type dest_type = parse_type("Expect array element type");
         *OUT_type =  (struct ast_type) {
+            .anchor = anchor,
             .kind = AST_TYPE_ARRAY,
             .array = {
                 .count = copy_expr(count),
@@ -633,6 +642,7 @@ bool try_parse_type(struct ast_type *OUT_type) {
         struct ast_sig *sig = ALLOCATE(perm, sizeof *sig);
         *sig  = parse_func_sig(LXL_SV_EMPTY());
         *OUT_type =  (struct ast_type) {
+            .anchor = anchor,
             .kind = AST_TYPE_FUNCTION,
             .function = {.sig = sig}};
         return true;
@@ -644,6 +654,7 @@ bool try_parse_type(struct ast_type *OUT_type) {
 static struct ast_type parse_type(const char *fmt, ...) {
     static_assert(TYPE_NO_TYPE == 0, "TYPE_NO_TYPE should be 'falsy'");
     struct ast_type type = {
+        .anchor = parser.current_token,
         .kind = AST_TYPE_PRIMITIVE,
         .resolved_type = TYPE_NO_TYPE};
     if (!try_parse_type(&type)) {
@@ -794,10 +805,11 @@ static struct ast_expr parse_suffix(void) {
                     .name = lxl_token_value(name)}};
         }
         else if (match(TOKEN_BKT_ROUND_LEFT, true)) {
-            struct ast_expr *callee = new_expr();
-            *callee = expr;
+            struct lxl_token anchor = parser.previous_token;
+            struct ast_expr *callee = copy_expr(expr);
             struct ast_list args = parse_arg_list();
             expr = (struct ast_expr) {
+                .anchor = anchor,
                 .kind = AST_EXPR_CALL,
                 .call = {
                     .callee = callee,
@@ -1302,6 +1314,7 @@ struct ast_stmt parse_return(void) {
     }
     end_statement();
     return (struct ast_stmt) {
+        .anchor = return_token,
         .kind = AST_STMT_RETURN,
         .return_ = {.expr = expr}};
 }
@@ -1314,6 +1327,7 @@ struct ast_stmt parse_while(void) {
     consume(TOKEN_BKT_CURLY_LEFT, false, "Expect '{' after condition in 'while' loop");
     struct ast_stmt_block body = parse_block();
     return (struct ast_stmt) {
+        .anchor = while_token,
         .kind = AST_STMT_WHILE,
         .while_ = {
             .cond = cond,
@@ -1334,6 +1348,7 @@ struct ast_stmt parse_stmt(void) {
     if (try_parse_decl(&decl)) {
         // Declaration statement.
         return (struct ast_stmt) {
+            .anchor = decl.anchor,
             .kind = AST_STMT_DECL,
             .decl = {.decl = copy_decl(decl)}};
     }
