@@ -1,66 +1,47 @@
 package victoria
 
-type c_int := i32
-type c_size_t := uint
-
 external {
-    # C stdlib
-    # stdlib.h
-    func exit(code: c_int) -> !
-    func realloc(ptr: [^]mut!, size: c_size_t) -> [^]mut!
-    func free(ptr: [^]mut!)
-    # stdio.h
-    func fopen(file: c_string, mode: c_string) -> ^mut FILE
-    func fclose(fp: ^mut FILE) -> c_int
-    func fread(buf: [^]mut!, size: c_size_t, count: c_size_t, fp: ^mut FILE) -> c_size_t
-    func ferror(fp: ^mut FILE) -> c_int
-    func feof(fp: ^mut FILE) -> c_int
-    func perror(prefix: c_string)
-    func printf(fmt: c_string, ..!) -> c_int
-
     # Local C modules
     # lexel.h
-    func lxl_error_message(token_type: c_int) -> c_string
+    func lxl_error_message(token_type: .c.int_) -> c_string
     # lexer.c
     func init_lexer(source: lxl_string_view) -> ^lxl_lexer
     func next_token() -> lxl_token
-    func print_tokens(f: ^mut FILE)
+    func print_tokens(f: ^mut .c.FILE)
 }
 
 # Opaque types.
-type FILE := !
 type lxl_lexer := !
 
-type lxl_location := record {line: c_int, column: c_int}
+type lxl_location := record {line: .c.int_, column: .c.int_}
 
 type lxl_token := record {
     start: c_string,
     end: c_string,
     loc: lxl_location,
-    token_type: c_int,
+    token_type: .c.int_,
 }
 
 type lxl_string_view := record {start: c_string, length: uint}
 
 func main(args: []string) {
-    .other.hello()
     var opts: Options
     if !parse_args(args, &out opts) {
         quit()
     }
     var source := read_source(opts.in_filename to c_string)
-    val out_file := fopen(c"out.txt", c"w")
+    val out_file := .c.fopen(c"out.txt", c"w")
     if out_file == null {
-        perror(c"Failed to open output file")
+        .c.perror(c"Failed to open output file")
         quit()
     }
     init_lexer(source)
     print_tokens(out_file)
-    fclose(out_file)
+    .c.fclose(out_file)
 }
 
 func quit() -> ! {
-    exit(1)
+    .c.exit(1)
 }
 
 type Options := record {
@@ -69,12 +50,12 @@ type Options := record {
 
 func parse_args(args: []string, opts: ^out Options) -> bool {
     if count_of(args) < 2 {
-        printf(c"ERROR: Missing required parameter: filename.\n")
+        .c.printf(c"ERROR: Missing required parameter: filename.\n")
         print_usage(args[0])
         return false
     }
     if count_of(args) > 2 {
-        printf(c"WARNING: Too many arguments. Extra arguments will be ignored.\n")
+        .c.printf(c"WARNING: Too many arguments. Extra arguments will be ignored.\n")
         print_usage(args[0])
     }
     opts^.in_filename := args[1]
@@ -82,38 +63,38 @@ func parse_args(args: []string, opts: ^out Options) -> bool {
 }
 
 func print_usage(prog_name: string) {
-    printf(c"Usage: %s filename\n", prog_name to c_string)
+    .c.printf(c"Usage: %s filename\n", prog_name to c_string)
 }
 
 func read_source(in_filename: c_string) -> lxl_string_view {
     var x: []int
-    val fp := fopen(in_filename, c"r")
+    val fp := .c.fopen(in_filename, c"r")
     if fp == null {
-        perror(c"Failed to open input file")
+        .c.perror(c"Failed to open input file")
         quit()
     }
     var source := read_entire_file(fp)
-    fclose(fp)
+    .c.fclose(fp)
     return source
 }
 
-func read_entire_file(fp: ^mut FILE) -> lxl_string_view {
-    const CHUNK_SIZE: c_size_t = 8192
-    var size: c_size_t
-    var count: c_size_t
+func read_entire_file(fp: ^mut .c.FILE) -> lxl_string_view {
+    const CHUNK_SIZE: .c.size_t = 8192
+    var size: .c.size_t
+    var count: .c.size_t
     var buffer: [^]mut! = null
-    while !ferror(fp) and !feof(fp) {
+    while !.c.ferror(fp) and !.c.feof(fp) {
         size := size + CHUNK_SIZE
-        val tmp := realloc(buffer, size)
+        val tmp := .c.realloc(buffer, size)
         if !tmp {
-            printf(c"realloc() failed\n")
+            .c.printf(c"realloc() failed\n")
             quit()
         }
         buffer := tmp
-        count := count + fread(buffer, 1, CHUNK_SIZE, fp)
+        count := count + .c.fread(buffer, 1, CHUNK_SIZE, fp)
     }
-    if (ferror(fp)) {
-        perror(null to c_string)
+    if (.c.ferror(fp)) {
+        .c.perror(null to c_string)
         quit()
     }
     return lxl_string_view (buffer to c_string, count)

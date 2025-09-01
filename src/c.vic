@@ -1,0 +1,24 @@
+package victoria
+
+type int_ := i32
+type size_t := uint
+
+external {
+    # C stdlib
+    # stdlib.h
+    func exit(code: int_) -> !
+    func realloc(ptr: [^]mut!, size: size_t) -> [^]mut!
+    func free(ptr: [^]mut!)
+    # stdio.h
+    func fopen(file: c_string, mode: c_string) -> ^mut FILE
+    func fclose(fp: ^mut FILE) -> int_
+    func fread(buf: [^]mut!, size: size_t, count: size_t, fp: ^mut FILE) -> size_t
+    func ferror(fp: ^mut FILE) -> int_
+    func feof(fp: ^mut FILE) -> int_
+    func perror(prefix: c_string)
+    func printf(fmt: c_string, ..!) -> int_
+}
+
+# Opaque types.
+type FILE := !
+
