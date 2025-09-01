@@ -21,6 +21,7 @@ struct func_list {
 struct module {
     struct module *next, *prev;
     struct lxl_string_view name;
+    struct lxl_string_view filepath;
     struct symbol_table *globals;
     struct ast_list decls;
     struct func_list funcs;
@@ -36,7 +37,9 @@ struct package {
     struct module_list modules;
 };
 
-struct module *add_new_module(struct package *package, struct lxl_string_view name);
+struct lxl_string_view get_module_name(struct lxl_string_view filepath);
+
+struct module *add_new_module(struct package *package, struct lxl_string_view filepath);
 struct module *find_module(struct package *package, struct lxl_string_view name);
 
 struct function *add_new_function(struct module *module, struct ast_decl_func decl);

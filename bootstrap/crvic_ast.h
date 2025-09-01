@@ -100,6 +100,7 @@ enum ast_type_kind {
     AST_TYPE_ARRAY,
     AST_TYPE_ENUM,
     AST_TYPE_FUNCTION,
+    AST_TYPE_MODULE_ALIAS,
     AST_TYPE_POINTER,
     AST_TYPE_RECORD,
     AST_TYPE_SLICE,
@@ -170,6 +171,11 @@ struct ast_type {
         struct {
             struct ast_sig *sig;
         } function;
+        struct {
+            struct lxl_string_view module_name;
+            struct lxl_string_view alias_name;
+            struct module *module;
+        } module_alias;
         struct {
             enum pointer_kind kind;
             enum rw_access rw;

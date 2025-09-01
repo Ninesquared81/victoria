@@ -4,9 +4,16 @@
 #include "crvic_package.h"
 #include "crvic_resources.h"
 
-struct module *add_new_module(struct package *package, struct lxl_string_view name) {
+struct lxl_string_view get_module_name(struct lxl_string_view filepath) {
+    filepath = get_filename_from_path(filepath);
+    filepath = remove_filename_extension(filepath);
+    return filepath;
+}
+
+struct module *add_new_module(struct package *package, struct lxl_string_view filepath) {
     struct module *module = ALLOCATE(perm, sizeof *module);
-    module->name = name;
+    module->filepath = filepath;
+    module->name = get_module_name(filepath);
     module->globals = new_globals();
     module->decls = (struct ast_list) {0};
     DLLIST_APPEND(&package->modules, module);

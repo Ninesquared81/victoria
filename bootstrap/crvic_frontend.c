@@ -88,7 +88,7 @@ void init_frontend(struct lxl_string_view source, const char *in_filepath) {
     filename = in_filepath;
     parser.lexer = init_lexer(source);
     parser.current_func_kind = FUNC_INTERNAL;
-    parser.module = add_new_module(&package, get_module_name(lxl_sv_from_string(filename)));
+    parser.module = add_new_module(&package, lxl_sv_from_string(filename));
     symbols = parser.module->globals;
     insert_symbol(symbols, st_key_of(LXL_SV_FROM_STRLIT("int")),
                   (struct symbol) {
@@ -104,12 +104,6 @@ void init_frontend(struct lxl_string_view source, const char *in_filepath) {
                   (struct symbol) {.kind = SYMBOL_MAGIC_FUNC});
     insert_symbol(symbols, st_key_of(LXL_SV_FROM_STRLIT("type_of")),
                   (struct symbol) {.kind = SYMBOL_MAGIC_FUNC});
-}
-
-struct lxl_string_view get_module_name(struct lxl_string_view filepath) {
-    filepath = get_filename_from_path(filepath);
-    filepath = remove_filename_extension(filepath);
-    return filepath;
 }
 
 static void report_location(struct lxl_token token) {
@@ -512,6 +506,20 @@ bool try_parse_type(struct ast_type *OUT_type) {
             .kind = AST_TYPE_ALIAS,
             .alias = {
                 .name = lxl_token_value(parser.previous_token)}};
+        return true;
+    }
+    // Type alias in different module.
+    if (match(TOKEN_DOT, false)) {
+        struct lxl_token anchor = parser.previous_token;
+        struct lxl_token module_name_token = consume(TOKEN_IDENTIFIER, false, "Expect module name after '.'");
+        consume(TOKEN_DOT, false, "Expect '.' after module name");
+        struct lxl_token alias_name_token = consume(TOKEN_IDENTIFIER, false, "Expect type alias after '.'");
+        *OUT_type = (struct ast_type) {
+            .anchor = anchor,
+            .kind = AST_TYPE_MODULE_ALIAS,
+            .module_alias = {
+                .module_name = lxl_token_value(module_name_token),
+                .alias_name = lxl_token_value(alias_name_token)}};
         return true;
     }
     // Record types.
@@ -1536,6 +1544,31 @@ static TypeID resolve_type(struct ast_type *type) {
         return resolve_enum(type);
     case AST_TYPE_FUNCTION:
         return resolve_function(type);
+    case AST_TYPE_MODULE_ALIAS: {
+        struct module *module = find_module(&package, type->module_alias.module_name);
+        type->module_alias.module = module;
+        if (!module) {
+            name_error(type->anchor,
+                       "Unknown module '"LXL_SV_FMT_SPEC"'",
+                       LXL_SV_FMT_ARG(type->module_alias.module_name));
+            return TYPE_NO_TYPE;
+        }
+        struct symbol *symbol = lookup_symbol(module->globals, st_key_of(type->module_alias.alias_name));
+        if (!symbol) {
+            name_error(type->anchor,
+                       "Unknown symbol '"LXL_SV_FMT_SPEC"' in module '"LXL_SV_FMT_SPEC"'",
+                       LXL_SV_FMT_ARG(type->module_alias.alias_name),
+                       LXL_SV_FMT_ARG(type->module_alias.module_name));
+            return TYPE_NO_TYPE;
+        }
+        if (symbol->kind != SYMBOL_TYPE_ALIAS) {
+            name_error(type->anchor,
+                       "Symbol '"LXL_SV_FMT_SPEC"' is not a type alias",
+                       LXL_SV_FMT_ARG(type->module_alias.alias_name));
+            return TYPE_NO_TYPE;
+        }
+        return (type->resolved_type = resolve_type(&symbol->type_alias.type));
+    }
     case AST_TYPE_POINTER:
         return resolve_pointer(type);
     case AST_TYPE_RECORD:
@@ -2423,6 +2456,7 @@ static void type_check_module(struct module *module) {
 
 bool type_check(void) {
     FOR_DLLIST (struct module *, module, &package.modules) {
+        filename = module->filepath.start;
         type_check_module(module);
     }
     return !type_checker.had_error;

@@ -112,7 +112,6 @@ enum token_type {
 
 // General.
 void init_frontend(struct lxl_string_view source, const char *in_filepath);
-struct lxl_string_view get_module_name(struct lxl_string_view filepath);
 struct symbol_table *new_globals(void);
 struct symbol_table *new_locals(struct symbol_table *parent);
 struct package *get_package(void);
