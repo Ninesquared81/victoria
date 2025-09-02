@@ -1647,11 +1647,12 @@ static TypeID type_check_assignment_target(struct ast_expr *target) {
     case AST_EXPR_IDENTIFIER: {
         struct lxl_string_view name = target->identifier.name;
         struct symbol *target_symbol = lookup_symbol(symbols, st_key_of(name));
+        target->identifier.symbol = target_symbol;
         if (!target_symbol) {
             name_error(target->anchor, "Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
             break;
         }
-        if (target_symbol->kind == SYMBOL_VAL) {
+        if (target_symbol->kind == SYMBOL_VAL || target_symbol->kind == SYMBOL_PARAM) {
             type_error(target->anchor, "Cannot reassign immutable value '"LXL_SV_FMT_SPEC"'",
                        LXL_SV_FMT_ARG(name));
             break;
@@ -2067,11 +2068,15 @@ static TypeID type_check_expr(struct ast_expr *expr) {
     case AST_EXPR_IDENTIFIER: {
         struct lxl_string_view name = expr->identifier.name;
         struct symbol *symbol = lookup_symbol(symbols, st_key_of(name));
+        expr->identifier.symbol = symbol;
         if (!symbol) {
             name_error(expr->anchor, "Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
             break;
         }
-        if (symbol->kind == SYMBOL_VAR) {
+        if (symbol->kind == SYMBOL_PARAM) {
+            result_type = symbol->param.type;
+        }
+        else if (symbol->kind == SYMBOL_VAR) {
             result_type = symbol->var.type;
         }
         else if (symbol->kind == SYMBOL_VAL) {
@@ -2280,8 +2285,8 @@ static void type_check_function(struct lxl_token anchor, struct ast_decl_func *f
     for (int i = 0; i < sig->params.count; ++i) {
         struct type_decl *param = &sig->params.items[i];
         struct symbol param_symbol = {
-            .kind = SYMBOL_VAL,
-            .val = {.type = param->type}};
+            .kind = SYMBOL_PARAM,
+            .param = {.type = param->type}};
         insert_symbol(symbols, st_key_of(param->name), param_symbol);
     }
     enter_function(func->body.symbols);  // Return value not needed; jump to previous symbol table.

@@ -12,6 +12,7 @@ enum symbol_kind {
     SYMBOL_CONST,      // Compile time constant symbol.
     SYMBOL_FUNC,       // Function symbol.
     SYMBOL_MAGIC_FUNC, // Magic function symbol (`count_of()`, `size_of()`, `type_of()`).
+    SYMBOL_PARAM,      // Function parameter.
     SYMBOL_TYPE_ALIAS, // Type alias symbol.
     SYMBOL_VAR,        // Variable symbol.
     SYMBOL_VAL,        // Immutable value symbol.
@@ -25,6 +26,10 @@ struct symbol_const {
 struct symbol_func {
     struct ast_decl_func decl;
     struct func_sig *sig;  // NOTE: points to `.func_decl.sig.resolved_sig`.
+};
+
+struct symbol_param {
+    TypeID type;
 };
 
 struct symbol_type_alias {
@@ -45,6 +50,7 @@ struct symbol {
     union {
         struct symbol_const const_;
         struct symbol_func func;
+        struct symbol_param param;
         struct symbol_type_alias type_alias;
         struct symbol_var var;
         struct symbol_val val;

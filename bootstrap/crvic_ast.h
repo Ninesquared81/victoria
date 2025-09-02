@@ -248,6 +248,7 @@ struct ast_expr {
         } func_expr;
         struct {
             struct lxl_string_view name;
+            struct symbol *symbol;
         } identifier;
         struct {
             struct ast_expr *array;

@@ -138,7 +138,7 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
         DO_OR_ERROR(error, crvic_generate_c_func_header(&decl->func, sb));
         struct lxl_string_view name = decl->func.sig->resolved_sig.name;
         bool is_main = lxl_sv_equal(name, LXL_SV_FROM_STRLIT("main"));
-        sb_add_string(sb, " {{\n");
+        sb_add_string(sb, " {\n");
         assert(indent == 0 && "Cannot have nested function in C!");
         if (is_main && decl->func.sig->resolved_sig.arity > 0) {
             // Create local variable with name of "args" paramater (usually "args" itself).
@@ -151,14 +151,14 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
                              "%*s};\n",
                              indent_step, "", indent_step * 2, "", indent_step, "");
             sb_add_formatted(sb, "%*s%s ", indent_step, "", crvic_get_c_type(args.type));
-            DO_OR_ERROR(error, crvic_generate_c_identifier(module, args.name, true, sb));
+            DO_OR_ERROR(error, crvic_generate_c_identifier(module, args.name, false, sb));
             sb_add_string(sb, " = {VIC_args_data__, argc};\n");
         }
         DO_OR_ERROR(error, crvic_generate_c_func_body(decl->func.body.stmts, indent_step, sb));
         if (is_main) {
             sb_add_formatted(sb, "%*sreturn 0;\n", indent_step, "");
         }
-        sb_add_string(sb, "}}\n");
+        sb_add_string(sb, "}\n");
         break;
     case AST_DECL_EXTERNAL_BLOCK:
         FOR_DLLIST (struct ast_node *, node, &decl->external_block.decls) {
@@ -269,7 +269,8 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         DO_OR_ERROR(error, crvic_generate_c_identifier(module, name, link_kind == FUNC_INTERNAL, sb));
     } break;
     case AST_EXPR_IDENTIFIER:
-        DO_OR_ERROR(error, crvic_generate_c_identifier(module, expr->identifier.name, true, sb));
+        DO_OR_ERROR(error, crvic_generate_c_identifier(module, expr->identifier.name,
+                                                       expr->identifier.symbol->kind != SYMBOL_PARAM, sb));
         break;
     case AST_EXPR_INDEX: {
         // TODO: bounds checking.
@@ -370,7 +371,7 @@ enum cgen_error crvic_generate_c_func_header(struct ast_decl_func *func, struct 
     if (sig->params.count >= 1) {
         struct type_decl param = sig->params.items[0];
         sb_add_formatted(sb, "%s ", crvic_get_c_type(param.type));
-        DO_OR_ERROR(error, crvic_generate_c_identifier(module, param.name, true, sb));
+        DO_OR_ERROR(error, crvic_generate_c_identifier(module, param.name, false, sb));
     }
     else {
         // No parameters; use `void` in parameter list for strict adherence to (pre-C23) C standard.
@@ -379,7 +380,7 @@ enum cgen_error crvic_generate_c_func_header(struct ast_decl_func *func, struct 
     for (int i = 1; i < sig->params.count; ++i) {
         struct type_decl param = sig->params.items[i];
         sb_add_formatted(sb, ", %s ", crvic_get_c_type(param.type));
-        DO_OR_ERROR(error, crvic_generate_c_identifier(module, param.name, true, sb));
+        DO_OR_ERROR(error, crvic_generate_c_identifier(module, param.name, false, sb));
     }
     if (sig->c_variadic) {
         sb_add_string(sb, ", ...");
