@@ -1,6 +1,9 @@
 # victoria
 A C-like systems programming language for my own needs
 
+## Documentation
+Documentation can be found on the [wiki](https://github.com/Ninesquared81/victoria/wiki/Docs).
+
 ## Project overview
 
 This is the reference compiler project for the Victoria programming language.
@@ -58,7 +61,7 @@ cc ./src/main.c ./bootstrap/lexer.c -o ./bin/vic1
 mv ./bin/vic1 ./bin/vic
 ```
 
-# Language Ideology
+## Language Ideology
 
 This is a brief summary of the "big ideas" of Victoria.
 
