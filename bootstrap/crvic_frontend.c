@@ -1961,6 +1961,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
     case AST_EXPR_COMPARE: {
         TypeID ltype = type_check_expr(expr->compare.lhs);
         TypeID rtype = type_check_expr(expr->compare.rhs);
+        result_type = TYPE_BOOL;
         if (!check_comparable(ltype, rtype)) {
             struct lxl_string_view lname = get_type_sv(ltype);
             struct lxl_string_view rname = get_type_sv(rtype);
