@@ -945,11 +945,31 @@ static struct ast_expr parse_term(void) {
     return expr;
 }
 
-static struct ast_expr parse_and(void) {
+static struct ast_expr parse_compare(void) {
     struct ast_expr expr = parse_term();
-    while (match(TOKEN_KW_AND, true)) {
+    enum ast_cmp_op_kind op;
+    if (match_comparison(&op, true)) {
         struct lxl_token anchor = parser.previous_token;
         struct ast_expr rhs = parse_term();
+        expr = (struct ast_expr) {
+            .anchor = anchor,
+            .kind = AST_EXPR_COMPARE,
+            .compare = {
+                .lhs = copy_expr(expr),
+                .rhs = copy_expr(rhs),
+                .op = op}};
+        if (match_comparison(NULL, true)) {
+            parse_error_previous("Chained comparisons are not allowed in rVic");
+        }
+    }
+    return expr;
+}
+
+static struct ast_expr parse_and(void) {
+    struct ast_expr expr = parse_compare();
+    while (match(TOKEN_KW_AND, true)) {
+        struct lxl_token anchor = parser.previous_token;
+        struct ast_expr rhs = parse_compare();
         expr = (struct ast_expr) {
             .anchor = anchor,
             .kind = AST_EXPR_LOGICAL,
@@ -977,28 +997,8 @@ static struct ast_expr parse_or(void) {
     return expr;
 }
 
-static struct ast_expr parse_compare(void) {
-    struct ast_expr expr = parse_or();
-    enum ast_cmp_op_kind op;
-    if (match_comparison(&op, true)) {
-        struct lxl_token anchor = parser.previous_token;
-        struct ast_expr rhs = parse_or();
-        expr = (struct ast_expr) {
-            .anchor = anchor,
-            .kind = AST_EXPR_COMPARE,
-            .compare = {
-                .lhs = copy_expr(expr),
-                .rhs = copy_expr(rhs),
-                .op = op}};
-        if (match_comparison(NULL, true)) {
-            parse_error_previous("Chained comparisons are not allowed in rVic");
-        }
-    }
-    return expr;
-}
-
 static struct ast_expr parse_assign(void) {
-    struct ast_expr expr = parse_compare();
+    struct ast_expr expr = parse_or();
     if (!match(TOKEN_COLON_EQUALS, true)) return expr;
     struct lxl_token anchor = parser.previous_token;
     if (!check_assignment_target(expr)) {
@@ -2375,7 +2375,7 @@ static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
     switch (stmt->kind) {
     case AST_STMT_BLOCK:
         type_check_block(stmt->block, ret_type);
-        break;
+        return;
     case AST_STMT_DECL:
         type_check_decl(stmt->decl.decl);
         return;
