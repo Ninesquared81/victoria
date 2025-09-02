@@ -57,3 +57,16 @@ You can test that the bootstrapping process worked by using the main compiler to
 cc ./src/main.c ./bootstrap/lexer.c -o ./bin/vic1
 mv ./bin/vic1 ./bin/vic
 ```
+
+# Language Ideology
+
+This is a brief summary of the "big ideas" of Victoria.
+
+- The language should not be too ideological.
+
+- Trust the programmer.
+
+- Statements are statements and expressions are expressions; statements and expressions should be
+clearly distinguished.
+
+- Obvious things should be simple; complicated things should be clear.
