@@ -138,7 +138,7 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
         DO_OR_ERROR(error, crvic_generate_c_func_header(&decl->func, sb));
         struct lxl_string_view name = decl->func.sig->resolved_sig.name;
         bool is_main = lxl_sv_equal(name, LXL_SV_FROM_STRLIT("main"));
-        sb_add_string(sb, " {\n");
+        sb_add_string(sb, " {{\n");
         assert(indent == 0 && "Cannot have nested function in C!");
         if (is_main && decl->func.sig->resolved_sig.arity > 0) {
             // Create local variable with name of "args" paramater (usually "args" itself).
@@ -158,7 +158,7 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
         if (is_main) {
             sb_add_formatted(sb, "%*sreturn 0;\n", indent_step, "");
         }
-        sb_add_string(sb, "}\n");
+        sb_add_string(sb, "}}\n");
         break;
     case AST_DECL_EXTERNAL_BLOCK:
         FOR_DLLIST (struct ast_node *, node, &decl->external_block.decls) {
