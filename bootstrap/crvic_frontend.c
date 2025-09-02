@@ -2284,6 +2284,7 @@ static void type_check_function(struct lxl_token anchor, struct ast_decl_func *f
             .val = {.type = param->type}};
         insert_symbol(symbols, st_key_of(param->name), param_symbol);
     }
+    enter_function(func->body.symbols);  // Return value not needed; jump to previous symbol table.
     FOR_DLLIST (struct ast_node *, node, &func->body.stmts) {
         assert(node->kind == AST_STMT);
         struct ast_stmt *stmt = &node->stmt;
