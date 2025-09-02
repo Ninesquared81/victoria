@@ -26,7 +26,7 @@ type lxl_string_view := record {start: c_string, length: uint}
 
 func main(args: []string) {
     var opts: Options
-    if !parse_args(args, &out opts) {
+    if !parse_args(args, &mut opts) {
         quit()
     }
     var source := read_source(opts.in_filename to c_string)
@@ -45,10 +45,33 @@ func quit() -> ! {
 }
 
 type Options := record {
+    prog_name: string,
     in_filename: string,
 }
 
-func parse_args(args: []string, opts: ^out Options) -> bool {
+func print_usage(prog_name: string) {
+    .c.printf(c"Usage: [OPTIONS] %s file\n", prog_name to c_string)
+}
+
+func print_help(prog_name: string) {
+    print_usage(prog_name)
+    .c.printf(c"\nPositional arguments:\n  %-14s the file to compile\nOptions:\n  %-14s print this help message and exit\n", c"file", c"-h, --help")
+}
+
+func handle_option(args: []string, i: int, opts: ^mut Options) -> int {
+    var i := i
+    val arg := args[i]
+    if .c.strcmp(arg to c_string, c"-h") == 0 or .c.strcmp(arg to c_string, c"--help") == 0 {
+        print_help(opts^.prog_name)
+        .c.exit(0)
+    }
+    else {
+        opts^.in_filename := arg
+    }
+    return i + 1  # Index of the next argument to consider.
+}
+
+func parse_args(args: []string, opts: ^mut Options) -> bool {
     if count_of(args) < 2 {
         .c.printf(c"ERROR: Missing required parameter: filename.\n")
         print_usage(args[0])
@@ -58,12 +81,12 @@ func parse_args(args: []string, opts: ^out Options) -> bool {
         .c.printf(c"WARNING: Too many arguments. Extra arguments will be ignored.\n")
         print_usage(args[0])
     }
-    opts^.in_filename := args[1]
+    opts^.prog_name := args[0]
+    var i := 1
+    while i < count_of(args) {
+        i := handle_option(args, i, opts)
+    }
     return true
-}
-
-func print_usage(prog_name: string) {
-    .c.printf(c"Usage: %s filename\n", prog_name to c_string)
 }
 
 func read_source(in_filename: c_string) -> lxl_string_view {

@@ -17,6 +17,8 @@ external {
     func feof(fp: ^mut FILE) -> int_
     func perror(prefix: c_string)
     func printf(fmt: c_string, ..!) -> int_
+    # string.h
+    func strcmp(a: c_string, b: c_string) -> int_
 }
 
 # Opaque types.
