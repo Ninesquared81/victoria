@@ -3,5 +3,3 @@ package victoria
 func parse(source: string) -> [] .ast.Node {
     # TODO: parsing.
 }
-
-type TypeID := int

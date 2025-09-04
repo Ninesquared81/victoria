@@ -3,7 +3,7 @@ package victoria
 type NodeKind := enum {EXPR, STMT, DECL, TYPE}
 
 type Node := record {
-    kind: AstKind,
+    kind: NodeKind,
     u: union {
         expr: Expr,
         stmt: Stmt,
@@ -39,7 +39,7 @@ type ExprKind := enum {
 
 type Expr := record {
     kind: ExprKind,
-    type_: TypeID,
+    type_: .types.TypeID,
     u: union {
         address_of:  record {},
         assign:      record {},
@@ -84,5 +84,23 @@ type Stmt := record {
         if_:     record {},
         return_: record {},
         while_:  record {},
+    }
+}
+
+type DeclKind := enum {
+}
+
+type Decl := record {
+    kind: DeclKind,
+    u: union {
+    }
+}
+
+type TypeKind := enum {
+}
+
+type Type := record {
+    kind: TypeKind,
+    u: union {
     }
 }
