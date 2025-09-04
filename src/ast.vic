@@ -88,19 +88,49 @@ type Stmt := record {
 }
 
 type DeclKind := enum {
+    VAR,
+    FUNC,
+    EXTERNAL_BLOCK,
+    TYPE_DEFN,
+    PACKAGE,
 }
 
 type Decl := record {
     kind: DeclKind,
     u: union {
+        var_: record {},
+        func_: record {},
+        external_block: record {},
+        type_defn: record {},
+        package_: record {},
     }
 }
 
 type TypeKind := enum {
+    PRIMITIVE,
+    ALIAS,
+    ARRAY,
+    ENUM,
+    FUNCTION,
+    MODULE_ALIAS,
+    POINTER,
+    RECORD,
+    SLICE,
+    UNION,
 }
 
 type Type := record {
     kind: TypeKind,
     u: union {
+        primitive: record {},
+        alias: record {},
+        array: record {},
+        enum_lit: record {},
+        function: record {},
+        module_alias: record {},
+        pointer: record {},
+        record_lit: record {},
+        slice: record {},
+        union_lit: record {},
     }
 }
