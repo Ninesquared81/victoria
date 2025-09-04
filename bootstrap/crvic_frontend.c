@@ -1460,6 +1460,9 @@ static TypeID resolve_record_or_union(struct ast_type *type) {
     struct ast_type_decl_list *ast_fields = (type->kind == AST_TYPE_RECORD)
         ? &type->record_lit.fields
         : &type->union_lit.fields;
+    if (ast_fields->count == 0) {
+        return (type->kind == AST_TYPE_RECORD) ? TYPE_UNIT : TYPE_ABSURD;
+    }
     AUTO_BEGIN_TEMP();
     struct type_decl_list fields = TYPE_DECL_LIST(temp);
     DA_RESERVE(&fields, ast_fields->count);
@@ -1490,6 +1493,7 @@ static struct enum_field resolve_enum_field(struct ast_enum_field *field) {
 
 static TypeID resolve_enum(struct ast_type *type) {
     assert(type->kind == AST_TYPE_ENUM);
+    if (type->enum_lit.fields.count == 0) return TYPE_ABSURD;
     AUTO_BEGIN_TEMP();
     struct enum_field_list fields = ENUM_FIELD_LIST(temp);
     set_enum_counter(0);
