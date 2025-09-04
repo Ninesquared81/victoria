@@ -66,6 +66,66 @@ struct symbol_table *new_locals(struct symbol_table *parent) {
     return locals;
 }
 
+static struct ast_expr *new_expr(void) {
+    struct ast_expr *expr = ALLOCATE(perm, sizeof *expr);
+    assert(expr != NULL && "We're gonna need a bigger region!");
+    return expr;
+}
+
+static struct ast_stmt *new_stmt(void) {
+    struct ast_stmt *stmt = ALLOCATE(perm, sizeof *stmt);
+    assert(stmt != NULL && "We're gonna need a bigger region!");
+    return stmt;
+}
+
+static struct ast_decl *new_decl(void) {
+    struct ast_decl *decl = ALLOCATE(perm, sizeof *decl);
+    assert(decl != NULL && "We're gonna need a bigger region!");
+    return decl;
+}
+
+static struct ast_type *new_type(void) {
+    struct ast_type *type = ALLOCATE(perm, sizeof *type);
+    assert(type != NULL && "We're gonna need a bigger region!");
+    return type;
+}
+
+static struct ast_node *new_node(void) {
+    struct ast_node *node = ALLOCATE(perm, sizeof *node);
+    assert(node != NULL && "We're gonna need a bugger region!");
+    return node;
+}
+
+static struct ast_expr *copy_expr(struct ast_expr expr) {
+    struct ast_expr *new = new_expr();
+    *new = expr;
+    return new;
+}
+
+static struct ast_stmt *copy_stmt(struct ast_stmt stmt) {
+    struct ast_stmt *new = new_stmt();
+    *new = stmt;
+    return new;
+}
+
+static struct ast_decl *copy_decl(struct ast_decl decl) {
+    struct ast_decl *new = new_decl();
+    *new = decl;
+    return new;
+}
+
+static struct ast_type *copy_type(struct ast_type type) {
+    struct ast_type *new = new_type();
+    *new = type;
+    return new;
+}
+
+static struct ast_node *copy_node(struct ast_node node) {
+    struct ast_node *new = new_node();
+    *new = node;
+    return new;
+}
+
 static bool check_or_add_package(struct lxl_string_view name) {
     if (package.name.start == NULL) {
         package.name = name;
@@ -93,11 +153,11 @@ void init_frontend(struct lxl_string_view source, const char *in_filepath) {
     insert_symbol(symbols, st_key_of(LXL_SV_FROM_STRLIT("int")),
                   (struct symbol) {
                       .kind = SYMBOL_TYPE_ALIAS,
-                      .type_alias = {.type = RESOLVED_TYPE(TYPE_INT)}});
+                      .type_alias = {.type = copy_type(RESOLVED_TYPE(TYPE_INT))}});
     insert_symbol(symbols, st_key_of(LXL_SV_FROM_STRLIT("uint")),
                   (struct symbol) {
                       .kind = SYMBOL_TYPE_ALIAS,
-                      .type_alias = {.type = RESOLVED_TYPE(TYPE_UINT)}});
+                      .type_alias = {.type = copy_type(RESOLVED_TYPE(TYPE_UINT))}});
     insert_symbol(symbols, st_key_of(LXL_SV_FROM_STRLIT("count_of")),
                   (struct symbol) {.kind = SYMBOL_MAGIC_FUNC});
     insert_symbol(symbols, st_key_of(LXL_SV_FROM_STRLIT("size_of")),
@@ -257,66 +317,6 @@ static void set_enum_counter(VIC_INT value) {
 
 static VIC_INT next_enum_value(void) {
     return parser.enum_counter++;
-}
-
-static struct ast_expr *new_expr(void) {
-    struct ast_expr *expr = ALLOCATE(perm, sizeof *expr);
-    assert(expr != NULL && "We're gonna need a bigger region!");
-    return expr;
-}
-
-static struct ast_stmt *new_stmt(void) {
-    struct ast_stmt *stmt = ALLOCATE(perm, sizeof *stmt);
-    assert(stmt != NULL && "We're gonna need a bigger region!");
-    return stmt;
-}
-
-static struct ast_decl *new_decl(void) {
-    struct ast_decl *decl = ALLOCATE(perm, sizeof *decl);
-    assert(decl != NULL && "We're gonna need a bigger region!");
-    return decl;
-}
-
-static struct ast_type *new_type(void) {
-    struct ast_type *type = ALLOCATE(perm, sizeof *type);
-    assert(type != NULL && "We're gonna need a bigger region!");
-    return type;
-}
-
-static struct ast_node *new_node(void) {
-    struct ast_node *node = ALLOCATE(perm, sizeof *node);
-    assert(node != NULL && "We're gonna need a bugger region!");
-    return node;
-}
-
-static struct ast_expr *copy_expr(struct ast_expr expr) {
-    struct ast_expr *new = new_expr();
-    *new = expr;
-    return new;
-}
-
-static struct ast_stmt *copy_stmt(struct ast_stmt stmt) {
-    struct ast_stmt *new = new_stmt();
-    *new = stmt;
-    return new;
-}
-
-static struct ast_decl *copy_decl(struct ast_decl decl) {
-    struct ast_decl *new = new_decl();
-    *new = decl;
-    return new;
-}
-
-static struct ast_type *copy_type(struct ast_type type) {
-    struct ast_type *new = new_type();
-    *new = type;
-    return new;
-}
-
-static struct ast_node *copy_node(struct ast_node node) {
-    struct ast_node *new = new_node();
-    *new = node;
-    return new;
 }
 
 static bool match_comparison(enum ast_cmp_op_kind *OUT_op, bool strict) {
@@ -1234,7 +1234,7 @@ struct ast_decl parse_type_defn(void) {
         insert_symbol(symbols, st_key_of(alias),
                       (struct symbol) {
                           .kind = SYMBOL_TYPE_ALIAS,
-                          .type_alias = {.type = *type}});
+                          .type_alias = {.type = type}});
     if (!insert_result) {
         name_error(alias_token, "Cannot redefine symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(alias));
     }
@@ -1579,7 +1579,7 @@ static TypeID resolve_type(struct ast_type *type) {
                        "Symbol '"LXL_SV_FMT_SPEC"' is not a type alias", LXL_SV_FMT_ARG(type->alias.name));
             return TYPE_NO_TYPE;
         }
-        return (type->resolved_type = resolve_type(&symbol->type_alias.type));
+        return (type->resolved_type = resolve_type(symbol->type_alias.type));
     }
     case AST_TYPE_ARRAY:
         return resolve_array(type);
@@ -1596,7 +1596,8 @@ static TypeID resolve_type(struct ast_type *type) {
                        LXL_SV_FMT_ARG(type->module_alias.module_name));
             return TYPE_NO_TYPE;
         }
-        struct symbol *symbol = lookup_symbol(module->globals, st_key_of(type->module_alias.alias_name));
+        struct symbol_table *old_symbols = enter_function(module->globals);
+        struct symbol *symbol = lookup_symbol(symbols, st_key_of(type->module_alias.alias_name));
         if (!symbol) {
             name_error(type->anchor,
                        "Unknown symbol '"LXL_SV_FMT_SPEC"' in module '"LXL_SV_FMT_SPEC"'",
@@ -1610,7 +1611,9 @@ static TypeID resolve_type(struct ast_type *type) {
                        LXL_SV_FMT_ARG(type->module_alias.alias_name));
             return TYPE_NO_TYPE;
         }
-        return (type->resolved_type = resolve_type(&symbol->type_alias.type));
+        type->resolved_type = resolve_type(symbol->type_alias.type);
+        leave_function(old_symbols);
+        return type->resolved_type;
     }
     case AST_TYPE_POINTER:
         return resolve_pointer(type);
@@ -2160,7 +2163,7 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                     .symbol = &symbol->func}};
         }
         else if (symbol->kind == SYMBOL_TYPE_ALIAS) {
-            struct ast_type *aliased_type = &symbol->type_alias.type;
+            struct ast_type *aliased_type = symbol->type_alias.type;
             *expr = (struct ast_expr) {
                 .anchor = expr->anchor,
                 .kind = AST_EXPR_TYPE_EXPR,

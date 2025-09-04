@@ -33,7 +33,7 @@ struct symbol_param {
 };
 
 struct symbol_type_alias {
-    struct ast_type type;  // Type not yet resolved for aliases.
+    struct ast_type *type;  // Type not yet resolved for aliases.
 };
 
 struct symbol_var {
