@@ -184,6 +184,7 @@ struct lxl_lexer *init_lexer(struct lxl_string_view source) {
         &lexer.keywords, &lexer.keyword_types,
         "and",           TOKEN_KW_AND,
         "as",            TOKEN_KW_AS,
+        "bitmap",        TOKEN_KW_BITMAP,
         "bool",          TOKEN_KW_BOOL,
         "c_string",      TOKEN_KW_C_STRING,
         "complex32_32",  TOKEN_KW_COMPLEX32_32,
@@ -226,6 +227,7 @@ struct lxl_lexer *init_lexer(struct lxl_string_view source) {
         "union",         TOKEN_KW_UNION,
         "val",           TOKEN_KW_VAL,
         "var",           TOKEN_KW_VAR,
+        "variant",       TOKEN_KW_VARIANT,
         "when",          TOKEN_KW_WHEN,
         "while",         TOKEN_KW_WHILE);
     // Identifiers.
@@ -316,6 +318,7 @@ const char *token_type_string(struct lxl_token token) {
     // Keywords.
     case TOKEN_KW_AND:                 return "TOKEN_KW_AND";
     case TOKEN_KW_AS:                  return "TOKEN_KW_AS";
+    case TOKEN_KW_BITMAP:              return "TOKEN_KW_BITMAP";
     case TOKEN_KW_BOOL:                return "TOKEN_KW_BOOL";
     case TOKEN_KW_C_STRING:            return "TOKEN_KW_C_STRING";
     case TOKEN_KW_COMPLEX32_32:        return "TOKEN_KW_COMPLEX32_32";
@@ -358,6 +361,7 @@ const char *token_type_string(struct lxl_token token) {
     case TOKEN_KW_UNION:               return "TOKEN_KW_UNION";
     case TOKEN_KW_VAL:                 return "TOKEN_KW_VAL";
     case TOKEN_KW_VAR:                 return "TOKEN_KW_VAR";
+    case TOKEN_KW_VARIANT:             return "TOKEN_KW_VARIANT";
     case TOKEN_KW_WHEN:                return "TOKEN_KW_WHEN";
     case TOKEN_KW_WHILE:               return "TOKEN_KW_WHILE";
     }
