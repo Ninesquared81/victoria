@@ -422,6 +422,10 @@ enum cgen_error crvic_generate_c_types(int indent_step, struct string_buffer *sb
             sb_add_formatted(sb, "typedef struct %s %s;\n", this_type_name, this_type_name);
             DO_OR_ERROR(ret, crvic_generate_c_record_defn(*info, indent_step, this_type_name, sb));
         }
+        else if (info->kind == KIND_UNION) {
+            sb_add_formatted(sb, "typedef union %s %s;\n", this_type_name, this_type_name);
+            DO_OR_ERROR(ret, crvic_generate_c_union_defn(*info, indent_step, this_type_name, sb));
+        }
         else if (info->kind == KIND_ARRAY) {
             sb_add_formatted(sb, "typedef struct %s %s;\nstruct %s {%s _[%d];};\n",
                              this_type_name, this_type_name, this_type_name,
@@ -452,6 +456,20 @@ enum cgen_error crvic_generate_c_record_defn(struct type_info info, int indent_s
                                              const char *type_name, struct string_buffer *sb) {
     assert(info.kind == KIND_RECORD);
     sb_add_formatted(sb, "struct %s {\n", type_name);
+    for (int i = 0; i < info.record.fields.count; ++i) {
+        struct type_decl field = info.record.fields.items[i];
+        sb_add_formatted(sb, "%*s%s "LXL_SV_FMT_SPEC";\n", indent_step, "",
+                         crvic_get_c_type(field.type),
+                         LXL_SV_FMT_ARG(field.name));
+    }
+    sb_add_string(sb, "};\n");
+    return CGEN_OK;
+}
+
+enum cgen_error crvic_generate_c_union_defn(struct type_info info, int indent_step,
+                                            const char *type_name, struct string_buffer *sb) {
+    assert(info.kind == KIND_UNION);
+    sb_add_formatted(sb, "union %s {\n", type_name);
     for (int i = 0; i < info.record.fields.count; ++i) {
         struct type_decl field = info.record.fields.items[i];
         sb_add_formatted(sb, "%*s%s "LXL_SV_FMT_SPEC";\n", indent_step, "",

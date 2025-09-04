@@ -34,6 +34,9 @@ enum cgen_error crvic_generate_c_expr_sep_list(struct ast_list nodes, const char
 enum cgen_error crvic_generate_c_types(int indent_step, struct string_buffer *sb);
 enum cgen_error crvic_generate_c_record_defn(struct type_info info, int indent_step,
                                              const char *type_name, struct string_buffer *sb);
+enum cgen_error crvic_generate_c_union_defn(struct type_info info, int indent_step,
+                                            const char *type_name, struct string_buffer *sb);
+
 
 enum cgen_error crvic_generate_c_identifier(struct module *module, struct lxl_string_view name,
                                             bool should_mangle, struct string_buffer *sb);
