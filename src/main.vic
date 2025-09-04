@@ -50,7 +50,7 @@ type Options := record {
 }
 
 func print_usage(prog_name: string) {
-    .c.printf(c"Usage: [OPTIONS] %s file\n", prog_name to c_string)
+    .c.printf(c"Usage: %s [OPTIONS] file\n", prog_name to c_string)
 }
 
 func print_help(prog_name: string) {
