@@ -15,6 +15,11 @@ enum cgen_error {
     CGEN_IO_ERROR,
 };
 
+enum unit_context {
+    UNIT_FUNC_RET,
+    UNIT_OTHER,
+};
+
 enum cgen_error crvic_generate_c_file(struct package *package, struct string_buffer *sb);
 enum cgen_error crvic_generate_c_nodes(struct ast_list nodes, int indent, int indent_step,
                                        struct string_buffer *sb);
@@ -43,7 +48,7 @@ enum cgen_error crvic_generate_c_identifier(struct module *module, struct lxl_st
 
 const char *crvic_get_c_op(enum ast_bin_op_kind op);
 const char *crvic_get_c_cmp(enum ast_cmp_op_kind op);
-const char *crvic_get_c_type(TypeID type);
+const char *crvic_get_c_type(TypeID type, enum unit_context ctx);
 const char *crvic_get_c_pointer(struct type_info info);
 const char *crvic_get_c_zero_value(TypeID type);
 

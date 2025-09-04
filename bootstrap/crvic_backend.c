@@ -116,7 +116,7 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
     switch (decl->kind) {
     case AST_DECL_VAR:
         assert(decl->var.kind != AST_VAR_CONST);
-        sb_add_formatted(sb, "%s ", crvic_get_c_type(decl->var.type->resolved_type));
+        sb_add_formatted(sb, "%s ", crvic_get_c_type(decl->var.type->resolved_type, UNIT_OTHER));
         DO_OR_ERROR(error, crvic_generate_c_identifier(module, decl->var.name, true, sb));
         sb_add_string(sb, " = ");
         if (decl->var.value) {
@@ -150,7 +150,7 @@ enum cgen_error crvic_generate_c_decl(struct ast_decl *decl, int indent, int ind
                              "%*sVIC_args_data__[i] = (VIC_STRING){argv[i], strlen(argv[i])};\n"
                              "%*s};\n",
                              indent_step, "", indent_step * 2, "", indent_step, "");
-            sb_add_formatted(sb, "%*s%s ", indent_step, "", crvic_get_c_type(args.type));
+            sb_add_formatted(sb, "%*s%s ", indent_step, "", crvic_get_c_type(args.type, UNIT_OTHER));
             DO_OR_ERROR(error, crvic_generate_c_identifier(module, args.name, false, sb));
             sb_add_string(sb, " = {VIC_args_data__, argc};\n");
         }
@@ -215,7 +215,7 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         sb_add_string(sb, ")");
         break;
     case AST_EXPR_CONSTRUCTOR:
-        sb_add_formatted(sb, "((%s) {", crvic_get_c_type(expr->type));
+        sb_add_formatted(sb, "((%s) {", crvic_get_c_type(expr->type, UNIT_OTHER));
         DO_OR_ERROR(error, crvic_generate_c_expr_sep_list(expr->constructor.init_list, ", ", sb));
         sb_add_string(sb, "})");
         break;
@@ -225,8 +225,8 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
         if (expr->convert.kind == CONVERT_AS) {
             // 'as' conversion.
             sb_add_formatted(sb, "((union {%s value; %s as;}){.value = ",
-                             crvic_get_c_type(expr->convert.operand->type),
-                             crvic_get_c_type(expr->convert.target_type->resolved_type));
+                             crvic_get_c_type(expr->convert.operand->type, UNIT_OTHER),
+                             crvic_get_c_type(expr->convert.target_type->resolved_type, UNIT_OTHER));
             DO_OR_ERROR(error, crvic_generate_c_expr(expr->convert.operand, sb));
             sb_add_string(sb, "}.as)");
         }
@@ -235,7 +235,7 @@ enum cgen_error crvic_generate_c_expr(struct ast_expr *expr, struct string_buffe
             sb_add_string(sb, "(");
             bool str2cstr = expr->convert.operand->type == TYPE_STRING && expr->type == TYPE_C_STRING;
             if (!str2cstr) {
-                sb_add_formatted(sb, "(%s)", crvic_get_c_type(expr->convert.target_type->resolved_type));
+                sb_add_formatted(sb, "(%s)", crvic_get_c_type(expr->convert.target_type->resolved_type, UNIT_OTHER));
             }
             DO_OR_ERROR(error, crvic_generate_c_expr(expr->convert.operand, sb));
             if (type_is_kind(expr->convert.operand->type, KIND_ARRAY)) {
@@ -364,13 +364,13 @@ enum cgen_error crvic_generate_c_main_header(struct func_sig *sig, struct string
 enum cgen_error crvic_generate_c_func_header(struct ast_decl_func *func, struct string_buffer *sb) {
     struct func_sig *sig = &func->sig->resolved_sig;
     if (lxl_sv_equal(sig->name, LXL_SV_FROM_STRLIT("main"))) return crvic_generate_c_main_header(sig, sb);
-    sb_add_formatted(sb, "%s ", crvic_get_c_type(sig->ret_type));
+    sb_add_formatted(sb, "%s ", crvic_get_c_type(sig->ret_type, UNIT_FUNC_RET));
     enum cgen_error error = CGEN_OK;
     DO_OR_ERROR(error, crvic_generate_c_identifier(module, sig->name, func->link_kind == FUNC_INTERNAL, sb));
     sb_add_string(sb, "(");
     if (sig->params.count >= 1) {
         struct type_decl param = sig->params.items[0];
-        sb_add_formatted(sb, "%s ", crvic_get_c_type(param.type));
+        sb_add_formatted(sb, "%s ", crvic_get_c_type(param.type, UNIT_OTHER));
         DO_OR_ERROR(error, crvic_generate_c_identifier(module, param.name, false, sb));
     }
     else {
@@ -379,7 +379,7 @@ enum cgen_error crvic_generate_c_func_header(struct ast_decl_func *func, struct 
     }
     for (int i = 1; i < sig->params.count; ++i) {
         struct type_decl param = sig->params.items[i];
-        sb_add_formatted(sb, ", %s ", crvic_get_c_type(param.type));
+        sb_add_formatted(sb, ", %s ", crvic_get_c_type(param.type, UNIT_OTHER));
         DO_OR_ERROR(error, crvic_generate_c_identifier(module, param.name, false, sb));
     }
     if (sig->c_variadic) {
@@ -410,14 +410,14 @@ enum cgen_error crvic_generate_c_expr_sep_list(struct ast_list nodes, const char
 }
 
 enum cgen_error crvic_generate_c_types(int indent_step, struct string_buffer *sb) {
-    const char *vic_int_string = crvic_get_c_type(TYPE_INT);
+    const char *vic_int_string = crvic_get_c_type(TYPE_INT, UNIT_OTHER);
     // Builtin typdefs.
     sb_add_formatted(sb, "typedef struct {const char *ptr; %s len;} VIC_STRING;\n", vic_int_string);
     // User-defined types.
     struct iterator it = get_type_iterator();
     FOR_ITER(struct type_info *, info, &it) {
         enum cgen_error ret = CGEN_OK;
-        const char *this_type_name = crvic_get_c_type(info->id);
+        const char *this_type_name = crvic_get_c_type(info->id, UNIT_OTHER);
         if (info->kind == KIND_RECORD) {
             sb_add_formatted(sb, "typedef struct %s %s;\n", this_type_name, this_type_name);
             DO_OR_ERROR(ret, crvic_generate_c_record_defn(*info, indent_step, this_type_name, sb));
@@ -429,24 +429,24 @@ enum cgen_error crvic_generate_c_types(int indent_step, struct string_buffer *sb
         else if (info->kind == KIND_ARRAY) {
             sb_add_formatted(sb, "typedef struct %s %s;\nstruct %s {%s _[%d];};\n",
                              this_type_name, this_type_name, this_type_name,
-                             crvic_get_c_type(info->array.dest_type),
+                             crvic_get_c_type(info->array.dest_type, UNIT_OTHER),
                              info->array.count);
         }
         else if (info->kind == KIND_FUNCTION) {
             struct func_sig *sig = info->function.sig;
-            sb_add_formatted(sb, "typedef %s %s(", crvic_get_c_type(sig->ret_type), this_type_name);
+            sb_add_formatted(sb, "typedef %s %s(", crvic_get_c_type(sig->ret_type, UNIT_FUNC_RET), this_type_name);
             if (sig->params.count >= 1) {
-                sb_add_formatted(sb, "%s", crvic_get_c_type(sig->params.items[0].type));
+                sb_add_formatted(sb, "%s", crvic_get_c_type(sig->params.items[0].type, UNIT_OTHER));
             }
             for (int i = 1; i < sig->params.count; ++i) {
-                sb_add_formatted(sb, ", %s", crvic_get_c_type(sig->params.items[i].type));
+                sb_add_formatted(sb, ", %s", crvic_get_c_type(sig->params.items[i].type, UNIT_OTHER));
             }
             sb_add_string(sb, ");\n");
         }
         else if (info->kind == KIND_SLICE) {
             sb_add_formatted(sb, "typedef struct %s %s;\nstruct %s {%s *ptr; %s len;};\n",
                              this_type_name, this_type_name, this_type_name,
-                             crvic_get_c_type(info->slice.dest_type), vic_int_string);
+                             crvic_get_c_type(info->slice.dest_type, UNIT_OTHER), vic_int_string);
         }
     }
     return CGEN_OK;
@@ -459,7 +459,7 @@ enum cgen_error crvic_generate_c_record_defn(struct type_info info, int indent_s
     for (int i = 0; i < info.record.fields.count; ++i) {
         struct type_decl field = info.record.fields.items[i];
         sb_add_formatted(sb, "%*s%s "LXL_SV_FMT_SPEC";\n", indent_step, "",
-                         crvic_get_c_type(field.type),
+                         crvic_get_c_type(field.type, UNIT_OTHER),
                          LXL_SV_FMT_ARG(field.name));
     }
     sb_add_string(sb, "};\n");
@@ -473,7 +473,7 @@ enum cgen_error crvic_generate_c_union_defn(struct type_info info, int indent_st
     for (int i = 0; i < info.record.fields.count; ++i) {
         struct type_decl field = info.record.fields.items[i];
         sb_add_formatted(sb, "%*s%s "LXL_SV_FMT_SPEC";\n", indent_step, "",
-                         crvic_get_c_type(field.type),
+                         crvic_get_c_type(field.type, UNIT_OTHER),
                          LXL_SV_FMT_ARG(field.name));
     }
     sb_add_string(sb, "};\n");
@@ -518,18 +518,19 @@ const char *crvic_get_c_cmp(enum ast_cmp_op_kind op) {
     return NULL;
 }
 
-const char *crvic_get_c_type(TypeID type) {
+const char *crvic_get_c_type(TypeID type, enum unit_context ctx) {
     if (type < TYPE_PRIMITIVE_COUNT) {
         switch ((enum type_primitive)type) {
         case TYPE_NO_TYPE:
         case TYPE_TYPE_EXPR:
         case TYPE_ABSURD:
-        case TYPE_UNIT:
             return "void";
+        case TYPE_UNIT:
+            return (ctx == UNIT_FUNC_RET) ? "void" : "char";
         case TYPE_NULLPTR_TYPE:
             return "void*";
         case TYPE_CONST_BOOL: return "bool";
-        case TYPE_CONST_INT: return crvic_get_c_type(TYPE_INT);
+        case TYPE_CONST_INT: return crvic_get_c_type(TYPE_INT, ctx);
         case TYPE_BOOL: return "bool";
         case TYPE_I8: return "int8_t";
         case TYPE_I16: return "int16_t";
@@ -561,7 +562,7 @@ const char *crvic_get_c_type(TypeID type) {
         return name;
     }
     case KIND_ENUM:
-        return crvic_get_c_type(info->enum_.underlying_type);
+        return crvic_get_c_type(info->enum_.underlying_type, ctx);
     case KIND_POINTER:
         return crvic_get_c_pointer(*info);
     case KIND_NO_KIND:
@@ -574,7 +575,7 @@ const char *crvic_get_c_type(TypeID type) {
 const char *crvic_get_c_pointer(struct type_info info) {
     assert(info.kind == KIND_POINTER);
     // NOTE: complex types are typdef'd, so we /should/ be able to use them as a normal type name.
-    const char *dest_type_string = crvic_get_c_type(info.pointer.dest_type);
+    const char *dest_type_string = crvic_get_c_type(info.pointer.dest_type, UNIT_OTHER);
     const char *qualifier = (info.pointer.rw == RW_READ_ONLY) ? "const " : "";
     if (type_is_kind(info.pointer.dest_type, KIND_FUNCTION)) {
         // We cannot have qualifiers on function types.
