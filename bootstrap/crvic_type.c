@@ -87,6 +87,10 @@ void init_type(struct type_info *info) {
         info->size = VIC_PTR_SIZE + sizeof(VIC_INT);
         info->repr = make_slice_repr(info->slice);
         break;
+    case KIND_UNION:
+        info->size = calculate_union_size(info->union_);
+        info->repr = make_union_repr(info->union_);
+        break;
     case KIND_PRIMITIVE:
     case KIND_NO_KIND:
         UNREACHABLE();
@@ -105,6 +109,7 @@ bool types_equal(struct type_info *a, struct type_info *b) {
     case KIND_ARRAY:        return array_types_equal(&a->array, &b->array);
     case KIND_FUNCTION:     return function_types_equal(&a->function, &b->function);
     case KIND_SLICE:        return slice_types_equal(&a->slice, &b->slice);
+    case KIND_UNION:        return union_types_equal(&a->union_, &b->union_);
     }
 }
 
@@ -133,8 +138,12 @@ bool slice_types_equal(struct slice_info *a, struct slice_info *b) {
     return a->rw == b->rw && a->dest_type == b->dest_type;
 }
 
+bool union_types_equal(struct union_info *a, struct union_info *b) {
+    return DA_EQ(&a->fields, &b->fields);
+}
+
 struct lxl_string_view make_record_repr(struct record_info info) {
-    if (info.fields.count == 0) return LXL_SV_FROM_STRLIT("record {}");
+    assert(info.fields.count >= 1);  // An empty record is the unit type `()`.
     ptrdiff_t capacity = 32;
     char *repr = ALLOCATE(perm, capacity);
     char *ptr = repr;
@@ -175,7 +184,7 @@ struct lxl_string_view make_record_repr(struct record_info info) {
 }
 
 struct lxl_string_view make_enum_repr(struct enum_info info) {
-    if (info.fields.count == 0) return LXL_SV_FROM_STRLIT("enum {}");
+    assert(info.fields.count >= 1);  // An empty enum is the absurd type `!`.
     ptrdiff_t capacity = 32;
     char *repr = ALLOCATE(perm, capacity);
     char *ptr = repr;
@@ -275,10 +284,63 @@ struct lxl_string_view make_slice_repr(struct slice_info info) {
     return (struct lxl_string_view) {.start = repr, .length = repr_length};
 }
 
+struct lxl_string_view make_union_repr(struct union_info info) {
+    assert(info.fields.count >= 1);  // An empty union is the absurd type `!`.
+    ptrdiff_t capacity = 32;
+    char *repr = ALLOCATE(perm, capacity);
+    char *ptr = repr;
+    const char header[] = "union {";
+    assert((ptrdiff_t)(sizeof header) <= capacity);
+    memcpy(ptr, header, sizeof header - 1);
+    ptr += sizeof header - 1;
+    for (int i = 0; i < info.fields.count; ++i) {
+        struct lxl_string_view name_sv = info.fields.items[i].name;
+        struct lxl_string_view type_sv = get_type_sv(info.fields.items[i].type);
+        // NOTE: +2 for ': ', +2 for ', '.
+        ptrdiff_t needed_size = name_sv.length + 2 + type_sv.length + 2;
+        ptrdiff_t count = ptr - repr;
+        if (count + needed_size > capacity) {
+            ptrdiff_t old_capacity = capacity;
+            capacity += capacity + needed_size;
+            assert(capacity > count + needed_size);
+            repr = REALLOCATE(perm, repr, capacity, old_capacity);
+            assert(repr);
+        }
+        memcpy(ptr, name_sv.start, name_sv.length);
+        ptr += name_sv.length;
+        *ptr++ = ':';
+        *ptr++ = ' ';
+        memcpy(ptr, type_sv.start, type_sv.length);
+        ptr += type_sv.length;
+        *ptr++ = ',';
+        *ptr++ = ' ';
+    }
+    // Overwrite last ', ' with '}\0'. We catch the empty union case at the top of the function,
+    // so this is well-defined.
+    ptr[-2] = '}';
+    ptr[-1] = '\0';
+    // Shrink allocation to avoid over-allocation.
+    repr = REALLOCATE(perm, repr, ptr - repr, capacity);
+    assert(repr);
+    return lxl_sv_from_startend(repr, ptr);
+}
+
 size_t calculate_record_size(struct record_info info) {
     size_t size = 0;
     for (int i = 0; i < info.fields.count; ++i) {
         size += get_type(info.fields.items[i].type)->size;
+    }
+    return size;
+}
+
+size_t calculate_union_size(struct union_info info) {
+    assert(info.fields.count >= 1);
+    size_t size = get_type_size(info.fields.items[0].type);
+    for (int i = 1; i < info.fields.count; ++i) {
+        size_t field_size = get_type_size(info.fields.items[i].type);
+        if (field_size > size) {
+            size = field_size;
+        }
     }
     return size;
 }

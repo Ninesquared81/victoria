@@ -531,6 +531,7 @@ const char *crvic_get_c_type(TypeID type) {
     struct type_info *info = get_type(type);
     assert(info);
     switch (info->kind) {
+    case KIND_UNION:
     case KIND_SLICE:
     case KIND_ARRAY:
     case KIND_FUNCTION:
@@ -579,6 +580,7 @@ const char *crvic_get_c_zero_value(TypeID type) {
     case KIND_ENUM:
         TODO("enum zero value");
         break;
+    case KIND_UNION:
     case KIND_RECORD:
     case KIND_ARRAY:
     case KIND_SLICE:

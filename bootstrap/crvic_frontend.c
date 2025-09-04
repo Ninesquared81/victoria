@@ -510,7 +510,6 @@ bool try_parse_type(struct ast_type *OUT_type) {
     }
     // Type alias in different module.
     if (match(TOKEN_DOT, false)) {
-        struct lxl_token anchor = parser.previous_token;
         struct lxl_token module_name_token = consume(TOKEN_IDENTIFIER, false, "Expect module name after '.'");
         consume(TOKEN_DOT, false, "Expect '.' after module name");
         struct lxl_token alias_name_token = consume(TOKEN_IDENTIFIER, false, "Expect type alias after '.'");
@@ -578,6 +577,28 @@ bool try_parse_type(struct ast_type *OUT_type) {
             .kind = AST_TYPE_ENUM,
             .enum_lit = {
                 .underlying_type = copy_type(underlying_type),
+                .fields = fields}};
+        return true;
+    }
+    // Union types.
+    if (match(TOKEN_KW_UNION, false)) {
+        consume(TOKEN_BKT_CURLY_LEFT, false, "Expect '{' after 'union'");
+        struct ast_type_decl_list fields = AST_TYPE_DECL_LIST(perm);
+        while (!check(TOKEN_BKT_CURLY_RIGHT, false)) {
+            struct lxl_token field_name_token = consume(TOKEN_IDENTIFIER, false, "Expect field name");
+            consume(TOKEN_COLON, false, "Expect ':' after field name");
+            ignore_line_ending();
+            struct lxl_string_view field_name = lxl_token_value(field_name_token);
+            struct ast_type field_type = parse_type("Expect field type after ':'");
+            struct ast_type_decl field = {.name = field_name, .type = copy_type(field_type)};
+            DA_APPEND(&fields, field);
+            if (!match(TOKEN_COMMA, false)) break;
+        }
+        consume(TOKEN_BKT_CURLY_RIGHT, false, "Expect '}' after union fields");
+        *OUT_type = (struct ast_type) {
+            .anchor = anchor,
+            .kind = AST_TYPE_UNION,
+            .union_lit = {
                 .fields = fields}};
         return true;
     }
@@ -1434,20 +1455,27 @@ static struct func_sig *resolve_func_sig(struct ast_sig *sig) {
     return &sig->resolved_sig;
 }
 
-static TypeID resolve_record(struct ast_type *type) {
-    assert(type->kind == AST_TYPE_RECORD);
+static TypeID resolve_record_or_union(struct ast_type *type) {
+    assert(type->kind == AST_TYPE_RECORD || type->kind == AST_TYPE_UNION);
+    struct ast_type_decl_list *ast_fields = (type->kind == AST_TYPE_RECORD)
+        ? &type->record_lit.fields
+        : &type->union_lit.fields;
     AUTO_BEGIN_TEMP();
     struct type_decl_list fields = TYPE_DECL_LIST(temp);
-    DA_RESERVE(&fields, type->record_lit.fields.count);
-    for (int i = 0; i < type->record_lit.fields.count; ++i) {
-        fields.items[fields.count++] = resolve_type_decl(&type->record_lit.fields.items[i]);
+    DA_RESERVE(&fields, ast_fields->count);
+    for (int i = 0; i < ast_fields->count; ++i) {
+        fields.items[fields.count++] = resolve_type_decl(&ast_fields->items[i]);
     }
-    struct type_info record_info = {
+    struct type_info info = {
         .kind = KIND_RECORD,
         .record = {
             .fields = PROMOTE_DA(&fields)}};
     AUTO_END_TEMP();
-    type->resolved_type = get_or_add_type(record_info);
+    if (type->kind == AST_TYPE_UNION) {
+        info.kind = KIND_UNION;
+        info.union_.fields = info.record.fields;  // Probably not needed.
+    }
+    type->resolved_type = get_or_add_type(info);
     return type->resolved_type;
 }
 
@@ -1572,9 +1600,11 @@ static TypeID resolve_type(struct ast_type *type) {
     case AST_TYPE_POINTER:
         return resolve_pointer(type);
     case AST_TYPE_RECORD:
-        return resolve_record(type);
+        return resolve_record_or_union(type);
     case AST_TYPE_SLICE:
         return resolve_slice(type);
+    case AST_TYPE_UNION:
+        return resolve_record_or_union(type);
     }
     UNREACHABLE();
     return TYPE_NO_TYPE;
@@ -1877,6 +1907,9 @@ static TypeID type_check_expr(struct ast_expr *expr) {
                 break;
             case KIND_SLICE:
                 break;  // Count is only known at runtime.
+            case KIND_UNION:
+                known_count = info->union_.fields.count;
+                break;
             case KIND_PRIMITIVE:
                 assert(operand_type != TYPE_TYPE_EXPR);
                 if (operand_type == TYPE_STRING) break;

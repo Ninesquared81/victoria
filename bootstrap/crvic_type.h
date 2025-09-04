@@ -101,6 +101,7 @@ enum kind {
     KIND_ARRAY,                 // Array type, [n]T.
     KIND_FUNCTION,              // Function type, func f(p1: P1, p2: P2) -> R.
     KIND_SLICE,                 // Slice type (ptr + len), []T.
+    KIND_UNION,                 // Untagged union type.
 };
 
 struct enum_field {
@@ -169,6 +170,9 @@ struct type_info {
             enum rw_access rw;
             TypeID dest_type;
         } slice;
+        struct union_info {
+            struct type_decl_list fields;
+        } union_;
     };
 };
 
@@ -186,6 +190,7 @@ bool pointer_types_equal(struct pointer_info *a, struct pointer_info *b);
 bool array_types_equal(struct array_info *a, struct array_info *b);
 bool function_types_equal(struct function_info *a, struct function_info *b);
 bool slice_types_equal(struct slice_info *a, struct slice_info *b);
+bool union_types_equal(struct union_info *a, struct union_info *b);
 
 struct lxl_string_view make_record_repr(struct record_info info);
 struct lxl_string_view make_enum_repr(struct enum_info info);
@@ -193,8 +198,11 @@ struct lxl_string_view make_pointer_repr(struct pointer_info info);
 struct lxl_string_view make_array_repr(struct array_info info);
 struct lxl_string_view make_function_repr(struct function_info info);
 struct lxl_string_view make_slice_repr(struct slice_info info);
+struct lxl_string_view make_union_repr(struct union_info info);
 
 size_t calculate_record_size(struct record_info info);
+size_t calculate_union_size(struct union_info info);
+
 TypeID get_record_field_type(struct record_info info, struct lxl_string_view field_name);
 bool get_enum_field_value(struct enum_info info, struct lxl_string_view field_name, VIC_INT *OUT_value);
 
