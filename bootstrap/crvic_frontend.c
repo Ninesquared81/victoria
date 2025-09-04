@@ -1455,14 +1455,10 @@ static struct func_sig *resolve_func_sig(struct ast_sig *sig) {
     return &sig->resolved_sig;
 }
 
-static TypeID resolve_record_or_union(struct ast_type *type) {
-    assert(type->kind == AST_TYPE_RECORD || type->kind == AST_TYPE_UNION);
-    struct ast_type_decl_list *ast_fields = (type->kind == AST_TYPE_RECORD)
-        ? &type->record_lit.fields
-        : &type->union_lit.fields;
-    if (ast_fields->count == 0) {
-        return (type->kind == AST_TYPE_RECORD) ? TYPE_UNIT : TYPE_ABSURD;
-    }
+static TypeID resolve_record(struct ast_type *type) {
+    assert(type->kind == AST_TYPE_RECORD);
+    struct ast_type_decl_list *ast_fields = &type->record_lit.fields;
+    if (ast_fields->count == 0) return TYPE_UNIT;
     AUTO_BEGIN_TEMP();
     struct type_decl_list fields = TYPE_DECL_LIST(temp);
     DA_RESERVE(&fields, ast_fields->count);
@@ -1474,10 +1470,25 @@ static TypeID resolve_record_or_union(struct ast_type *type) {
         .record = {
             .fields = PROMOTE_DA(&fields)}};
     AUTO_END_TEMP();
-    if (type->kind == AST_TYPE_UNION) {
-        info.kind = KIND_UNION;
-        info.union_.fields = info.record.fields;  // Probably not needed.
+    type->resolved_type = get_or_add_type(info);
+    return type->resolved_type;
+}
+
+static TypeID resolve_union(struct ast_type *type) {
+    assert(type->kind == AST_TYPE_UNION);
+    struct ast_type_decl_list *ast_fields = &type->union_lit.fields;
+    if (ast_fields->count == 0) return TYPE_ABSURD;
+    AUTO_BEGIN_TEMP();
+    struct type_decl_list fields = TYPE_DECL_LIST(temp);
+    DA_RESERVE(&fields, ast_fields->count);
+    for (int i = 0; i < ast_fields->count; ++i) {
+        fields.items[fields.count++] = resolve_type_decl(&ast_fields->items[i]);
     }
+    struct type_info info = {
+        .kind = KIND_RECORD,
+        .union_ = {
+            .fields = PROMOTE_DA(&fields)}};
+    AUTO_END_TEMP();
     type->resolved_type = get_or_add_type(info);
     return type->resolved_type;
 }
@@ -1604,11 +1615,11 @@ static TypeID resolve_type(struct ast_type *type) {
     case AST_TYPE_POINTER:
         return resolve_pointer(type);
     case AST_TYPE_RECORD:
-        return resolve_record_or_union(type);
+        return resolve_record(type);
     case AST_TYPE_SLICE:
         return resolve_slice(type);
     case AST_TYPE_UNION:
-        return resolve_record_or_union(type);
+        return resolve_union(type);
     }
     UNREACHABLE();
     return TYPE_NO_TYPE;
