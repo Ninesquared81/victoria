@@ -1,6 +1,6 @@
 ;;; victoria-mode.el -- Major mode for Victoria -*- lexical-binding: t -*-
 
-(require 'go-mode)
+(require 'odin-mode)
 
 (defconst victoria-mode-syntax-table
   (with-syntax-table (copy-syntax-table)
@@ -64,7 +64,7 @@
     "Syntax highlighting for victoria-mode")
 
 ;;;###autoload
-(define-derived-mode victoria-mode go-mode "vic"
+(define-derived-mode victoria-mode odin-mode "vic"
   "Major mode for Victoria"
   (setq comment-start "#")
   (setq indent-tabs-mode nil)
