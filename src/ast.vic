@@ -1,8 +1,16 @@
 package victoria
 
+type List := record {
+    head: ^Node,
+    tail: ^Node,
+    count: int,
+}
+
 type NodeKind := enum {EXPR, STMT, DECL, TYPE}
 
 type Node := record {
+    next: ^Node,
+    prev: ^Node,
     kind: NodeKind,
     u: union {
         expr: Expr,
