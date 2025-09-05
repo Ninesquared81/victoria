@@ -52,8 +52,28 @@ func syntax_error_previous(parser: ^Parser, msg: string) {
     syntax_error(parser, parser^.previous, msg)
 }
 
-func parse(source: string) -> .ast.List {
+func advance(parser: ^Parser) -> Token {
+    parser^.previous := parser^.current
+    parser^.current := .lexer.next_token(parser^.lexer)
+    return parser^.current
+}
 
+func check(parser: ^Parser, token_type: TokenType) -> bool {
+    return parser^.current.token_type == token_type
+}
+
+func match(parser: ^Parser, token_type: TokenType) -> bool {
+    if !check(parser, token_type) {
+        return false
+    }
+    advance(parser)
+    return true
+}
+
+func parse(source: string, file: string) -> .ast.List {
+    var parser: Parser  # Zero initialise.
+    parser.lexer = .lexer.get_lexer(source)
+    parser.file = file
 }
 
 func parse_precedence(parser: ^Parser, prec: Precedence) -> .ast.Expr {
