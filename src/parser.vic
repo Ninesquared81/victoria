@@ -1,13 +1,13 @@
 package victoria
 
 type ParseRule := record {
-    prefix: ParseFn,
-    infix: ParseFn,
-    suffix: ParseFn,
+    prefix: ^PrefixParser,
+    suffix: ^SuffixParser,
     prec: Precedence,
 }
 
-type ParseFn := ^func (parser: ^Parser) -> .ast.Expr
+type PrefixParser := func (parser: ^Parser) -> ^.ast.Expr
+type SuffixParser := func (parser: ^Parser, left: ^.ast.expr) -> ^.ast.Expr
 
 type Precedence := enum {
     NONE,
@@ -76,116 +76,128 @@ func parse(source: string, file: string) -> .ast.List {
     parser.file = file
 }
 
-func parse_precedence(parser: ^Parser, prec: Precedence) -> .ast.Expr {
-    var token = advance(parser)
-    val rule = rules[token.token_type]
-    if !rule.prefix {
+func parse_precedence(parser: ^Parser, prec: Precedence) -> ^.ast.Expr {
+    advance(parser)
+    val parse_prefix = rules[parser^.previous.token_type]
+    if !parse_prefix {
         syntax_error_previous(parser, "Expect expression before '{token}'")
+        return .ast.error_expr()
     }
+    var expr := parse_prefix^(parser)
+    var rule = rules[parser^.current.token_type]
+    while prec <= rule.prec {
+        advance(parser)
+        val parse_suffix = rule.suffix
+        .helper.assert(parse_suffix, "Non-zero precedence with null parse function")
+        expr = parse_suffix^(parser, expr)
+        rule = rules[parser^.current.token_type]
+    }
+    return expr
 }
 
 val rules := [count_of(TokenType)]ParseRule (
     # Literals.
-    ParseRule (null, null, null, Precedence.NONE)  # LIT_FLOAT
-    ParseRule (null, null, null, Precedence.NONE)  # LIT_INTEGER
-    ParseRule (null, null, null, Precedence.NONE)  # LIT_STRING
+    ParseRule (null, null, Precedence.NONE)  # LIT_FLOAT
+    ParseRule (null, null, Precedence.NONE)  # LIT_INTEGER
+    ParseRule (null, null, Precedence.NONE)  # LIT_STRING
     # Brackets.
-    ParseRule (null, null, null, Precedence.NONE)  # BKT_CURLY_LEFT
-    ParseRule (null, null, null, Precedence.NONE)  # BKT_CURLY_RIGHT
-    ParseRule (null, null, null, Precedence.NONE)  # BKT_ROUND_LEFT
-    ParseRule (null, null, null, Precedence.NONE)  # BKT_ROUND_RIGHT
-    ParseRule (null, null, null, Precedence.NONE)  # BKT_SQUARE_LEFT
-    ParseRule (null, null, null, Precedence.NONE)  # BKT_SQUARE_RIGHT
+    ParseRule (null, null, Precedence.NONE)  # BKT_CURLY_LEFT
+    ParseRule (null, null, Precedence.NONE)  # BKT_CURLY_RIGHT
+    ParseRule (null, null, Precedence.NONE)  # BKT_ROUND_LEFT
+    ParseRule (null, null, Precedence.NONE)  # BKT_ROUND_RIGHT
+    ParseRule (null, null, Precedence.NONE)  # BKT_SQUARE_LEFT
+    ParseRule (null, null, Precedence.NONE)  # BKT_SQUARE_RIGHT
     # Arrows.
-    ParseRule (null, null, null, Precedence.NONE)  # ARROW_RIGHT
+    ParseRule (null, null, Precedence.NONE)  # ARROW_RIGHT
     # Other Punctuation.
-    ParseRule (null, null, null, Precedence.NONE)  # AMPERSAND
-    ParseRule (null, null, null, Precedence.NONE)  # AMPERSAND_EQUALS
-    ParseRule (null, null, null, Precedence.NONE)  # AT
-    ParseRule (null, null, null, Precedence.NONE)  # BANG
-    ParseRule (null, null, null, Precedence.NONE)  # BANG_EQUALS
-    ParseRule (null, null, null, Precedence.NONE)  # CARET
-    ParseRule (null, null, null, Precedence.NONE)  # COLON
-    ParseRule (null, null, null, Precedence.NONE)  # COLON_EQUALS
-    ParseRule (null, null, null, Precedence.NONE)  # COMMA
-    ParseRule (null, null, null, Precedence.NONE)  # DOLLAR
-    ParseRule (null, null, null, Precedence.NONE)  # DOT
-    ParseRule (null, null, null, Precedence.NONE)  # DOT_DOT
-    ParseRule (null, null, null, Precedence.NONE)  # DOT_DOT_BANG
-    ParseRule (null, null, null, Precedence.NONE)  # EQUALS
-    ParseRule (null, null, null, Precedence.NONE)  # EQUALS_EQUALS
-    ParseRule (null, null, null, Precedence.NONE)  # GREATER
-    ParseRule (null, null, null, Precedence.NONE)  # GREATER_EQUALS
-    ParseRule (null, null, null, Precedence.NONE)  # GREATER_GREATER
-    ParseRule (null, null, null, Precedence.NONE)  # GREATER_GREATER_EQUALS
-    ParseRule (null, null, null, Precedence.NONE)  # LESS
-    ParseRule (null, null, null, Precedence.NONE)  # LESS_EQUALS
-    ParseRule (null, null, null, Precedence.NONE)  # LESS_LESS
-    ParseRule (null, null, null, Precedence.NONE)  # LESS_LESS_EQUALS
-    ParseRule (null, null, null, Precedence.NONE)  # MINUS
-    ParseRule (null, null, null, Precedence.NONE)  # MINUS_EQUALS
-    ParseRule (null, null, null, Precedence.NONE)  # PERCENT
-    ParseRule (null, null, null, Precedence.NONE)  # PERCENT_EQUALS
-    ParseRule (null, null, null, Precedence.NONE)  # PLUS
-    ParseRule (null, null, null, Precedence.NONE)  # PLUS_EQUALS
-    ParseRule (null, null, null, Precedence.NONE)  # QMARK
-    ParseRule (null, null, null, Precedence.NONE)  # SEMICOLON
-    ParseRule (null, null, null, Precedence.NONE)  # SLASH
-    ParseRule (null, null, null, Precedence.NONE)  # SLASH_EQUALS
-    ParseRule (null, null, null, Precedence.NONE)  # STAR
-    ParseRule (null, null, null, Precedence.NONE)  # STAR_EQUALS
-    ParseRule (null, null, null, Precedence.NONE)  # TILDE
-    ParseRule (null, null, null, Precedence.NONE)  # TILDE_EQUALS
-    ParseRule (null, null, null, Precedence.NONE)  # VBAR
-    ParseRule (null, null, null, Precedence.NONE)  # VBAR_EQUALS
+    ParseRule (null, null, Precedence.NONE)  # AMPERSAND
+    ParseRule (null, null, Precedence.NONE)  # AMPERSAND_EQUALS
+    ParseRule (null, null, Precedence.NONE)  # AT
+    ParseRule (null, null, Precedence.NONE)  # BANG
+    ParseRule (null, null, Precedence.NONE)  # BANG_EQUALS
+    ParseRule (null, null, Precedence.NONE)  # CARET
+    ParseRule (null, null, Precedence.NONE)  # COLON
+    ParseRule (null, null, Precedence.NONE)  # COLON_EQUALS
+    ParseRule (null, null, Precedence.NONE)  # COMMA
+    ParseRule (null, null, Precedence.NONE)  # DOLLAR
+    ParseRule (null, null, Precedence.NONE)  # DOT
+    ParseRule (null, null, Precedence.NONE)  # DOT_DOT
+    ParseRule (null, null, Precedence.NONE)  # DOT_DOT_BANG
+    ParseRule (null, null, Precedence.NONE)  # EQUALS
+    ParseRule (null, null, Precedence.NONE)  # EQUALS_EQUALS
+    ParseRule (null, null, Precedence.NONE)  # GREATER
+    ParseRule (null, null, Precedence.NONE)  # GREATER_EQUALS
+    ParseRule (null, null, Precedence.NONE)  # GREATER_GREATER
+    ParseRule (null, null, Precedence.NONE)  # GREATER_GREATER_EQUALS
+    ParseRule (null, null, Precedence.NONE)  # LESS
+    ParseRule (null, null, Precedence.NONE)  # LESS_EQUALS
+    ParseRule (null, null, Precedence.NONE)  # LESS_LESS
+    ParseRule (null, null, Precedence.NONE)  # LESS_LESS_EQUALS
+    ParseRule (null, null, Precedence.NONE)  # MINUS
+    ParseRule (null, null, Precedence.NONE)  # MINUS_EQUALS
+    ParseRule (null, null, Precedence.NONE)  # PERCENT
+    ParseRule (null, null, Precedence.NONE)  # PERCENT_EQUALS
+    ParseRule (null, null, Precedence.NONE)  # PLUS
+    ParseRule (null, null, Precedence.NONE)  # PLUS_EQUALS
+    ParseRule (null, null, Precedence.NONE)  # QMARK
+    ParseRule (null, null, Precedence.NONE)  # SEMICOLON
+    ParseRule (null, null, Precedence.NONE)  # SLASH
+    ParseRule (null, null, Precedence.NONE)  # SLASH_EQUALS
+    ParseRule (null, null, Precedence.NONE)  # STAR
+    ParseRule (null, null, Precedence.NONE)  # STAR_EQUALS
+    ParseRule (null, null, Precedence.NONE)  # TILDE
+    ParseRule (null, null, Precedence.NONE)  # TILDE_EQUALS
+    ParseRule (null, null, Precedence.NONE)  # VBAR
+    ParseRule (null, null, Precedence.NONE)  # VBAR_EQUALS
     # Identifier.
-    ParseRule (null, null, null, Precedence.NONE)  # IDENTIFIER
+    ParseRule (null, null, Precedence.NONE)  # IDENTIFIER
     # Keywords.
-    ParseRule (null, null, null, Precedence.NONE)  # KW_AND
-    ParseRule (null, null, null, Precedence.NONE)  # KW_AS
-    ParseRule (null, null, null, Precedence.NONE)  # KW_BOOL
-    ParseRule (null, null, null, Precedence.NONE)  # KW_C_STRING
-    ParseRule (null, null, null, Precedence.NONE)  # KW_COMPLEX32_32
-    ParseRule (null, null, null, Precedence.NONE)  # KW_COMPLEX64_64
-    ParseRule (null, null, null, Precedence.NONE)  # KW_CONST
-    ParseRule (null, null, null, Precedence.NONE)  # KW_ELSE
-    ParseRule (null, null, null, Precedence.NONE)  # KW_ENUM
-    ParseRule (null, null, null, Precedence.NONE)  # KW_EXTERNAL
-    ParseRule (null, null, null, Precedence.NONE)  # KW_F32
-    ParseRule (null, null, null, Precedence.NONE)  # KW_F64
-    ParseRule (null, null, null, Precedence.NONE)  # KW_FALSE
-    ParseRule (null, null, null, Precedence.NONE)  # KW_FOR
-    ParseRule (null, null, null, Precedence.NONE)  # KW_FUNC
-    ParseRule (null, null, null, Precedence.NONE)  # KW_I8
-    ParseRule (null, null, null, Precedence.NONE)  # KW_I16
-    ParseRule (null, null, null, Precedence.NONE)  # KW_I32
-    ParseRule (null, null, null, Precedence.NONE)  # KW_I64
-    ParseRule (null, null, null, Precedence.NONE)  # KW_IF
-    ParseRule (null, null, null, Precedence.NONE)  # KW_INT
-    ParseRule (null, null, null, Precedence.NONE)  # KW_LOOP
-    ParseRule (null, null, null, Precedence.NONE)  # KW_MODULE
-    ParseRule (null, null, null, Precedence.NONE)  # KW_MUT
-    ParseRule (null, null, null, Precedence.NONE)  # KW_NULL
-    ParseRule (null, null, null, Precedence.NONE)  # KW_OR
-    ParseRule (null, null, null, Precedence.NONE)  # KW_OUT
-    ParseRule (null, null, null, Precedence.NONE)  # KW_PACKAGE
-    ParseRule (null, null, null, Precedence.NONE)  # KW_RECORD
-    ParseRule (null, null, null, Precedence.NONE)  # KW_RETURN
-    ParseRule (null, null, null, Precedence.NONE)  # KW_STRING
-    ParseRule (null, null, null, Precedence.NONE)  # KW_THEN
-    ParseRule (null, null, null, Precedence.NONE)  # KW_TO
-    ParseRule (null, null, null, Precedence.NONE)  # KW_TRUE
-    ParseRule (null, null, null, Precedence.NONE)  # KW_TYPE
-    ParseRule (null, null, null, Precedence.NONE)  # KW_U8
-    ParseRule (null, null, null, Precedence.NONE)  # KW_U16
-    ParseRule (null, null, null, Precedence.NONE)  # KW_U32
-    ParseRule (null, null, null, Precedence.NONE)  # KW_U64
-    ParseRule (null, null, null, Precedence.NONE)  # KW_UINT
-    ParseRule (null, null, null, Precedence.NONE)  # KW_UNINIT
-    ParseRule (null, null, null, Precedence.NONE)  # KW_UNION
-    ParseRule (null, null, null, Precedence.NONE)  # KW_VAL
-    ParseRule (null, null, null, Precedence.NONE)  # KW_VAR
-    ParseRule (null, null, null, Precedence.NONE)  # KW_VARIANT
-    ParseRule (null, null, null, Precedence.NONE)  # KW_WHEN
-    ParseRule (null, null, null, Precedence.NONE)  # KW_WHILE
+    ParseRule (null, null, Precedence.NONE)  # KW_AND
+    ParseRule (null, null, Precedence.NONE)  # KW_AS
+    ParseRule (null, null, Precedence.NONE)  # KW_BOOL
+    ParseRule (null, null, Precedence.NONE)  # KW_BITMAP
+    ParseRule (null, null, Precedence.NONE)  # KW_C_STRING
+    ParseRule (null, null, Precedence.NONE)  # KW_COMPLEX32_32
+    ParseRule (null, null, Precedence.NONE)  # KW_COMPLEX64_64
+    ParseRule (null, null, Precedence.NONE)  # KW_CONST
+    ParseRule (null, null, Precedence.NONE)  # KW_ELSE
+    ParseRule (null, null, Precedence.NONE)  # KW_ENUM
+    ParseRule (null, null, Precedence.NONE)  # KW_EXTERNAL
+    ParseRule (null, null, Precedence.NONE)  # KW_F32
+    ParseRule (null, null, Precedence.NONE)  # KW_F64
+    ParseRule (null, null, Precedence.NONE)  # KW_FALSE
+    ParseRule (null, null, Precedence.NONE)  # KW_FOR
+    ParseRule (null, null, Precedence.NONE)  # KW_FUNC
+    ParseRule (null, null, Precedence.NONE)  # KW_I8
+    ParseRule (null, null, Precedence.NONE)  # KW_I16
+    ParseRule (null, null, Precedence.NONE)  # KW_I32
+    ParseRule (null, null, Precedence.NONE)  # KW_I64
+    ParseRule (null, null, Precedence.NONE)  # KW_IF
+    ParseRule (null, null, Precedence.NONE)  # KW_INT
+    ParseRule (null, null, Precedence.NONE)  # KW_LOOP
+    ParseRule (null, null, Precedence.NONE)  # KW_MODULE
+    ParseRule (null, null, Precedence.NONE)  # KW_MUT
+    ParseRule (null, null, Precedence.NONE)  # KW_NULL
+    ParseRule (null, null, Precedence.NONE)  # KW_OR
+    ParseRule (null, null, Precedence.NONE)  # KW_OUT
+    ParseRule (null, null, Precedence.NONE)  # KW_PACKAGE
+    ParseRule (null, null, Precedence.NONE)  # KW_RECORD
+    ParseRule (null, null, Precedence.NONE)  # KW_RETURN
+    ParseRule (null, null, Precedence.NONE)  # KW_STRING
+    ParseRule (null, null, Precedence.NONE)  # KW_THEN
+    ParseRule (null, null, Precedence.NONE)  # KW_TO
+    ParseRule (null, null, Precedence.NONE)  # KW_TRUE
+    ParseRule (null, null, Precedence.NONE)  # KW_TYPE
+    ParseRule (null, null, Precedence.NONE)  # KW_U8
+    ParseRule (null, null, Precedence.NONE)  # KW_U16
+    ParseRule (null, null, Precedence.NONE)  # KW_U32
+    ParseRule (null, null, Precedence.NONE)  # KW_U64
+    ParseRule (null, null, Precedence.NONE)  # KW_UINT
+    ParseRule (null, null, Precedence.NONE)  # KW_UNINIT
+    ParseRule (null, null, Precedence.NONE)  # KW_UNION
+    ParseRule (null, null, Precedence.NONE)  # KW_VAL
+    ParseRule (null, null, Precedence.NONE)  # KW_VAR
+    ParseRule (null, null, Precedence.NONE)  # KW_VARIANT
+    ParseRule (null, null, Precedence.NONE)  # KW_WHEN
+    ParseRule (null, null, Precedence.NONE)  # KW_WHILE
 )
