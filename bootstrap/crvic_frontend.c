@@ -1630,7 +1630,6 @@ static TypeID resolve_type(struct ast_type *type) {
         resolved_type = resolve_union(type);
         break;
     }
-    UNREACHABLE();
     return resolved_type;
 }
 
