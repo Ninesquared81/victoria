@@ -2415,7 +2415,7 @@ static void type_check_decl(struct ast_decl *decl) {
         }
         return;
     case AST_DECL_TYPE_DEFN:
-        /* No type checking. */
+        resolve_type(decl->type_defn.type);
         return;
     case AST_DECL_PACKAGE:
         // This is a syntax error, but we only catch it after parsing.
