@@ -728,10 +728,10 @@ char lxl_lexer__advance(struct lxl_lexer *lexer) {
 bool lxl_lexer__advance_by(struct lxl_lexer *lexer, size_t n) {
     while (n-- > 0) {
         if (lxl_lexer__is_at_end(lexer)) return false;
-        ++lexer->current;
         if (*lexer->current == '\n') {
             ++lexer->pos.line;
         }
+        ++lexer->current;
     }
     lxl_lexer__recalc_column(lexer);
     return true;
