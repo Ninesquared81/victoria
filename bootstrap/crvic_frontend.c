@@ -1573,7 +1573,15 @@ static TypeID resolve_alias(struct lxl_string_view name, struct ast_type *type) 
                    "Symbol '"LXL_SV_FMT_SPEC"' is not a type alias", LXL_SV_FMT_ARG(name));
         return TYPE_NO_TYPE;
     }
-    return (type->resolved_type = resolve_type(symbol->type_alias.type));
+    TypeID resolved_type = symbol->type_alias.type->resolved_type;
+    if (resolved_type) return resolved_type;
+    struct type_info unresolved_info =  {
+        .kind = KIND_UNRESOLVED,
+        .unresolved = {
+            .type = symbol->type_alias.type}};
+    resolved_type = get_or_add_type(unresolved_info);
+    assert(resolved_type);
+    return resolved_type;
 }
 
 static TypeID resolve_type(struct ast_type *type) {
