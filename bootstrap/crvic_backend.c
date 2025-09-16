@@ -565,6 +565,7 @@ const char *crvic_get_c_type(TypeID type, enum unit_context ctx) {
         return crvic_get_c_type(info->enum_.underlying_type, ctx);
     case KIND_POINTER:
         return crvic_get_c_pointer(*info);
+    case KIND_UNRESOLVED:
     case KIND_NO_KIND:
     case KIND_PRIMITIVE:
         UNREACHABLE();
@@ -609,6 +610,7 @@ const char *crvic_get_c_zero_value(TypeID type) {
         /* Unreachable.*/
     case KIND_FUNCTION:
         // You cannot create a variable with function type.
+    case KIND_UNRESOLVED:
     case KIND_NO_KIND:
         UNREACHABLE();
     }

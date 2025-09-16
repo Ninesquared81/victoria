@@ -91,6 +91,10 @@ void init_type(struct type_info *info) {
         info->size = calculate_union_size(info->union_);
         info->repr = make_union_repr(info->union_);
         break;
+    case KIND_UNRESOLVED:
+        info->size = 0;
+        info->repr = LXL_SV_FROM_STRLIT("<Unresolved type>");
+        break;
     case KIND_PRIMITIVE:
     case KIND_NO_KIND:
         UNREACHABLE();
@@ -101,6 +105,7 @@ bool types_equal(struct type_info *a, struct type_info *b) {
     if (!a || !b)           return false;
     if (a->kind != b->kind) return false;
     switch (a->kind) {
+    case KIND_UNRESOLVED:
     case KIND_NO_KIND:      return false; // ???
     case KIND_PRIMITIVE:    return a->id == b->id;
     case KIND_ENUM:         return enum_types_equal(&a->enum_, &b->enum_);

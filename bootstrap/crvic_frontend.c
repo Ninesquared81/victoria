@@ -1560,33 +1560,42 @@ static TypeID resolve_slice(struct ast_type *type) {
     return type->resolved_type;
 }
 
+static TypeID resolve_alias(struct lxl_string_view name, struct ast_type *type) {
+    assert(type->kind == AST_TYPE_ALIAS || type->kind == AST_TYPE_MODULE_ALIAS);
+    struct symbol *symbol = lookup_symbol(symbols, st_key_of(name));
+    if (!symbol) {
+        name_error(type->anchor,
+                   "Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(name));
+        return TYPE_NO_TYPE;
+    }
+    if (symbol->kind != SYMBOL_TYPE_ALIAS) {
+        name_error(type->anchor,
+                   "Symbol '"LXL_SV_FMT_SPEC"' is not a type alias", LXL_SV_FMT_ARG(name));
+        return TYPE_NO_TYPE;
+    }
+    return (type->resolved_type = resolve_type(symbol->type_alias.type));
+}
+
 static TypeID resolve_type(struct ast_type *type) {
     assert(type);
     if (type->resolved_type) return type->resolved_type;
+    TypeID resolved_type = TYPE_NO_TYPE;
     switch (type->kind) {
     case AST_TYPE_PRIMITIVE:
         UNREACHABLE();  // Should have been caught above.
         break;
-    case AST_TYPE_ALIAS: {
-        struct symbol *symbol = lookup_symbol(symbols, st_key_of(type->alias.name));
-        if (!symbol) {
-            name_error(type->anchor,
-                       "Unknown symbol '"LXL_SV_FMT_SPEC"'", LXL_SV_FMT_ARG(type->alias.name));
-            return TYPE_NO_TYPE;
-        }
-        if (symbol->kind != SYMBOL_TYPE_ALIAS) {
-            name_error(type->anchor,
-                       "Symbol '"LXL_SV_FMT_SPEC"' is not a type alias", LXL_SV_FMT_ARG(type->alias.name));
-            return TYPE_NO_TYPE;
-        }
-        return (type->resolved_type = resolve_type(symbol->type_alias.type));
-    }
+    case AST_TYPE_ALIAS:
+        resolved_type = resolve_alias(type->alias.name, type);
+        break;
     case AST_TYPE_ARRAY:
-        return resolve_array(type);
+        resolved_type = resolve_array(type);
+        break;
     case AST_TYPE_ENUM:
-        return resolve_enum(type);
+        resolved_type = resolve_enum(type);
+        break;
     case AST_TYPE_FUNCTION:
-        return resolve_function(type);
+        resolved_type = resolve_function(type);
+        break;
     case AST_TYPE_MODULE_ALIAS: {
         struct module *module = find_module(&package, type->module_alias.module_name);
         type->module_alias.module = module;
@@ -1597,35 +1606,24 @@ static TypeID resolve_type(struct ast_type *type) {
             return TYPE_NO_TYPE;
         }
         struct symbol_table *old_symbols = enter_function(module->globals);
-        struct symbol *symbol = lookup_symbol(symbols, st_key_of(type->module_alias.alias_name));
-        if (!symbol) {
-            name_error(type->anchor,
-                       "Unknown symbol '"LXL_SV_FMT_SPEC"' in module '"LXL_SV_FMT_SPEC"'",
-                       LXL_SV_FMT_ARG(type->module_alias.alias_name),
-                       LXL_SV_FMT_ARG(type->module_alias.module_name));
-            return TYPE_NO_TYPE;
-        }
-        if (symbol->kind != SYMBOL_TYPE_ALIAS) {
-            name_error(type->anchor,
-                       "Symbol '"LXL_SV_FMT_SPEC"' is not a type alias",
-                       LXL_SV_FMT_ARG(type->module_alias.alias_name));
-            return TYPE_NO_TYPE;
-        }
-        type->resolved_type = resolve_type(symbol->type_alias.type);
+        resolved_type = resolve_alias(type->module_alias.alias_name, type);
         leave_function(old_symbols);
-        return type->resolved_type;
-    }
+    } break;
     case AST_TYPE_POINTER:
-        return resolve_pointer(type);
+        resolved_type = resolve_pointer(type);
+        break;
     case AST_TYPE_RECORD:
-        return resolve_record(type);
+        resolved_type = resolve_record(type);
+        break;
     case AST_TYPE_SLICE:
-        return resolve_slice(type);
+        resolved_type = resolve_slice(type);
+        break;
     case AST_TYPE_UNION:
-        return resolve_union(type);
+        resolved_type = resolve_union(type);
+        break;
     }
     UNREACHABLE();
-    return TYPE_NO_TYPE;
+    return resolved_type;
 }
 
 static bool expect_integer_type(struct ast_expr *expr) {
@@ -1935,6 +1933,9 @@ static TypeID type_check_expr(struct ast_expr *expr) {
             case KIND_POINTER:
                 type_error(expr->anchor,
                            "Invalid operand type for 'count_of()': '"LXL_SV_FMT_SPEC"'", info->repr);
+                break;
+            case KIND_UNRESOLVED:
+                TODO("count_of(<Unresolved type>)");
                 break;
             }
             if (known_count >= 0) {

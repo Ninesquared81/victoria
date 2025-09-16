@@ -102,6 +102,7 @@ enum kind {
     KIND_FUNCTION,              // Function type, func f(p1: P1, p2: P2) -> R.
     KIND_SLICE,                 // Slice type (ptr + len), []T.
     KIND_UNION,                 // Untagged union type.
+    KIND_UNRESOLVED,            // Unresolved type (to be resolved in a second pass).
 };
 
 struct enum_field {
@@ -173,6 +174,9 @@ struct type_info {
         struct union_info {
             struct type_decl_list fields;
         } union_;
+        struct unresolved_info {
+            struct ast_type *type;
+        } unresolved;
     };
 };
 
