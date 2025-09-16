@@ -170,19 +170,19 @@ static void report_location(struct lxl_token token) {
     fprintf(stderr, "%s:%d:%d: ", filename, token.loc.line, token.loc.column);
 }
 
-static void print_line_with_token(struct lxl_token token) {
-    const char *start = token.start;
-    while (start >= parser.lexer->start && start[-1] != '\n') {
-        --start;
-    }
-    const char *end = token.start;
-    while (end < parser.lexer->end && end[0] != '\n') {
-        ++end;
-    }
-    assert(start < end);
-    struct lxl_string_view line = lxl_sv_from_startend(start, end);
-    fprintf(stderr, ""LXL_SV_FMT_SPEC"\n", LXL_SV_FMT_ARG(line));
-}
+/* static void print_line_with_token(struct lxl_token token) { */
+/*     const char *start = token.start; */
+/*     while (start >= parser.source.start && start[-1] != '\n') { */
+/*         --start; */
+/*     } */
+/*     const char *end = token.start; */
+/*     while (end < LXL_SV_END(parser.source) && end[0] != '\n') { */
+/*         ++end; */
+/*     } */
+/*     assert(start < end); */
+/*     struct lxl_string_view line = lxl_sv_from_startend(start, end); */
+/*     fprintf(stderr, ""LXL_SV_FMT_SPEC"\n", LXL_SV_FMT_ARG(line)); */
+/* } */
 
 static void error_at_token_vargs(struct lxl_token token, const char *restrict error_kind,
                                  const char *restrict fmt, va_list vargs) {
@@ -192,8 +192,8 @@ static void error_at_token_vargs(struct lxl_token token, const char *restrict er
             error_kind, LXL_SV_FMT_ARG(token_value));
     vfprintf(stderr, fmt, vargs);
     fprintf(stderr, ".\n");
-    fprintf(stderr, "On this line:\n");
-    print_line_with_token(token);
+    // fprintf(stderr, "On this line:\n");
+    // print_line_with_token(token);
 }
 
 static void parse_error_vargs(struct lxl_token token, const char *restrict fmt, va_list vargs) {
