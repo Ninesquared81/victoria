@@ -195,6 +195,7 @@ bool array_types_equal(struct array_info *a, struct array_info *b);
 bool function_types_equal(struct function_info *a, struct function_info *b);
 bool slice_types_equal(struct slice_info *a, struct slice_info *b);
 bool union_types_equal(struct union_info *a, struct union_info *b);
+bool unresolved_types_equal(struct unresolved_info *a, struct unresolved_info *b);
 
 struct lxl_string_view make_record_repr(struct record_info info);
 struct lxl_string_view make_enum_repr(struct enum_info info);

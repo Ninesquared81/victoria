@@ -105,7 +105,6 @@ bool types_equal(struct type_info *a, struct type_info *b) {
     if (!a || !b)           return false;
     if (a->kind != b->kind) return false;
     switch (a->kind) {
-    case KIND_UNRESOLVED:
     case KIND_NO_KIND:      return false; // ???
     case KIND_PRIMITIVE:    return a->id == b->id;
     case KIND_ENUM:         return enum_types_equal(&a->enum_, &b->enum_);
@@ -115,6 +114,7 @@ bool types_equal(struct type_info *a, struct type_info *b) {
     case KIND_FUNCTION:     return function_types_equal(&a->function, &b->function);
     case KIND_SLICE:        return slice_types_equal(&a->slice, &b->slice);
     case KIND_UNION:        return union_types_equal(&a->union_, &b->union_);
+    case KIND_UNRESOLVED:   return unresolved_types_equal(&a->unresolved, &b->unresolved);
     }
 }
 
@@ -145,6 +145,10 @@ bool slice_types_equal(struct slice_info *a, struct slice_info *b) {
 
 bool union_types_equal(struct union_info *a, struct union_info *b) {
     return DA_EQ(&a->fields, &b->fields);
+}
+
+bool unresolved_types_equal(struct unresolved_info *a, struct unresolved_info *b) {
+    return a->type == b->type;  // Pointer comparison.
 }
 
 struct lxl_string_view make_record_repr(struct record_info info) {
