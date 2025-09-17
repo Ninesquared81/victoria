@@ -23,8 +23,8 @@ type Parser := record {
     file: string,
 }
 
-func error_at_token(file: string, token: Token, error_kind: string, msg: string) {
-    val token_value = .lexel.lxl_token_value(token)
+func error_at_token(file: string, token: .token.Token, error_kind: string, msg: string) {
+    val token_value := .lexel.lxl_token_value(token)
     .helper.eprintf("%.*s:%d:%d: %.*s error at '%.*s'",
                     file to c_string, count_of(file) to .c.int_,
                     token.loc.line,
