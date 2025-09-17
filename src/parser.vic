@@ -72,25 +72,25 @@ func match(parser: ^Parser, token_type: TokenType) -> bool {
 
 func parse(source: string, file: string) -> .ast.List {
     var parser: Parser  # Zero initialise.
-    parser.lexer = .lexer.get_lexer(source)
-    parser.file = file
+    parser.lexer := .lexer.get_lexer(source)
+    parser.file := file
 }
 
 func parse_precedence(parser: ^Parser, prec: Precedence) -> ^.ast.Expr {
     advance(parser)
-    val parse_prefix = rules[parser^.previous.token_type]
+    val parse_prefix := rules[parser^.previous.token_type]
     if !parse_prefix {
         syntax_error_previous(parser, "Expect expression before '{token}'")
         return .ast.error_expr()
     }
     var expr := parse_prefix^(parser)
-    var rule = rules[parser^.current.token_type]
+    var rule := rules[parser^.current.token_type]
     while prec <= rule.prec {
         advance(parser)
-        val parse_suffix = rule.suffix
+        val parse_suffix := rule.suffix
         .helper.assert(parse_suffix, "Non-zero precedence with null parse function")
-        expr = parse_suffix^(parser, expr)
-        rule = rules[parser^.current.token_type]
+        expr := parse_suffix^(parser, expr)
+        rule := rules[parser^.current.token_type]
     }
     return expr
 }
