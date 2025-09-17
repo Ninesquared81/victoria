@@ -1640,6 +1640,24 @@ static TypeID resolve_type(struct ast_type *type) {
     return resolved_type;
 }
 
+static void resolve_decl(struct ast_decl *decl) {
+    TODO("resolve decls");
+}
+
+static void resolve_module(struct module *module) {
+    FOR_DLLIST (struct ast_node *, node, &module->nodes) {
+        assert(node->kind == AST_DECL && "Only decls are allowed at the module top level");
+        resolve_decl(node->decl);
+    }
+}
+
+bool resolve(void) {
+    FOR_DLLIST (struct module *, module, &package.modules) {
+        resolve_module(module);
+    }
+    return !resolver.had_error;
+}
+
 static bool expect_integer_type(struct ast_expr *expr) {
     if (is_integer_type(expr->type)) return true;
     struct lxl_string_view actual_type_sv = get_type_sv(expr->type);

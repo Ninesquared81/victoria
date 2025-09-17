@@ -129,6 +129,9 @@ void print_tokens(FILE *f);
 // Parser.
 bool parse(void);   // NOTE: call `init_parser()` first!
 
+// Resolver.
+bool resolve(void);
+
 // Type Checker.
 bool type_check(void);
 
