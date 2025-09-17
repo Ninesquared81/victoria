@@ -35,6 +35,13 @@ struct parser {
     enum func_link_kind current_func_kind;
 };
 
+// TODO: create a separate reolution phase.
+// This is currently done as part of the type cheking phase, but this is a very brittle
+// and limiting approach. We NEED to do better.
+struct resolver {
+    bool had_error;
+};
+
 struct type_checker {
     bool had_error;
 };
