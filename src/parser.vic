@@ -7,7 +7,7 @@ type ParseRule := record {
 }
 
 type PrefixParser := func (parser: ^Parser) -> ^.ast.Expr
-type SuffixParser := func (parser: ^Parser, left: ^.ast.expr) -> ^.ast.Expr
+type SuffixParser := func (parser: ^Parser, left: ^.ast.Expr) -> ^.ast.Expr
 
 type Precedence := enum {
     NONE,
