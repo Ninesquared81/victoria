@@ -1641,11 +1641,32 @@ static TypeID resolve_type(struct ast_type *type) {
 }
 
 static void resolve_decl(struct ast_decl *decl) {
-    TODO("resolve decls");
+    switch (decl->kind) {
+    case AST_DECL_VAR: {
+        // Name resolution only (include type aliases).
+    } break;
+    }
 }
 
 static void resolve_module(struct module *module) {
-    FOR_DLLIST (struct ast_node *, node, &module->nodes) {
+    enter_function(module->globals);
+    if (module->decls.count == 0) return;
+    struct ast_list rest = module->decls;
+    struct ast_node *first = module->decls.head;
+    assert(first);
+    if (first->kind == AST_DECL && first->decl.kind == AST_DECL_PACKAGE) {
+        if (!check_or_add_package(first->decl.package.name)) {
+            parse_error(first->decl.anchor,
+                        "At most one package is allowed; compiling '"LXL_SV_FMT_SPEC"'"
+                        " but found declaration for package '"LXL_SV_FMT_SPEC"'",
+                        LXL_SV_FMT_ARG(package.name), LXL_SV_FMT_ARG(first->decl.package.name));
+        }
+        rest = (struct ast_list) {
+            .head = module->decls.head->next,
+            .tail = module->decls.tail,
+            .count = module->decls.count - 1};
+    }
+    FOR_DLLIST (struct ast_node *, node, &rest) {
         assert(node->kind == AST_DECL && "Only decls are allowed at the module top level");
         resolve_decl(node->decl);
     }
@@ -2512,23 +2533,7 @@ static void type_check_stmt(struct ast_stmt *stmt, TypeID ret_type) {
 
 static void type_check_module(struct module *module) {
     enter_function(module->globals);
-    if (module->decls.count == 0) return;
-    struct ast_list rest = module->decls;
-    struct ast_node *first = module->decls.head;
-    assert(first);
-    if (first->kind == AST_DECL && first->decl.kind == AST_DECL_PACKAGE) {
-        if (!check_or_add_package(first->decl.package.name)) {
-            parse_error(first->decl.anchor,
-                        "At most one package is allowed; compiling '"LXL_SV_FMT_SPEC"'"
-                        " but found declaration for package '"LXL_SV_FMT_SPEC"'",
-                        LXL_SV_FMT_ARG(package.name), LXL_SV_FMT_ARG(first->decl.package.name));
-        }
-        rest = (struct ast_list) {
-            .head = module->decls.head->next,
-            .tail = module->decls.tail,
-            .count = module->decls.count - 1};
-    }
-    FOR_DLLIST (struct ast_node *, node, &rest) {
+    FOR_DLLIST (struct ast_node *, node, &module->decls) {
         switch (node->kind) {
         case AST_EXPR:
         case AST_TYPE:
